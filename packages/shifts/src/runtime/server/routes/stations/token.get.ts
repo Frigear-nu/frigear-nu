@@ -4,7 +4,7 @@ import type { ShiftStationTokenDto, Translated } from '../../../../types'
 
 // The current QR code of a check-in station, for its full-screen display: a lead of the station's team, or staff. The
 // token changes every 30 seconds; the page fetches a new one at `refreshAt`. 501 `not_configured` without a station key
-// (`NUXT_SHIFTS_STATION_KEY`).
+// (`NUXT_SHIFTS_STATION_KEY`, else derived from `NUXT_APP_SECRET`).
 export default defineEventHandler(async (event): Promise<ShiftStationTokenDto> => {
   await authorize(event, shiftsAccess.permissions.lead)
   shiftsRequireStationKey(event)

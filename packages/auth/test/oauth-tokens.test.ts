@@ -28,7 +28,8 @@ describe('kept OAuth tokens (database)', async () => {
   await rm(dataDir, { recursive: true, force: true })
   afterAll(() => rm(dataDir, { recursive: true, force: true }))
   process.env.NUXT_OAUTH_OIDC_OPENID_CONFIG = `http://127.0.0.1:${port}/api/test/idp/openid-configuration`
-  // Only from the environment: the token key falls back to it through the `session.password` key auth declares.
+  // Only from the environment: the legacy token key fallback, through the `session.password` key auth declares (the
+  // `NUXT_APP_SECRET` fallback is covered by `test/unit/oauth-tokens-key.test.ts`).
   process.env.NUXT_SESSION_PASSWORD = 'a-test-only-session-password-at-least-32-chars'
   // The fake frigear.nu of the browser handoff (a public client: `frigear.sso.clientId` only).
   process.env.NUXT_FRIGEAR_SSO_URL = `http://127.0.0.1:${port}/api/test/issuer`

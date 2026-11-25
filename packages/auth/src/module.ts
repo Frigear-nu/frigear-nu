@@ -140,7 +140,8 @@ declare module 'nuxt/schema' {
       // Throttling of the sign-in routes (`settings.rateLimit`); `enabled` is false under `nuxt dev`.
       rateLimit: { enabled: boolean, windowSeconds: number, login: number, loginIp: number, requests: number, ipHeader: string, xForwardedFor: boolean }
     }
-    // Encrypts kept OAuth tokens (`NUXT_AUTH_TOKENS_KEY`); falls back to a key derived from the session password.
+    // Encrypts kept OAuth tokens (`NUXT_AUTH_TOKENS_KEY`); else `NUXT_SESSION_PASSWORD` when set (the old fallback), else
+    // a key derived from `NUXT_APP_SECRET`.
     authTokensKey?: string
     // Set by the host (e.g. from the CI preview marker). Enables "Log in with frigear.nu" without `frigear.sso`.
     previewDeployment?: boolean
@@ -461,7 +462,8 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   const sessionConfig = withSession.session ??= {}
   sessionConfig.maxAge ??= settings.session?.maxAge === false ? 0 : (settings.session?.maxAge ?? DEFAULT_SESSION_MAX_AGE)
   // nuxt-auth-utils 0.6 seals sessions with `appSecret` and no longer declares `session.password`. Kept OAuth tokens
-  // still fall back to it, and Nuxt only lets `NUXT_SESSION_PASSWORD` override a key declared at build time.
+  // still try it before the key derived from `NUXT_APP_SECRET` (rows sealed with it stay readable), and Nuxt only lets
+  // `NUXT_SESSION_PASSWORD` override a key declared at build time.
   sessionConfig.password ??= ''
 
   const magicLinkSettings = typeof settings.magicLink === 'object' ? settings.magicLink : {}

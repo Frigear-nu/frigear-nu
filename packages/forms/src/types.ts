@@ -189,8 +189,9 @@ export type ModuleOptions = {
     defaultProvider?: CaptchaProvider
   }
   /**
-   * Key that encrypts per-form secrets in the database (env `NUXT_FORMS_ENCRYPTION_KEY`). Falls back to
-   * `NUXT_ENCRYPTION_KEY`, then to the session password. Changing it makes stored secrets unreadable.
+   * Key that encrypts per-form secrets in the database (env `NUXT_FORMS_ENCRYPTION_KEY`). Falls back to the
+   * deprecated `NUXT_ENCRYPTION_KEY` and `NUXT_SESSION_PASSWORD` (kept so existing data stays readable), then to a key
+   * derived from `NUXT_APP_SECRET`. Changing the key in use makes stored secrets unreadable.
    */
   encryptionKey?: string
 }

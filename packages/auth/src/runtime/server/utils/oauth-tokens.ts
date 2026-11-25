@@ -2,6 +2,7 @@ import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, eq } from 'drizzle-orm'
 import { base64UrlToBytes, bytesToBase64Url, deriveHkdfKey } from '@frigear-nu/module-kit/crypto'
+import { resolveSecret } from '@frigear-nu/module-kit/secret'
 import { loadOAuthOpenIdConfiguration, resolveFrigearSso } from './frigear-sso'
 
 /** A provider's tokens kept for a user (`keepTokens`), decrypted. */
@@ -33,10 +34,12 @@ export function deriveOAuthTokensKey(secret: string): Promise<CryptoKey> {
   return key
 }
 
-function oauthTokensKey() {
+// `NUXT_AUTH_TOKENS_KEY`, else `NUXT_SESSION_PASSWORD` (the old fallback, so rows sealed with it stay
+// readable), else a key derived from `NUXT_APP_SECRET`.
+async function oauthTokensKey() {
   const config = useRuntimeConfig()
-  const secret = config.authTokensKey || (config.session as { password?: string } | undefined)?.password
-  if (!secret) throw new Error('[@frigear-nu/auth] Keeping OAuth tokens needs NUXT_AUTH_TOKENS_KEY (or NUXT_SESSION_PASSWORD).')
+  const secret = await resolveSecret('@frigear-nu/auth:oauth-tokens', config.authTokensKey, (config.session as { password?: unknown } | undefined)?.password)
+  if (!secret) throw new Error('[@frigear-nu/auth] Keeping OAuth tokens needs NUXT_APP_SECRET (32+ characters), or NUXT_AUTH_TOKENS_KEY.')
   return deriveOAuthTokensKey(secret)
 }
 

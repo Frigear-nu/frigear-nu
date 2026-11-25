@@ -5,8 +5,9 @@
 export const SHIFTS_STATION_KEY_MIN_LENGTH = 32
 
 /**
- * Why `value` cannot be the station key, or `undefined` when it can. An empty key is allowed (station check-in is then
- * off); a set key must be at least {@link SHIFTS_STATION_KEY_MIN_LENGTH} characters once trimmed.
+ * Why `value` cannot be the station key, or `undefined` when it can. An empty key is allowed (a key derived from
+ * `NUXT_APP_SECRET` stands in, else station check-in is off); a set key must be at least
+ * {@link SHIFTS_STATION_KEY_MIN_LENGTH} characters once trimmed.
  */
 export function shiftsStationKeyIssue(value: unknown): string | undefined {
   if (value === undefined || value === null) return undefined
@@ -14,7 +15,7 @@ export function shiftsStationKeyIssue(value: unknown): string | undefined {
   const length = value.trim().length
   if (length === 0 || length >= SHIFTS_STATION_KEY_MIN_LENGTH) return undefined
   return `[shifts] NUXT_SHIFTS_STATION_KEY (\`shifts.stationKey\`) is ${length} characters long; it must be at least ${SHIFTS_STATION_KEY_MIN_LENGTH}. `
-    + 'Use a long random value of its own, such as the output of `openssl rand -base64 32`, or leave it empty to turn station check-in off.'
+    + 'Use a long random value of its own, such as the output of `openssl rand -base64 32`, or leave it empty to derive one from NUXT_APP_SECRET.'
 }
 
 /** Throws the {@link shiftsStationKeyIssue} of `value`, if any. */

@@ -266,7 +266,7 @@
         "locationHelp": "Volunteers tap \"I'm here\" and the app sends their position. A determined person can fake it.",
         "station": "Station",
         "stationHelp": "Volunteers scan the rotating QR code of a station of their team.",
-        "stationNeedsKey": "Needs a station key on the server (NUXT_SHIFTS_STATION_KEY)."
+        "stationNeedsKey": "Needs NUXT_APP_SECRET (or NUXT_SHIFTS_STATION_KEY) on the server."
       },
       "modesHint": "Besides a lead scanning the pass.",
       "modesLabel": "Check-in modes",
@@ -279,8 +279,8 @@
       "saved": "Saved the check-in of {name}",
       "scanStation": "Scan the station code",
       "stationKeyMissing": "Station check-in needs a station key",
-      "stationKeyMissingHint": "Set NUXT_SHIFTS_STATION_KEY on the server to use station check-in and station screens. The other modes work without it.",
-      "stationKeyMissingInUse": "Station check-in is on, but the server has no NUXT_SHIFTS_STATION_KEY: volunteers cannot check in by station and station screens do not open. Set the key, or turn the mode off. The other modes work.",
+      "stationKeyMissingHint": "Set NUXT_APP_SECRET (or NUXT_SHIFTS_STATION_KEY) on the server to use station check-in and station screens. The other modes work without it.",
+      "stationKeyMissingInUse": "Station check-in is on, but the server has neither NUXT_APP_SECRET nor NUXT_SHIFTS_STATION_KEY: volunteers cannot check in by station and station screens do not open. Set NUXT_APP_SECRET (or NUXT_SHIFTS_STATION_KEY), or turn the mode off. The other modes work.",
       "stopScanning": "Stop scanning",
       "title": "How volunteers check in"
     },

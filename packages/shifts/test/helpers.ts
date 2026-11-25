@@ -76,6 +76,9 @@ export const runCloseShifts = (now: string, extra: { batchSize?: number } = {}) 
 export const stationToken = (stationId: string, offset = 0) =>
   $fetch<{ token: string }>('/api/test/station-token', { method: 'POST', body: { stationId, offset } })
 
-/** Turns the server's station key off or back on, as if `NUXT_SHIFTS_STATION_KEY` were unset (fixture-only route). */
-export const setStationKey = (configured: boolean) =>
-  $fetch('/api/test/station-key', { method: 'POST', body: { configured } })
+/**
+ * Turns the server's station key off or back on, as if `NUXT_SHIFTS_STATION_KEY` and `NUXT_APP_SECRET` were unset
+ * (fixture-only route); with `appSecret: true` only the station key goes, and the key derived from the app secret signs.
+ */
+export const setStationKey = (configured: boolean, { appSecret = false }: { appSecret?: boolean } = {}) =>
+  $fetch('/api/test/station-key', { method: 'POST', body: { configured, appSecret } })

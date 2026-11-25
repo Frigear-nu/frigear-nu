@@ -96,6 +96,7 @@ Import each helper from the entry that holds it. `useModuleT` is the only auto-i
 | `@frigear-nu/module-kit/crypto` | Hashes, HMAC, HKDF, `timingSafeEqual` and the byte encodings. |
 | `@frigear-nu/module-kit/time` | Wall-clock times in a time zone: `zonedTimeToUtc`, `dayKey`, `clockOf` and the rest. |
 | `@frigear-nu/module-kit/server` | The [server toolkit](/modules/platform/module-kit/server-toolkit) for route handlers. |
+| `@frigear-nu/module-kit/secret` | [Module secrets](/modules/platform/module-kit/server-toolkit#module-secrets) that fall back to a key derived from `NUXT_APP_SECRET`. Server only, inside a Nuxt build. |
 | `@frigear-nu/module-kit/testing` | [Route test helpers](/modules/platform/module-kit/server-toolkit#testing-routes) and [schema parity](/modules/platform/module-kit/database#one-schema-file-per-dialect) checks. |
 
 ### `/schedule`

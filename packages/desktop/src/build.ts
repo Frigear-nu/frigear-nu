@@ -143,15 +143,13 @@ export function handoffReturnUrl(appId: string, schemes: string[]): string | und
 
 /**
  * The secrets the bundled server generates on its first start. `NUXT_APP_SECRET` always: it is Nuxt's root secret
- * (`runtimeConfig.appSecret`), which nuxt-auth-utils seals sessions with and any module may derive its own from
- * (`deriveSecret`). Server auth: `NUXT_AUTH_TOKENS_KEY` (kept OAuth tokens) and, with OAuth Server, its signing key.
- * Resource auth keeps no tokens and signs none.
+ * (`runtimeConfig.appSecret`), which nuxt-auth-utils seals sessions with and modules derive their own keys from
+ * (`deriveSecret`), the key of kept OAuth tokens among them. Server auth with OAuth Server: its signing key, an RSA key
+ * that cannot be derived. Resource auth signs nothing.
  */
 export function localSecretNames(input: { authMode: DesktopAuthMode | null, oauthServer: boolean }): SecretName[] {
   const names: SecretName[] = ['NUXT_APP_SECRET']
-  if (input.authMode === 'resource') return names
-  if (input.authMode) names.push('NUXT_AUTH_TOKENS_KEY')
-  if (input.oauthServer) names.push('NUXT_OAUTH_SERVER_PRIVATE_KEY')
+  if (input.authMode === 'server' && input.oauthServer) names.push('NUXT_OAUTH_SERVER_PRIVATE_KEY')
   return names
 }
 

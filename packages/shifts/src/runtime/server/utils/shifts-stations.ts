@@ -11,7 +11,7 @@ import { STATION_ROTATE_SECONDS, parseStationToken, stationTokenPayload, station
 import { toShiftStationDto } from './shifts-dto'
 import type { ShiftScheduleRow, ShiftStationRow } from './shifts-dto'
 import { shiftsOperationTeamOr400 } from './shifts-core'
-import { shiftsRequireStationKey, shiftsStationSecret } from './shifts-station-key'
+import { shiftsRequireStationKey, shiftsStationKeyMissing, shiftsStationSecret } from './shifts-station-key'
 import type { shiftsStationInput, shiftsStationPatch } from './shifts-schemas'
 
 type StationInput = z.output<typeof shiftsStationInput>
@@ -19,16 +19,18 @@ type StationPatch = z.output<typeof shiftsStationPatch>
 
 // Check-in stations: a screen of a team showing a QR code that rotates every 30 seconds. The code is
 // `<stationId>.<window>.<signature>`, the signature an HMAC-SHA-256 of `<stationId>:<window>` under a key derived (HKDF)
-// from `shifts.stationKey` (`NUXT_SHIFTS_STATION_KEY`). Nothing is stored per token: the window says when it was made,
-// the signature that we made it. Without that key station check-in is off: there is no fallback to another secret.
+// from the station key (`shiftsStationSecret`: `NUXT_SHIFTS_STATION_KEY`, else derived from `NUXT_APP_SECRET`). Nothing
+// is stored per token: the window says when it was made, the signature that we made it. With neither secret station
+// check-in is off.
 
 const encoder = new TextEncoder()
 const stationKeys = new Map<string, Promise<CryptoKey>>()
 
-/** The HMAC key of station tokens: HKDF-SHA-256 of `shifts.stationKey`. 501 `not_configured` when it is empty. */
-function shiftsStationKey(event?: H3Event): Promise<CryptoKey> {
+/** The HMAC key of station tokens: HKDF-SHA-256 of the station secret. 501 `not_configured` when there is none. */
+async function shiftsStationKey(event?: H3Event): Promise<CryptoKey> {
   shiftsRequireStationKey(event)
-  const secret = shiftsStationSecret(event)
+  const secret = await shiftsStationSecret(event)
+  if (!secret) throw shiftsStationKeyMissing()
   let key = stationKeys.get(secret)
   if (!key) {
     key = deriveHkdfKey(secret, { salt: '@frigear-nu/shifts', info: 'shift_station_tokens' }, { name: 'HMAC', hash: 'SHA-256', length: 256 }, ['sign', 'verify'])

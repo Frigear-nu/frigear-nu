@@ -119,7 +119,8 @@ export default defineNuxtModule<ModuleOptions>({
       },
       encryptionKey: options.encryptionKey ?? '',
     }
-    // The fallback encryption key. nuxt-auth-utils 0.6 no longer declares `session.password`, and Nuxt only lets
+    // A deprecated fallback encryption key, kept so secrets encrypted with it stay readable (new apps rely on the key
+    // derived from NUXT_APP_SECRET). nuxt-auth-utils 0.6 no longer declares `session.password`, and Nuxt only lets
     // `NUXT_SESSION_PASSWORD` override a key declared at build time.
     const withSession = nuxt.options.runtimeConfig as { session?: { password?: string } }
     withSession.session ??= {}
