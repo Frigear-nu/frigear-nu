@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/auth",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "description": "Authentication for the frigear ecosystem: server-side sign-in flows (password, magic link, OAuth, passkeys), user API tokens and a shared requireAuth with scopes, or a public PKCE client mode for SPAs, Capacitor and Tauri apps.",
   "homepage": "https://docs.frigear.dev/modules/identity/auth",
   "repository": {
