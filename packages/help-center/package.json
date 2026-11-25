@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/help-center",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Help articles and onboarding checklists for the frigear ecosystem: bilingual articles in categories shown as lists or FAQ accordions, visible per role or public, read tracking, and articles from the database or Nuxt Content.",
   "homepage": "https://docs.frigear.dev/modules/content/help-center",
   "repository": {
