@@ -69,8 +69,9 @@
       },
       "send": "Send mig et login-link",
       "sendAgain": "Send linket igen",
-      "sentTo": "Tjek {email} for et login-link. Det virker én gang og udløber efter 2 timer.",
-      "emailRequired": "Skriv din e-mail ovenfor for at få et login-link."
+      "sentTo": "Hvis der er en konto for {email}, er et login-link på vej. Det virker én gang og udløber efter 2 timer.",
+      "emailRequired": "Skriv din e-mail ovenfor for at få et login-link.",
+      "sentTitle": "Tjek din indbakke"
     },
     "verifyEmail": {
       "title": "Verificer din e-mail",

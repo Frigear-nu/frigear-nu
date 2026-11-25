@@ -69,8 +69,9 @@
       },
       "send": "Email me a sign-in link",
       "sendAgain": "Send the link again",
-      "sentTo": "Check {email} for a sign-in link. It works once and expires after 2 hours.",
-      "emailRequired": "Enter your e-mail above to get a sign-in link."
+      "sentTo": "If there is an account for {email}, a sign-in link is on its way. It works once and expires after 2 hours.",
+      "emailRequired": "Enter your e-mail above to get a sign-in link.",
+      "sentTitle": "Check your inbox"
     },
     "verifyEmail": {
       "title": "Verify your e-mail",

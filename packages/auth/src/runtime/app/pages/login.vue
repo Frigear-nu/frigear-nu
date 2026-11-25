@@ -242,8 +242,8 @@ async function onPasskeyLogin() {
           color="success"
           variant="subtle"
           icon="i-lucide-mail-check"
-          :title="t('email.sent.title', 'E-mail sent!')"
-          :description="t('magicLink.sentTo', 'Check {email} for a sign-in link. It works once and expires after 2 hours.', { email: sentTo })"
+          :title="t('magicLink.sentTitle', 'Check your inbox')"
+          :description="t('magicLink.sentTo', 'If there is an account for {email}, a sign-in link is on its way. It works once and expires after 2 hours.', { email: sentTo })"
           :actions="[{ label: t('magicLink.sendAgain', 'Send the link again'), color: 'success', variant: 'outline', loading: magicLink.pending.value, onClick: () => sendLink(sentTo) }]"
         />
       </template>
