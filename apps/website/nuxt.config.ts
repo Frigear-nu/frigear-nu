@@ -8,6 +8,12 @@ import { contactForm } from './forms/contact'
 const knownSiteUrl = process.env.NUXT_SITE_URL
   || (process.env.DEPLOYMENT_HOST ? `https://${process.env.DEPLOYMENT_HOST}` : undefined)
 
+// The Workers `send_email` binding, named NUXT_NOTIFY_EMAIL_BINDING_NAME (SEND_EMAIL by default), added to the Worker only
+// when CLOUDFLARE_SEND_EMAIL is set at build time. The sender domain must be onboarded to Cloudflare Email Service.
+const sendEmailBinding = process.env.CLOUDFLARE_SEND_EMAIL
+  ? { name: process.env.NUXT_NOTIFY_EMAIL_BINDING_NAME || 'SEND_EMAIL' }
+  : undefined
+
 export default defineNuxtConfig({
   extends: ['@frigear-nu/base'],
   modules: [
@@ -149,6 +155,9 @@ export default defineNuxtConfig({
         // fetch() goes out over the public internet. Without it a subrequest to a workers.dev Worker on this account
         // (a Preview signing in against frigear-nu.frigear.workers.dev) fails with Cloudflare error 1042 (404).
         compatibility_flags: ['global_fetch_strictly_public'],
+        // The Workers `send_email` binding of Notify's `cloudflare-binding` driver (NUXT_NOTIFY_EMAIL_DRIVER, or
+        // NUXT_INBOX_EMAIL_OUTBOUND for inbox replies only), only when CLOUDFLARE_SEND_EMAIL is set at build time.
+        ...(sendEmailBinding && { send_email: [sendEmailBinding] }),
         observability: {
           enabled: true,
           logs: {
@@ -191,6 +200,7 @@ export default defineNuxtConfig({
             NUXT_NOTIFY_EMAIL_FROM: 'PREVIEW frigear.nu <no-reply@frigear.nu>',
             NUXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_test_51StpTcGeoReTs5WFTo0VnGyr3iafzIFbeMWuMvXVkhxmPv1gi6BCfRvaI9UXYlujukeCz6EYSvfu5Sn1OnNv9Muw002tBS0zzO',
           },
+          ...(sendEmailBinding && { send_email: [sendEmailBinding] }),
           ...(process.env.NUXT_HUB_CLOUDFLARE_DATABASE_ID && {
             d1_databases: [{
               binding: 'DB',

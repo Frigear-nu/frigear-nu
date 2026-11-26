@@ -10,7 +10,7 @@ export default defineInboxChannel({
     const emailAccount = await inboxMailboxEmailAccount(thread.mailboxId, event)
     const address = inboxReplyToAddress(account) ?? inboxReplyToAddress(emailAccount ?? null)
     const replyTo = inboxThreadReplyTo(address, thread.id, event)
-    const { cc } = await inboxSendEmailReply({ thread, contact, body: message.body, replyTo, from: inboxEmailFrom(emailAccount, mailbox) })
-    return { cc }
+    const { cc, messageId } = await inboxSendEmailReply({ thread, contact, body: message.body, replyTo, from: inboxEmailFrom(emailAccount, mailbox) })
+    return { cc, messageId }
   },
 })

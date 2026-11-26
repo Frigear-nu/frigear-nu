@@ -1097,7 +1097,7 @@ describe('inbox (authenticated, database-backed)', async () => {
     it('lists the inbox domains and the email drivers to admins', async () => {
       mailbox = await as(admin).json<Json>('POST', inboxApi.admin.mailboxes, { key: 'two-way', name: { da: 'Tovejs', en: 'Two-way' }, grants: [{ kind: 'role', role: 'admin' }] })
       account = await as(admin).json<Json>('POST', inboxApi.admin.channels, { mailboxId: mailbox.id, channel: 'email', address: help })
-      expect(await as(admin).json<Json>('GET', inboxApi.admin.email)).toEqual({ domains: ['reply.test'], drivers: ['cloudflare', 'resend'] })
+      expect(await as(admin).json<Json>('GET', inboxApi.admin.email)).toEqual({ domains: ['reply.test'], drivers: ['cloudflare', 'resend', 'gmail', 'imap'] })
       await expectApiError(as(coord).json('GET', inboxApi.admin.email), 403, 'forbidden')
     })
 
@@ -1167,8 +1167,51 @@ describe('inbox (authenticated, database-backed)', async () => {
       }
     })
 
-    it('keeps the inbound driver webhooks closed without their secrets, and the Cloudflare one internal', async () => {
+    it('answers a contact form thread of the mailbox with the thread\'s reply address', async () => {
+      await as(admin).json('POST', formsApi.admin.forms, {
+        slug: 'two-way-contact',
+        name: 'Two-way contact',
+        status: 'published',
+        definition: {
+          mode: 'single',
+          storage: 'db',
+          access: { availability: 'web', auth: 'none' },
+          steps: [{ id: 'main', fields: [
+            { key: 'name', type: 'text', required: true, label: 'Name' },
+            { key: 'email', type: 'email', required: true, label: 'Email' },
+            { key: 'message', type: 'textarea', required: true, label: 'Message' },
+          ] }],
+        },
+      })
+      await as(admin).json('POST', inboxApi.admin.channels, { mailboxId: mailbox.id, channel: 'form', address: 'two-way-contact' })
+      await as().json('POST', formsApi.submit('two-way-contact'), { answers: { name: 'Form Person', email: 'form.person@example.org', message: 'Hello from the form' }, locale: 'en' })
+      const [thread] = (await threadsOf(admin, '&channel=form&status=all')).filter(item => item.mailboxId === mailbox.id)
+      await as(admin).json('POST', inboxApi.admin.messages(thread!.id), { body: 'Thanks for writing.' })
+      const sent = await sentAt()
+      expect(sent).toMatchObject({ to: 'form.person@example.org', replyTo: `help+${thread!.id}@reply.test` })
+      // The person answers our reply from their mail client: the reply address and the In-Reply-To of our Message-ID.
+      const answer = await (await postEmail(email({ to: `help+${thread!.id}@reply.test`, from: { email: 'form.person@example.org' }, subject: 'Re: thanks', inReplyTo: `<${sent.sentMessageId}>` }))).json() as Json
+      expect(answer.threadId).toBe(thread!.id)
+    })
+
+    it('threads an answer by the Message-ID of our reply alone', async () => {
+      const from = { email: `ours${++counter}@example.org`, name: 'Ours' }
+      const threadId = await emailThread(email({ to: help, from }))
+      await as(admin).json('POST', inboxApi.admin.messages(threadId), { body: 'Our reply.' })
+      const sent = await sentAt()
+      expect(sent.sentMessageId).toMatch(/@reply\.test$/)
+      // A newer open thread of the person, which an answer without headers would join.
+      const newer = await emailThread(email({ to: help, from, subject: 'Unrelated', authenticated: false }))
+      await backdate(threadId, 1)
+      const answer = await (await postEmail(email({ to: help, from, subject: 'No marker', inReplyTo: `<${sent.sentMessageId}>` }))).json() as Json
+      expect(answer.threadId).toBe(threadId)
+      expect(answer.threadId).not.toBe(newer)
+    })
+
+    it('keeps the inbound driver webhooks closed without their secrets, and the internal ones internal', async () => {
       await expectApiError(fetch(inboxApi.webhooks.emailDriver('resend'), { method: 'POST', body: '{}' }), 501)
+      await expectApiError(fetch(inboxApi.webhooks.emailDriver('gmail'), { method: 'POST', body: '{}' }), 501)
+      expect((await fetch(inboxApi.webhooks.emailDriver('imap'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status).toBe(404)
       expect((await fetch(inboxApi.webhooks.emailDriver('cloudflare'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status).toBe(404)
       expect((await fetch(inboxApi.webhooks.emailDriver('postmark'), { method: 'POST', body: '{}' })).status).toBe(404)
     })
