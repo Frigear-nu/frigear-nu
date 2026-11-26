@@ -3,6 +3,7 @@ import { addTypeTemplate, createResolver } from '@nuxt/kit'
 import type { Nuxt } from '@nuxt/schema'
 import { defineVirtualRegistry } from './registry'
 import { bundleServerDependencies } from './server'
+import { isClientOnlyApp } from './client-only'
 
 export interface SearchIndexRegistration {
   /** A unique name for the log and the task result, usually the table (`users`, `help_articles`). */
@@ -55,6 +56,8 @@ export function registerSearchIndex(nuxt: Nuxt, registration: SearchIndexRegistr
     throw new Error(`[@frigear-nu/module-kit] registerSearchIndex: invalid name ${JSON.stringify(registration.name)} (letters, digits, \`_ . : -\`).`)
   }
   if (!registration.handler) throw new Error(`[@frigear-nu/module-kit] registerSearchIndex: "${registration.name}" has no handler.`)
+  // A client-only app has no server, so no task to run (see `isClientOnlyApp`).
+  if (isClientOnlyApp(nuxt)) return
 
   const first = !nuxt.options._searchIndexes
   const registrations = nuxt.options._searchIndexes ||= []
