@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { getTabComponent } from '../utils/tabs'
-import { computed, nextTick, ref, useRoute, useTabs, watch } from '#imports'
+import { computed, nextTick, useRoute, useRouter, useTabs } from '#imports'
 
 // Renders every tab registered for `name` as a tab list with the active tab's component below it. The active
 // tab is kept in the `?tab=` query parameter (the first tab, the default, leaves it out). Each tab component receives its static `props`, then every entry
@@ -9,28 +9,21 @@ const props = defineProps<{ name: string, context?: Record<string, unknown> }>()
 const emit = defineEmits<{ refresh: [] }>()
 
 const route = useRoute()
+const router = useRouter()
 
 const { data: tabs } = await useTabs(props.name, () => props.context)
 
-// The selection lives in local state, seeded from `?tab=`. Changing it must not be a router navigation: that
-// re-runs the page and scrolls it to the top. The URL is updated in place with `history.replaceState` instead.
-const selected = ref(typeof route.query.tab === 'string' ? route.query.tab : undefined)
-
-// Follow real navigations (back/forward, links carrying `?tab=`).
-watch(() => route.query.tab, (tab) => {
-  if (typeof tab === 'string') selected.value = tab
-})
-
-const active = computed(() => tabs.value?.find(tab => tab.id === selected.value) ?? tabs.value?.[0])
+// The selection is the route's `?tab=`, changed with `router.replace`: the router then records it in the history
+// entry, so Back from a page opened in a tab returns to that tab. (A bare `history.replaceState` does not: the
+// router re-saves the entry from its own state on the next push and drops `?tab=`.) A query-only replace keeps the
+// page mounted and does not scroll.
+const active = computed(() => tabs.value?.find(tab => tab.id === route.query.tab) ?? tabs.value?.[0])
 
 function select(id: string) {
-  selected.value = id
-  if (!import.meta.client) return
-  const url = new URL(window.location.href)
+  if (id === active.value?.id) return
   // The first tab is the default: the URL without `?tab=` opens it, so it stays out of the query.
-  if (id === tabs.value?.[0]?.id) url.searchParams.delete('tab')
-  else url.searchParams.set('tab', id)
-  window.history.replaceState(window.history.state, '', url)
+  const { tab: _tab, ...query } = route.query
+  router.replace({ path: route.path, hash: route.hash, query: id === tabs.value?.[0]?.id ? query : { ...query, tab: id } })
 }
 
 function onKeydown(event: KeyboardEvent, index: number) {

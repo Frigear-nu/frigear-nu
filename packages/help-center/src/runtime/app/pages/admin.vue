@@ -1,24 +1,16 @@
 <script setup lang="ts">
 import type { StaffHelpCategory } from '../utils/admin'
 import { helpCenterApi } from '../../utils/api'
-import { computed, errorMessage, ref, useFetch, useHelpArticleActions, useModuleT, useRoute, useRouter, watch } from '#imports'
+import { computed, errorMessage, useFetch, useHelpArticleActions, useModuleT, useQueryTab } from '#imports'
 
 defineOptions({ name: 'HelpCenterAdminPage' })
 
 // The staff page of the help center (opt-in with `pages.admin`): articles, categories and onboarding checklists in
 // tabs, the tab kept in the URL (`?tab=`). The category list is fetched here because the article tab needs it too.
 const t = useModuleT('helpCenter')
-const route = useRoute()
-const router = useRouter()
 const articleActions = useHelpArticleActions()
 
-const TABS = ['articles', 'categories', 'checklists'] as const
-type Tab = (typeof TABS)[number]
-const read = (): Tab => TABS.find(tab => tab === route.query.tab) ?? 'articles'
-const tab = ref<Tab>(read())
-watch(tab, (value) => {
-  router.replace({ query: { ...route.query, tab: value === 'articles' ? undefined : value } })
-})
+const tab = useQueryTab(['articles', 'categories', 'checklists'] as const)
 
 // Help categories only: FAQ categories and their questions live on the FAQ admin page, never here.
 const { data: categories, status, error, refresh } = await useFetch<StaffHelpCategory[]>(helpCenterApi.admin.categories, {

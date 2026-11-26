@@ -3,8 +3,8 @@ import type { TableColumn } from '@nuxt/ui'
 import { authorizationApi } from '../../utils/api'
 import type { AuthorizationRoleSummaryDto } from '../../utils/api'
 import RoleMatrix from '../admin/RoleMatrix.vue'
-import { useQueryTab, useRoleLabels } from '../admin/useRoleLabels'
-import { computed, emptyCell, errorMessage, h, navigateTo, numericColumn, resolveComponent, tableUi, useFetch } from '#imports'
+import { useRoleLabels } from '../admin/useRoleLabels'
+import { computed, emptyCell, errorMessage, h, navigateTo, numericColumn, resolveComponent, tableUi, useFetch, useQueryTab } from '#imports'
 
 defineOptions({ name: 'AuthorizationAdminRolesPage' })
 
