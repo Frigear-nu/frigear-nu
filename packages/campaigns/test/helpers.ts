@@ -36,6 +36,7 @@ export type CapturedEmail = {
   subject: string
   body: string
   text?: string
+  headers?: Record<string, string>
   template?: { name: string, props: Record<string, string | null>, locale?: string }
 }
 export type CapturedText = { to: string, body: string }
@@ -70,3 +71,18 @@ export async function withServerEnv<T>(name: string, value: string, run: () => P
     await $fetch('/api/test/env', { method: 'POST', body: { name, value: null } })
   }
 }
+
+/** Runs the `campaigns:deliver` task once. */
+export const runDeliver = (body: { now?: string, batchSize?: number } = {}) => $fetch<{ result: Record<string, number> }>('/api/test/deliver', { method: 'POST', body })
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- loosely typed rows of the test route
+export const getDeliveries = () => $fetch<{ deliveries: Array<Record<string, any>>, clicks: Array<Record<string, any>> }>('/api/test/deliveries')
+
+/** The `cmd_…` delivery token in a link (the last path segment, or the `token` query parameter). */
+export function deliveryTokenOf(url: string): string {
+  const parsed = new URL(url, 'http://localhost')
+  return parsed.searchParams.get('token') ?? decodeURIComponent(parsed.pathname.split('/').at(-1)!)
+}
+
+/** A browser's user agent: short links do not count visits of scripts and link scanners. */
+export const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'

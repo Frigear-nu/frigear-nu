@@ -21,7 +21,9 @@ import {
   resolvePagePath,
 } from '@frigear-nu/module-kit/utils'
 import { guardPages, registerAccess } from '@frigear-nu/auth/utils'
+import { extendNotificationTopics } from '@frigear-nu/notify/utils'
 import { campaignsAccess } from './runtime/access'
+import { campaignsNotificationTopics } from './runtime/notifications'
 import { CAMPAIGNS_DEFAULT_PAGES } from './runtime/utils/links'
 import type { CampaignsRuntimeConfig, ModuleOptions, PublicModuleOptions } from './types'
 
@@ -42,6 +44,8 @@ declare module '@nuxt/schema' {
 }
 
 const MODULE_NAME = '@frigear-nu/campaigns'
+const DEFAULT_DELIVER_CRON = '* * * * *'
+const DEFAULT_RETENTION_CRON = '45 4 * * *'
 
 export default defineNuxtModule<ModuleOptions>({
   meta: { name: MODULE_NAME, configKey: 'campaigns' },
@@ -56,6 +60,8 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/users': { version: '>=0.0.1' },
     // Every message (the confirmation email and SMS) goes through notify's dispatch, on the app's drivers.
     '@frigear-nu/notify': { version: '>=0.0.1' },
+    // Links in campaign messages become short links (`/l/:code/:deliveryToken`) whose clicks count per recipient.
+    '@frigear-nu/short-links': { version: '>=0.0.0' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
     // Renders `campaigns-confirm` from the template this module ships.
     '@frigear-nu/email-templates': { version: '>=0.0.1', optional: true },
@@ -115,7 +121,12 @@ export default defineNuxtModule<ModuleOptions>({
       corsOrigins: options.corsOrigins ?? existing.corsOrigins ?? [],
       captcha: captchaProvider,
       signingKey: options.signingKey ?? existing.signingKey ?? '',
+      batchSize: options.batchSize ?? existing.batchSize ?? 200,
+      retentionDays: options.retentionDays ?? existing.retentionDays ?? 180,
     } satisfies CampaignsRuntimeConfig
+
+    // `campaigns.message`: messages staff send to users follow each user's choice of channels for it.
+    extendNotificationTopics(nuxt, campaignsNotificationTopics)
 
     // --- Database ---------------------------------------------------------------------------------------------------
     registerDatabaseTable(nuxt, {
@@ -129,6 +140,7 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'post', path: 'lists/:slug/subscribe', file: 'public/subscribe.post' },
       { method: 'post', path: 'confirm/:token', file: 'public/confirm.post' },
       { method: 'post', path: 'unsubscribe/:token', file: 'public/unsubscribe.post' },
+      { method: 'get', path: 'o/:token', file: 'public/open.get' },
       { method: 'get', path: 'me/subscriptions', file: 'me/subscriptions.get' },
       { method: 'patch', path: 'me/subscriptions', file: 'me/subscriptions.patch' },
     ], { base: '/api/campaigns' })
@@ -140,6 +152,18 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'patch', path: 'lists/:id', file: 'admin/list.patch' },
       { method: 'delete', path: 'lists/:id', file: 'admin/list.delete' },
       { method: 'get', path: 'lists/:id/subscribers', file: 'admin/list-subscribers.get' },
+      // The static segment `lists` wins over `:id` in h3's radix router, whatever the registration order.
+      { method: 'get', path: '', file: 'admin/campaigns/list.get' },
+      { method: 'post', path: '', file: 'admin/campaigns/create.post' },
+      { method: 'get', path: ':id', file: 'admin/campaigns/get.get' },
+      { method: 'patch', path: ':id', file: 'admin/campaigns/patch.patch' },
+      { method: 'delete', path: ':id', file: 'admin/campaigns/delete.delete' },
+      { method: 'get', path: ':id/preview', file: 'admin/campaigns/preview.get' },
+      { method: 'post', path: ':id/send', file: 'admin/campaigns/send.post' },
+      { method: 'post', path: ':id/schedule', file: 'admin/campaigns/schedule.post' },
+      { method: 'post', path: ':id/cancel', file: 'admin/campaigns/cancel.post' },
+      { method: 'get', path: ':id/stats', file: 'admin/campaigns/stats.get' },
+      { method: 'get', path: ':id/deliveries', file: 'admin/campaigns/deliveries.get' },
     ], { base: '/api/admin/campaigns' })
 
     // Other sites calling the subscribe route from the browser: CORS for `corsOrigins` only, without credentials.
@@ -149,8 +173,43 @@ export default defineNuxtModule<ModuleOptions>({
     inlineModuleRuntime(nuxt, resolver)
     // The captcha check of the subscribe route, with forms' `verifyCaptcha`.
     if (hasNuxtModule('@frigear-nu/forms')) addNitroPlugin(resolver.resolve('./runtime/server/plugins/forms-captcha'))
+    // Clicks on the short links of campaign messages, attributed to the delivery in the link.
+    addNitroPlugin(resolver.resolve('./runtime/server/plugins/campaigns-clicks'))
 
-    // The `campaigns-confirm` email, as a template `@frigear-nu/email-templates` renders when installed.
+    // --- Tasks --------------------------------------------------------------------------------------------------------
+    // `campaigns:deliver` sends due campaigns in batches (every minute unless `deliverCron` says otherwise) and
+    // `campaigns:retention` prunes old per-recipient rows (nightly, when `retentionDays` is set). Like the shifts and
+    // inbox tasks they merge into `scheduledTasks`; `false` registers the deliver task without a schedule.
+    const deliverCron = options.deliverCron === undefined ? DEFAULT_DELIVER_CRON : options.deliverCron
+    const retentionDays = nuxt.options.runtimeConfig.campaigns.retentionDays
+    const tasks = [
+      { name: 'campaigns:deliver', handler: './runtime/server/tasks/deliver', description: 'Start due campaigns and send a batch of their messages.', cron: deliverCron || null },
+      { name: 'campaigns:retention', handler: './runtime/server/tasks/retention', description: 'Delete the delivery and click rows of old campaigns, keeping their counts.', cron: retentionDays === false ? null : DEFAULT_RETENTION_CRON },
+    ]
+    nuxt.hook('nitro:config', (nitroConfig) => {
+      nitroConfig.experimental ||= {}
+      nitroConfig.experimental.tasks = true
+      nitroConfig.tasks ||= {}
+      nitroConfig.scheduledTasks ||= {}
+      for (const task of tasks) {
+        nitroConfig.tasks[task.name] = { handler: resolver.resolve(task.handler), description: task.description }
+        if (!task.cron) continue
+        const existing = nitroConfig.scheduledTasks[task.cron]
+        nitroConfig.scheduledTasks[task.cron] = [...(Array.isArray(existing) ? existing : existing ? [existing] : []), task.name]
+      }
+    })
+    // nitropack 2 bundles `scheduledTasks` into the worker but never writes the cron expressions to wrangler.json, so
+    // Cloudflare would never trigger them: mirror our crons into `triggers.crons` (a deduped union).
+    const crons = tasks.map(task => task.cron).filter((cron): cron is string => !!cron)
+    if (crons.length) {
+      nuxt.hook('nitro:init', (nitro) => {
+        if (!nitro.options.preset.startsWith('cloudflare')) return
+        const wrangler = ((nitro.options.cloudflare ||= {}).wrangler ||= {})
+        wrangler.triggers = { ...wrangler.triggers, crons: [...new Set([...(wrangler.triggers?.crons ?? []), ...crons])] }
+      })
+    }
+
+    // The `campaigns-confirm` and `campaigns-message` emails, as templates `@frigear-nu/email-templates` renders when installed.
     nuxt.hook('notify:email:templates', (sources) => {
       sources.push({ dir: resolver.resolve('./runtime/emails') })
     })

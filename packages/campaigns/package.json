@@ -1,7 +1,7 @@
 {
   "name": "@frigear-nu/campaigns",
   "version": "0.0.0",
-  "description": "Newsletters for the frigear ecosystem: lists people sign up to with double opt-in and stored consent, one-click unsubscribe, and the signup component.",
+  "description": "Newsletters and messages for the frigear ecosystem: lists people sign up to with double opt-in and stored consent, campaigns to subscribers and users by email, SMS and push, sent in batches with click and open tracking and one-click unsubscribe.",
   "homepage": "https://docs.frigear.dev/modules/communication/campaigns",
   "repository": {
     "type": "git",
@@ -78,6 +78,7 @@
     "@frigear-nu/auth": "workspace:^",
     "@frigear-nu/module-kit": "workspace:^",
     "@frigear-nu/notify": "workspace:^",
+    "@frigear-nu/short-links": "workspace:^",
     "@frigear-nu/ui": "workspace:^",
     "@frigear-nu/users": "workspace:^",
     "@libsql/client": "^0.18.0",

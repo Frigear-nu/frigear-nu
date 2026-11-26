@@ -4,6 +4,7 @@ export * from './api'
 export * from './consent'
 export * from './schemas'
 export * from './links'
+export * from './delivery'
 
 /**
  * Picks the text to show for `locale`: that locale, else `fallback`, else `en`, else the first entry with text.
