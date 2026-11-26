@@ -13,7 +13,7 @@
     },
     "admin": {
       "title": "Short links",
-      "description": "Short links of every module and the ones made by hand, with their clicks.",
+      "description": "Short links made by hand and the ones modules made, with their clicks.",
       "create": "Create short link",
       "createAction": "Create short link",
       "createDescription": "A short address that sends people on to a longer one.",
@@ -25,15 +25,14 @@
       "newLink": "the short link",
       "saveFailed": "Could not save the short link",
       "search": "Search short links",
-      "allOwners": "All owners",
+      "allOwners": "All modules",
       "allStatuses": "All statuses",
-      "ownerManual": "Made by hand",
       "clearFilters": "Clear filters",
       "forbidden": "You do not have access to short links",
       "loadFailed": "Short links could not be loaded",
       "noMatches": "No short links match your search",
-      "empty": "No short links yet",
-      "emptyDescription": "Modules make short links when they send messages; you can also make one by hand.",
+      "empty": "No short links made by hand yet",
+      "emptyDescription": "Make a short address for a poster, a QR code or a message.",
       "openTarget": "Open target",
       "copy": "Copy short link",
       "copied": "Copied the short link of {name}",
@@ -57,7 +56,8 @@
         "owner": "Owner",
         "status": "Status",
         "clicks": "Clicks",
-        "lastClicked": "Last click"
+        "lastClicked": "Last click",
+        "expires": "Expires"
       },
       "form": {
         "url": "Target",
@@ -72,8 +72,17 @@
         "expiresAt": "Expires",
         "expiresAtHelp": "After this the link answers 'not found'. Leave empty to keep it working.",
         "track": "Record each click",
-        "trackHelp": "Keep a row per click (time and referring site, never the IP address). The click count is kept either way."
-      }
+        "trackHelp": "Keep a row per click (time and referring site, never the IP address). The click count is kept either way.",
+        "autoDelete": "Delete when no longer needed",
+        "autoDeleteHelp": "Delete the link and its clicks {days} days after it expires or is disabled."
+      },
+      "tabs": {
+        "manual": "Made by hand",
+        "modules": "From modules"
+      },
+      "emptyModules": "No short links from modules yet",
+      "emptyModulesDescription": "Modules make short links when they send messages, such as one per recipient of a campaign.",
+      "autoDeleteHint": "Deleted after it expires"
     }
   }
 }

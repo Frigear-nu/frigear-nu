@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm'
+import type { SQL } from 'drizzle-orm'
 import { apiError, chunkParams, isoDate, isUniqueViolation, newId } from '@frigear-nu/module-kit/server'
 import type { CreateShortLinkInput, ShortLink, ShortLinkClickedContext, ShortLinkDto, ShortLinkOwner } from '../../../types'
 import {
@@ -13,8 +14,8 @@ import {
 
 type ShortLinkRow = typeof schema.shortLinks.$inferSelect
 
-// D1 binds at most 100 parameters per statement and a `short_links` row has 14 columns: 7 rows per insert.
-const INSERT_CHUNK = 7
+// D1 binds at most 100 parameters per statement and a `short_links` row has 15 columns: 6 rows per insert.
+const INSERT_CHUNK = 6
 // Random codes that collide with an existing one are drawn again this many times before giving up.
 const CODE_ATTEMPTS = 5
 
@@ -37,6 +38,7 @@ export function toShortLink(row: ShortLinkRow): ShortLink {
     title: row.title,
     track: row.track,
     expiresAt: row.expiresAt,
+    autoDelete: row.autoDelete,
     disabledAt: row.disabledAt,
     clicks: row.clicks,
     lastClickedAt: row.lastClickedAt,
@@ -117,6 +119,7 @@ function prepare(input: CreateShortLinkInput) {
       title: title ? title.slice(0, 200) : null,
       track: input.track ?? true,
       expiresAt: parseDate(input.expiresAt, 'expiresAt'),
+      autoDelete: input.autoDelete ?? false,
       createdBy: input.createdBy ?? null,
     },
   }
@@ -188,6 +191,28 @@ export async function disableShortLinks(owner: ShortLinkOwner): Promise<number> 
   return rows.length
 }
 
+/**
+ * Deletes every link of `owner` (all of its module when `refId` is left out) with its click rows, for links that are
+ * no longer needed at all. Resolves with how many links were deleted. Use `disableShortLinks` to keep the counts.
+ */
+export async function deleteShortLinks(owner: ShortLinkOwner): Promise<number> {
+  const { module, refId } = checkOwner(owner)
+  const conditions = [eq(schema.shortLinks.ownerModule, module)]
+  if (owner.refId !== undefined) conditions.push(refId === null ? isNull(schema.shortLinks.ownerRefId) : eq(schema.shortLinks.ownerRefId, refId))
+  return deleteLinksWhere(and(...conditions)!)
+}
+
+/**
+ * Deletes the links matching `where` and their click rows. The click rows go first in their own statement, so this
+ * does not depend on the database enforcing the `ON DELETE CASCADE`.
+ */
+export async function deleteLinksWhere(where: SQL): Promise<number> {
+  const ids = db.select({ id: schema.shortLinks.id }).from(schema.shortLinks).where(where)
+  await db.delete(schema.shortLinkClicks).where(inArray(schema.shortLinkClicks.linkId, ids))
+  const rows = await db.delete(schema.shortLinks).where(where).returning({ id: schema.shortLinks.id })
+  return rows.length
+}
+
 /** Sets or clears `disabledAt` of one link; resolves with the updated link, or `null` when there is none. */
 export async function setShortLinkDisabled(id: string, disabled: boolean): Promise<ShortLink | null> {
   const [row] = await db.update(schema.shortLinks)
@@ -204,6 +229,7 @@ export type ShortLinkPatch = {
   title?: string | null
   track?: boolean
   expiresAt?: Date | string | null
+  autoDelete?: boolean
 }
 
 /** Applies `patch` to a link (validated like a new link); a taken code is a `409 code_taken`. */
@@ -222,6 +248,7 @@ export async function updateShortLink(id: string, patch: ShortLinkPatch): Promis
   if (patch.title !== undefined) values.title = patch.title?.trim().slice(0, 200) || null
   if (patch.track !== undefined) values.track = patch.track
   if (patch.expiresAt !== undefined) values.expiresAt = parseDate(patch.expiresAt, 'expiresAt')
+  if (patch.autoDelete !== undefined) values.autoDelete = patch.autoDelete
   if (!Object.keys(values).length) return findShortLinkById(id)
   try {
     const [row] = await db.update(schema.shortLinks).set(values).where(eq(schema.shortLinks.id, id)).returning()
@@ -283,6 +310,7 @@ export function toShortLinkDto(link: ShortLink, event?: H3Event): ShortLinkDto {
     title: link.title,
     track: link.track,
     expiresAt: isoDate(link.expiresAt),
+    autoDelete: link.autoDelete,
     disabledAt: isoDate(link.disabledAt),
     clicks: link.clicks,
     lastClickedAt: isoDate(link.lastClickedAt),

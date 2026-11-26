@@ -17,6 +17,8 @@ export type ShortLink = {
   title: string | null
   track: boolean
   expiresAt: Date | null
+  /** Deleted by the retention task once it has been expired or disabled for `retention.deleteAfterDays`. */
+  autoDelete: boolean
   disabledAt: Date | null
   clicks: number
   lastClickedAt: Date | null
@@ -35,7 +37,13 @@ export type CreateShortLinkInput = {
   title?: string | null
   /** Store a row per click (`short_link_clicks`). The counter and the hook work either way. Defaults to `true`. */
   track?: boolean
+  /** After this the link answers 404. Set it on links that are only needed for a while, such as one per recipient. */
   expiresAt?: Date | string | null
+  /**
+   * Delete the link and its click rows once it has been expired or disabled for `retention.deleteAfterDays`, so
+   * links nobody needs any more do not pile up. Defaults to `false`.
+   */
+  autoDelete?: boolean
   /** The user who made it, if any. */
   createdBy?: number | null
 }
@@ -60,6 +68,7 @@ export type ShortLinkDto = {
   title: string | null
   track: boolean
   expiresAt: string | null
+  autoDelete: boolean
   disabledAt: string | null
   clicks: number
   lastClickedAt: string | null
@@ -88,6 +97,11 @@ export type ModuleOptions = {
   retention?: {
     /** Days to keep click rows. Defaults to 365; `false` keeps them forever (no task is scheduled). */
     days?: number | false
+    /**
+     * Days a link with `autoDelete` stays after it expired or was disabled, before the task deletes it. Defaults to
+     * 30, so a link disabled by mistake can still be enabled again.
+     */
+    deleteAfterDays?: number
     /** Cron of the `short-links:retention` task. Defaults to `15 4 * * *`; `false` registers it without a schedule. */
     cron?: string | false
   }
@@ -102,10 +116,12 @@ export type ModuleOptions = {
 export type ShortLinksRuntimeConfig = {
   path: string
   baseUrl: string
-  retention: { days: number | false }
+  retention: { days: number | false, deleteAfterDays: number }
 }
 
 export type PublicModuleOptions = {
   path: string
+  /** `retention.deleteAfterDays`, for the admin form's hint. */
+  deleteAfterDays: number
   pages: { admin?: string }
 }

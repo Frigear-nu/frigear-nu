@@ -16,6 +16,8 @@ export const shortLinks = sqliteTable('short_links', {
   /** Store a `short_link_clicks` row per click. The counter and the `short-links:clicked` hook work either way. */
   track: integer({ mode: 'boolean' }).notNull().default(true),
   expiresAt: integer({ mode: 'timestamp' }),
+  /** Delete the link (and its click rows) once it has been expired or disabled for `retention.deleteAfterDays`. */
+  autoDelete: integer({ mode: 'boolean' }).notNull().default(false),
   disabledAt: integer({ mode: 'timestamp' }),
   clicks: integer().notNull().default(0),
   lastClickedAt: integer({ mode: 'timestamp' }),
@@ -26,6 +28,7 @@ export const shortLinks = sqliteTable('short_links', {
   uniqueIndex('short_links_code_idx').on(t.code),
   index('short_links_owner_idx').on(t.ownerModule, t.ownerRefId),
   index('short_links_created_idx').on(t.createdAt),
+  index('short_links_expires_idx').on(t.expiresAt),
 ])
 
 // One row per counted click of a link with `track` on. No IP address or user agent is stored; `subject` is the opaque

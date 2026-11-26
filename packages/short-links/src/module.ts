@@ -98,9 +98,16 @@ export default defineNuxtModule<ModuleOptions>({
       path,
       // An empty string so `NUXT_SHORT_LINKS_BASE_URL` can set it at runtime.
       baseUrl: options.baseUrl ?? existing?.baseUrl ?? '',
-      retention: { days: options.retention?.days ?? existing?.retention?.days ?? 365 },
+      retention: {
+        days: options.retention?.days ?? existing?.retention?.days ?? 365,
+        deleteAfterDays: options.retention?.deleteAfterDays ?? existing?.retention?.deleteAfterDays ?? 30,
+      },
     }
-    nuxt.options.runtimeConfig.public.shortLinks = { path, pages: { admin: adminPath } }
+    nuxt.options.runtimeConfig.public.shortLinks = {
+      path,
+      deleteAfterDays: nuxt.options.runtimeConfig.shortLinks.retention.deleteAfterDays,
+      pages: { admin: adminPath },
+    }
 
     // --- Database -------------------------------------------------------------------------
     registerDatabaseTable(nuxt, {
@@ -130,28 +137,23 @@ export default defineNuxtModule<ModuleOptions>({
     inlineModuleRuntime(nuxt, resolver)
 
     // --- Retention --------------------------------------------------------------------------
-    // The `short-links:retention` Nitro task deletes old click rows, on `retention.cron` (nightly unless set; `false`
-    // registers it without a schedule). Not registered when `retention.days` is `false` (keep the rows forever).
-    const retentionDays = nuxt.options.runtimeConfig.shortLinks.retention.days
-    const cron = retentionDays === false
-      ? false
-      : options.retention?.cron === undefined ? DEFAULT_RETENTION_CRON : options.retention.cron
-    if (retentionDays !== false) {
-      nuxt.hook('nitro:config', (nitroConfig) => {
-        nitroConfig.experimental ||= {}
-        nitroConfig.experimental.tasks = true
-        nitroConfig.tasks ||= {}
-        nitroConfig.tasks['short-links:retention'] = {
-          handler: resolver.resolve('./runtime/server/tasks/retention'),
-          description: 'Delete short link click rows older than the retention period.',
-        }
-        if (cron) {
-          nitroConfig.scheduledTasks ||= {}
-          const scheduled = nitroConfig.scheduledTasks[cron]
-          nitroConfig.scheduledTasks[cron] = [...(Array.isArray(scheduled) ? scheduled : scheduled ? [scheduled] : []), 'short-links:retention']
-        }
-      })
-    }
+    // The `short-links:retention` Nitro task deletes old click rows and the links with `autoDelete` that expired or were
+    // disabled long enough ago, on `retention.cron` (nightly unless set; `false` registers it without a schedule).
+    const cron = options.retention?.cron === undefined ? DEFAULT_RETENTION_CRON : options.retention.cron
+    nuxt.hook('nitro:config', (nitroConfig) => {
+      nitroConfig.experimental ||= {}
+      nitroConfig.experimental.tasks = true
+      nitroConfig.tasks ||= {}
+      nitroConfig.tasks['short-links:retention'] = {
+        handler: resolver.resolve('./runtime/server/tasks/retention'),
+        description: 'Delete old short link click rows and expired short links marked for deletion.',
+      }
+      if (cron) {
+        nitroConfig.scheduledTasks ||= {}
+        const scheduled = nitroConfig.scheduledTasks[cron]
+        nitroConfig.scheduledTasks[cron] = [...(Array.isArray(scheduled) ? scheduled : scheduled ? [scheduled] : []), 'short-links:retention']
+      }
+    })
     // nitropack 2 bundles `scheduledTasks` into the worker but never writes the cron expressions to wrangler.json, so
     // Cloudflare would never trigger them: mirror our cron into `triggers.crons` (a deduped union).
     if (cron) {

@@ -2,7 +2,8 @@
 
 Short, counted links for emails and SMS that any module can make: random 7 character codes or vanity slugs, a public
 redirect (`/l/:code` and `/l/:code/:subject`), click counts without IP addresses, and a `short-links:clicked` Nitro hook
-so the owning module can attribute each click. Staff see and manage every link on `/admin/short-links`.
+so the owning module can attribute each click. Staff see and manage every link on `/admin/short-links`, with the links made by hand and the ones modules made on
+separate tabs. Links can expire, and with `autoDelete` the nightly task deletes them afterwards.
 
 ## Quick Setup
 
@@ -21,7 +22,9 @@ Generate and commit a migration for the `short_links` and `short_link_clicks` ta
 // Server code (auto-imported)
 const link = await createShortLink({ url: 'https://example.org/apply', owner: { module: 'crew', refId: crewId } })
 shortLinkUrl(link, deliveryToken) // 'https://frg.nu/l/x7Gk2Qa/<deliveryToken>'
-await disableShortLinks({ module: 'crew', refId: crewId })
+await disableShortLinks({ module: 'crew', refId: crewId }) // or deleteShortLinks
+// Many links, one per recipient: let them expire and be deleted afterwards.
+await createShortLinks(recipients.map(() => ({ url, owner, expiresAt: campaignEnd, autoDelete: true })))
 ```
 
 ```ts

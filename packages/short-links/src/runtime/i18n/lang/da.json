@@ -13,7 +13,7 @@
     },
     "admin": {
       "title": "Korte links",
-      "description": "Alle modulers korte links og dem, der er lavet i hånden, med deres klik.",
+      "description": "Korte links lavet i hånden og dem, moduler har lavet, med deres klik.",
       "create": "Opret kort link",
       "createAction": "Opret kort link",
       "createDescription": "En kort adresse, der sender folk videre til en længere.",
@@ -25,15 +25,14 @@
       "newLink": "Det korte link",
       "saveFailed": "Det korte link kunne ikke gemmes",
       "search": "Søg i korte links",
-      "allOwners": "Alle ejere",
+      "allOwners": "Alle moduler",
       "allStatuses": "Alle statusser",
-      "ownerManual": "Lavet i hånden",
       "clearFilters": "Ryd filtre",
       "forbidden": "Du har ikke adgang til korte links",
       "loadFailed": "De korte links kunne ikke hentes",
       "noMatches": "Ingen korte links passer til din søgning",
-      "empty": "Ingen korte links endnu",
-      "emptyDescription": "Moduler laver korte links, når de sender beskeder; du kan også lave et i hånden.",
+      "empty": "Ingen korte links lavet i hånden endnu",
+      "emptyDescription": "Lav en kort adresse til en plakat, en QR-kode eller en besked.",
       "openTarget": "Åbn destination",
       "copy": "Kopiér kort link",
       "copied": "Det korte link til {name} er kopieret",
@@ -57,7 +56,8 @@
         "owner": "Ejer",
         "status": "Status",
         "clicks": "Klik",
-        "lastClicked": "Seneste klik"
+        "lastClicked": "Seneste klik",
+        "expires": "Udløber"
       },
       "form": {
         "url": "Destination",
@@ -72,8 +72,17 @@
         "expiresAt": "Udløber",
         "expiresAtHelp": "Derefter svarer linket 'ikke fundet'. Lad feltet stå tomt, så det bliver ved med at virke.",
         "track": "Registrér hvert klik",
-        "trackHelp": "Gem en række pr. klik (tidspunkt og henvisende side, aldrig IP-adressen). Antallet af klik gemmes under alle omstændigheder."
-      }
+        "trackHelp": "Gem en række pr. klik (tidspunkt og henvisende side, aldrig IP-adressen). Antallet af klik gemmes under alle omstændigheder.",
+        "autoDelete": "Slet, når det ikke længere bruges",
+        "autoDeleteHelp": "Slet linket og dets klik {days} dage efter, at det er udløbet eller slået fra."
+      },
+      "tabs": {
+        "manual": "Lavet i hånden",
+        "modules": "Fra moduler"
+      },
+      "emptyModules": "Ingen korte links fra moduler endnu",
+      "emptyModulesDescription": "Moduler laver korte links, når de sender beskeder, fx ét pr. modtager af en kampagne.",
+      "autoDeleteHint": "Slettes, når det er udløbet"
     }
   }
 }

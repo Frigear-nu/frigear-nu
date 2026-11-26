@@ -46,6 +46,7 @@ CREATE TABLE `short_links` (
 	`title` text,
 	`track` integer DEFAULT true NOT NULL,
 	`expiresAt` integer,
+	`autoDelete` integer DEFAULT false NOT NULL,
 	`disabledAt` integer,
 	`clicks` integer DEFAULT 0 NOT NULL,
 	`lastClickedAt` integer,
@@ -57,6 +58,7 @@ CREATE TABLE `short_links` (
 CREATE UNIQUE INDEX `short_links_code_idx` ON `short_links` (`code`);--> statement-breakpoint
 CREATE INDEX `short_links_owner_idx` ON `short_links` (`ownerModule`,`ownerRefId`);--> statement-breakpoint
 CREATE INDEX `short_links_created_idx` ON `short_links` (`createdAt`);--> statement-breakpoint
+CREATE INDEX `short_links_expires_idx` ON `short_links` (`expiresAt`);--> statement-breakpoint
 CREATE TABLE `users` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`name` text NOT NULL,

@@ -12,6 +12,7 @@ export const shortLinkCreateSchema = z.object({
   title: z.string().trim().max(200).nullish(),
   track: z.boolean().optional(),
   expiresAt: date.nullish(),
+  autoDelete: z.boolean().optional(),
 }).strict()
 
 export const shortLinkPatchSchema = z.object({
@@ -20,4 +21,5 @@ export const shortLinkPatchSchema = z.object({
   title: z.string().trim().max(200).nullish(),
   track: z.boolean().optional(),
   expiresAt: date.nullish(),
+  autoDelete: z.boolean().optional(),
 }).strict()

@@ -11,16 +11,38 @@ const t = useModuleT('shortLinks')
 const format = useFormat()
 const actions = useShortLinkActions()
 
-// Paginated on the server; page, search (code, target, title), owner, status and sort live in the URL. `all` stands
-// for no filter (a select cannot hold an empty value).
-const { page, pageSize, search, sort: sortState, filters, query, filtered, reset } = useTableQuery({
+// Paginated on the server; the tab (`source`), page, search (code, target, title), owner, status and sort live in the
+// URL. `all` stands for no filter (a select cannot hold an empty value). Links made by hand and links modules made
+// (often one per recipient, so thousands) are separate tabs.
+const { page, pageSize, search, sort: sortState, filters, query } = useTableQuery({
   sort: { id: 'createdAt', desc: true },
-  filters: { owner: 'all', status: 'all' },
+  filters: { source: 'manual' as Source, owner: 'all', status: 'all' },
 })
+type Source = 'manual' | 'modules'
+const modulesTab = computed(() => filters.source === 'modules')
+const tabs = computed(() => [
+  { value: 'manual', label: t('admin.tabs.manual', 'Made by hand'), icon: 'i-lucide-pencil' },
+  { value: 'modules', label: t('admin.tabs.modules', 'From modules'), icon: 'i-lucide-blocks' },
+])
+const tab = computed({
+  get: () => filters.source,
+  set: (value: Source) => {
+    // The owner filter only exists on the modules tab.
+    Object.assign(filters, { source: value, owner: 'all' })
+  },
+})
+
+// The tab is not a filter: clearing filters keeps it.
+const filtered = computed(() => !!search.value || filters.owner !== 'all' || filters.status !== 'all')
+function reset() {
+  search.value = ''
+  Object.assign(filters, { owner: 'all', status: 'all' })
+}
 const { sorting, header } = useTableSort(null, sortState)
 
 const [{ data, status, error, refresh }, { data: owners }] = await Promise.all([
-  useFetch<ShortLinksPage>(shortLinksApi.admin.links, { query }),
+  // `source` is sent on both tabs: at its default it is left out of `query`.
+  useFetch<ShortLinksPage>(shortLinksApi.admin.links, { query: computed(() => ({ ...query.value, source: filters.source })) }),
   useFetch<string[]>(shortLinksApi.admin.owners, { default: () => [] }),
 ])
 
@@ -31,10 +53,9 @@ const loading = computed(() => pending.value && !data.value)
 const refreshing = computed(() => pending.value && !!data.value)
 const forbidden = computed(() => error.value?.statusCode === 401 || error.value?.statusCode === 403)
 
-const ownerLabel = (module: string) => module === SHORT_LINKS_MANUAL_OWNER ? t('admin.ownerManual', 'Made by hand') : module
 const ownerOptions = computed(() => [
-  { label: t('admin.allOwners', 'All owners'), value: 'all' },
-  ...(owners.value ?? []).map(value => ({ label: ownerLabel(value), value })),
+  { label: t('admin.allOwners', 'All modules'), value: 'all' },
+  ...(owners.value ?? []).filter(value => value !== SHORT_LINKS_MANUAL_OWNER).map(value => ({ label: value, value })),
 ])
 const statusOptions = computed(() => [
   { label: t('admin.allStatuses', 'All statuses'), value: 'all' },
@@ -60,13 +81,16 @@ async function select(link: ShortLinkDto) {
 }
 
 async function create() {
-  if (await actions.create()) await refresh()
+  if (!await actions.create()) return
+  if (modulesTab.value) tab.value = 'manual'
+  else await refresh()
 }
 
 const StatusBadge = resolveComponent('StatusBadge')
 const RowMenu = resolveComponent('RowMenu')
 const TableIdentity = resolveComponent('TableIdentity')
 const UBadge = resolveComponent('UBadge')
+const UIcon = resolveComponent('UIcon')
 
 const columns = computed<TableColumn<ShortLinkDto>[]>(() => [
   {
@@ -80,11 +104,16 @@ const columns = computed<TableColumn<ShortLinkDto>[]>(() => [
     meta: { class: { td: 'max-w-72 truncate' } },
     cell: ({ row }) => h('span', { title: row.original.url, class: 'text-muted' }, row.original.url),
   },
-  {
-    id: 'owner',
-    header: t('admin.columns.owner', 'Owner'),
-    cell: ({ row }) => h(UBadge, { color: 'neutral', variant: 'subtle', label: ownerLabel(row.original.owner.module) }),
-  },
+  ...(modulesTab.value
+    ? [{
+      id: 'owner',
+      header: t('admin.columns.owner', 'Owner'),
+      cell: ({ row }) => h('div', { class: 'flex flex-col items-start gap-0.5' }, [
+        h(UBadge, { color: 'neutral', variant: 'subtle', label: row.original.owner.module }),
+        row.original.owner.refId ? h('span', { class: 'text-xs text-muted' }, row.original.owner.refId) : null,
+      ]),
+    } satisfies TableColumn<ShortLinkDto>]
+    : []),
   {
     id: 'status',
     header: t('admin.columns.status', 'Status'),
@@ -92,6 +121,16 @@ const columns = computed<TableColumn<ShortLinkDto>[]>(() => [
       const value = linkStatus(row.original)
       return h(StatusBadge, { status: value, label: t(`admin.statuses.${value}`, STATUS_LABELS[value]), colors: { disabled: 'error' } })
     },
+  },
+  {
+    id: 'expiresAt',
+    header: t('admin.columns.expires', 'Expires'),
+    cell: ({ row }) => row.original.expiresAt
+      ? h('span', { class: 'tabular-nums', title: row.original.autoDelete ? t('admin.autoDeleteHint', 'Deleted after it expires') : undefined }, [
+          format.dateTime(row.original.expiresAt),
+          row.original.autoDelete ? h(UIcon, { name: 'i-lucide-trash-2', class: 'ms-1 size-3.5 align-[-2px] text-muted' }) : null,
+        ])
+      : emptyCell(),
   },
   {
     accessorKey: 'clicks',
@@ -115,7 +154,7 @@ const columns = computed<TableColumn<ShortLinkDto>[]>(() => [
   <div class="flex flex-col gap-4">
     <PageHeading
       :title="t('admin.title', 'Short links')"
-      :description="t('admin.description', 'Short links of every module and the ones made by hand, with their clicks.')"
+      :description="t('admin.description', 'Short links made by hand and the ones modules made, with their clicks.')"
     >
       <template #actions>
         <UButton
@@ -135,6 +174,11 @@ const columns = computed<TableColumn<ShortLinkDto>[]>(() => [
     />
 
     <template v-else>
+      <PageTabs
+        v-model="tab"
+        :items="tabs"
+      />
+
       <PageToolbar>
         <UInput
           v-model="search"
@@ -145,6 +189,7 @@ const columns = computed<TableColumn<ShortLinkDto>[]>(() => [
           class="w-full sm:max-w-xs"
         />
         <USelect
+          v-if="modulesTab"
           v-model="filters.owner"
           :items="ownerOptions"
           :aria-label="t('admin.columns.owner', 'Owner')"
@@ -187,11 +232,18 @@ const columns = computed<TableColumn<ShortLinkDto>[]>(() => [
               :actions="[{ label: t('admin.clearFilters', 'Clear filters'), color: 'neutral', variant: 'outline', onClick: reset }]"
             />
             <UEmpty
+              v-else-if="modulesTab"
+              variant="naked"
+              icon="i-lucide-blocks"
+              :title="t('admin.emptyModules', 'No short links from modules yet')"
+              :description="t('admin.emptyModulesDescription', 'Modules make short links when they send messages, such as one per recipient of a campaign.')"
+            />
+            <UEmpty
               v-else
               variant="naked"
               icon="i-lucide-link"
-              :title="t('admin.empty', 'No short links yet')"
-              :description="t('admin.emptyDescription', 'Modules make short links when they send messages; you can also make one by hand.')"
+              :title="t('admin.empty', 'No short links made by hand yet')"
+              :description="t('admin.emptyDescription', 'Make a short address for a poster, a QR code or a message.')"
               :actions="[{ label: t('admin.create', 'Create short link'), icon: 'i-lucide-plus', onClick: create }]"
             />
           </template>

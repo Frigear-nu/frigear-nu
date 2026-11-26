@@ -263,6 +263,17 @@ describe('short-links (authenticated, database-backed)', async () => {
       expect(await api.json<string[]>('GET', shortLinksApi.admin.owners)).toContain(module)
     })
 
+    it('splits links made by hand from links modules made', async () => {
+      const api = apiClient({ cookie: await staffCookie() })
+      const needle = unique('src')
+      const byHand = await api.json<ShortLinkDto>('POST', shortLinksApi.admin.links, { url: `https://example.com/${needle}` })
+      const byModule = await makeLink({ url: `https://example.com/${needle}`, owner: { module: 'campaigns' } })
+      const manual = await api.json<ShortLinksPage>('GET', `${shortLinksApi.admin.links}?source=manual&q=${needle}`)
+      expect(manual.items.map(item => item.id)).toEqual([byHand.id])
+      const modules = await api.json<ShortLinksPage>('GET', `${shortLinksApi.admin.links}?source=modules&q=${needle}`)
+      expect(modules.items.map(item => item.id)).toEqual([byModule.id])
+    })
+
     it('renders the admin page for staff', async () => {
       const response = await fetch('/admin/short-links', { headers: { cookie: await staffCookie() } })
       expect(response.status).toBe(200)
@@ -280,6 +291,42 @@ describe('short-links (authenticated, database-backed)', async () => {
       const api = apiClient({ cookie: await staffCookie() })
       const page = await api.json<ShortLinksPage>('GET', `${shortLinksApi.admin.links}?q=${link.code}`)
       expect(page.items[0]?.clicks).toBe(1)
+    })
+
+    it('deletes links with autoDelete once they have been expired or disabled long enough', async () => {
+      const ago = new Date(Date.now() - 60_000).toISOString()
+      const needle = unique('auto')
+      const [expired, disabled, kept, open] = await makeLinks([
+        { url: `https://example.com/${needle}/a`, owner: { module: 'test' }, expiresAt: ago, autoDelete: true },
+        { url: `https://example.com/${needle}/b`, owner: { module: 'test' }, autoDelete: true },
+        { url: `https://example.com/${needle}/c`, owner: { module: 'test' }, expiresAt: ago },
+        { url: `https://example.com/${needle}/d`, owner: { module: 'test' }, autoDelete: true },
+      ])
+      expect(expired).toMatchObject({ autoDelete: true })
+      const api = apiClient({ cookie: await staffCookie() })
+      await api.json('POST', shortLinksApi.admin.disable(disabled!.id))
+
+      const run = (days: number) => $fetch<{ result: { links: number } }>('/api/test/retention', { method: 'POST', body: { now: new Date(Date.now() + days * 86_400_000).toISOString() } })
+      // Within the 30 day grace period nothing goes.
+      await run(10)
+      const listed = async () => (await api.json<ShortLinksPage>('GET', `${shortLinksApi.admin.links}?q=${needle}`)).items.map(item => item.id)
+      expect(await listed()).toEqual(expect.arrayContaining([expired!.id, disabled!.id]))
+
+      await run(31)
+      const ids = await listed()
+      expect(ids).not.toContain(expired!.id)
+      expect(ids).not.toContain(disabled!.id)
+      expect(ids).toEqual(expect.arrayContaining([kept!.id, open!.id]))
+      expect((await visit(`/l/${expired!.code}`)).status).toBe(404)
+    })
+
+    it('deletes every link of an owner with deleteShortLinks', async () => {
+      const refId = unique('cmp')
+      const [link] = await makeLinks([{ url: 'https://example.com/x', owner: { module: 'campaigns', refId } }])
+      await visit(`/l/${link!.code}`)
+      expect(await $fetch('/api/test/links', { method: 'POST', body: { delete: { module: 'campaigns', refId } } })).toEqual({ deleted: 1 })
+      expect(await clickRows(link!.id)).toEqual([])
+      expect((await visit(`/l/${link!.code}`)).status).toBe(404)
     })
   })
 })

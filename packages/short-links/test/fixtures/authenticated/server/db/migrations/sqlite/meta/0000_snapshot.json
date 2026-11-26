@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "75cf7731-59d9-435c-8427-a25f5e2f285f",
+  "id": "7d679308-755b-43fd-ae8d-10423d440397",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "auth_user_tokens": {
@@ -315,6 +315,14 @@
           "notNull": false,
           "autoincrement": false
         },
+        "autoDelete": {
+          "name": "autoDelete",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
         "disabledAt": {
           "name": "disabledAt",
           "type": "integer",
@@ -379,6 +387,13 @@
           "name": "short_links_created_idx",
           "columns": [
             "createdAt"
+          ],
+          "isUnique": false
+        },
+        "short_links_expires_idx": {
+          "name": "short_links_expires_idx",
+          "columns": [
+            "expiresAt"
           ],
           "isUnique": false
         }

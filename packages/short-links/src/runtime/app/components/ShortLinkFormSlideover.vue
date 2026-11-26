@@ -15,7 +15,9 @@ const emit = defineEmits<{ close: [saved: ShortLinkDto | false] }>()
 
 const t = useModuleT('shortLinks')
 const { busy, run } = useAction()
-const path = useRuntimeConfig().public.shortLinks?.path ?? '/l'
+const publicConfig = useRuntimeConfig().public.shortLinks
+const path = publicConfig?.path ?? '/l'
+const deleteAfterDays = publicConfig?.deleteAfterDays ?? 30
 
 /** `YYYY-MM-DDTHH:mm` in local time, what `<input type="datetime-local">` holds. */
 function toLocalInput(iso: string | null | undefined): string {
@@ -30,6 +32,7 @@ const schema = z.object({
   code: z.string().trim().refine(value => !value || VANITY_CODE_PATTERN.test(value), t('admin.form.codeInvalid', '3 to 64 letters, digits, dashes or underscores')),
   title: z.string().trim().max(200),
   expiresAt: z.string(),
+  autoDelete: z.boolean(),
   track: z.boolean(),
 })
 type State = z.output<typeof schema>
@@ -39,17 +42,19 @@ const state = reactive<State>({
   code: props.link?.code ?? '',
   title: props.link?.title ?? '',
   expiresAt: toLocalInput(props.link?.expiresAt),
+  autoDelete: props.link?.autoDelete ?? false,
   track: props.link?.track ?? true,
 })
 
 async function save(event: FormSubmitEvent<State>) {
-  const { url, code, title, expiresAt, track } = event.data
+  const { url, code, title, expiresAt, autoDelete, track } = event.data
   const body = {
     url,
     // A new link without a code gets a random one; an existing link always has one.
     ...(code || props.link ? { code } : {}),
     title: title || null,
     expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+    autoDelete,
     track,
   }
   const saved = await run(
@@ -131,6 +136,15 @@ async function save(event: FormSubmitEvent<State>) {
           v-model="state.expiresAt"
           type="datetime-local"
           class="w-full"
+        />
+      </UFormField>
+      <UFormField
+        name="autoDelete"
+        :description="t('admin.form.autoDeleteHelp', 'Delete the link and its clicks {days} days after it expires or is disabled.', { days: deleteAfterDays })"
+      >
+        <USwitch
+          v-model="state.autoDelete"
+          :label="t('admin.form.autoDelete', 'Delete when no longer needed')"
         />
       </UFormField>
       <UFormField
