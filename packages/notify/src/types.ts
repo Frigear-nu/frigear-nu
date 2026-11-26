@@ -136,7 +136,27 @@ export type NotifyEmailContext = {
  */
 export type SimpleDriver = (notification: SimpleNotification) => Promise<void> | void
 export type SMSDriver = (notification: SMSNotification) => Promise<void> | void
-export type EmailDriver = (notification: EmailNotification) => Promise<void> | void
+/**
+ * What an email driver may report about a sent email. Optional: a driver that reports nothing returns `void`.
+ */
+export type EmailSendResult = {
+  /**
+   * The `Message-ID` header the email went out with, without angle brackets, when the driver set it itself (the
+   * `cloudflare-binding` driver does). Only the RFC 5322 Message-ID belongs here, never a provider's own id.
+   */
+  messageId?: string
+}
+/** Options of one `dispatchEmailNotification` call. */
+export type NotifyEmailDispatchOptions = {
+  /**
+   * Send this email through this built-in driver instead of the configured one (`NUXT_NOTIFY_EMAIL_DRIVER`), with the
+   * same `NUXT_NOTIFY_EMAIL_*` settings (`from`, credentials, binding name).
+   */
+  driver?: 'log' | 'resend' | 'ses' | 'cloudflare' | 'cloudflare-binding'
+}
+// `void` so a driver that reports nothing (every driver but `cloudflare-binding`) still fits.
+// eslint-disable-next-line @typescript-eslint/no-invalid-void-type
+export type EmailDriver = (notification: EmailNotification) => Promise<EmailSendResult | void> | EmailSendResult | void
 // `void` so a driver that reports nothing (`async () => {}`, like the other drivers) still fits.
 // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 export type PushDriver = (notification: PushNotification) => Promise<PushDispatchResult | void> | PushDispatchResult | void
@@ -285,11 +305,12 @@ export type ModuleOptions = {
     // provider (Resend, SMTP, ...). This is an app/consuming-layer concern - modules that need to
     // send email (e.g. `@frigear-nu/users`) just dispatch notifications; they never decide how.
     //
-    // Built-in names are `'resend'`, `'ses'` and `'cloudflare'` (zero-dependency, `fetch` only).
+    // Built-in names are `'resend'`, `'ses'` and `'cloudflare'` (zero-dependency, `fetch` only), and
+    // `'cloudflare-binding'` (a Workers `send_email` binding, see `NUXT_NOTIFY_EMAIL_BINDING_NAME`).
     // These only set the default: the driver and its credentials are read at runtime from
     // `NUXT_NOTIFY_EMAIL_DRIVER`, `NUXT_NOTIFY_EMAIL_FROM`, `NUXT_NOTIFY_EMAIL_RESEND_API_TOKEN`,
     // `NUXT_NOTIFY_EMAIL_SES_*` and `NUXT_NOTIFY_EMAIL_CLOUDFLARE_*` (see `NotifyRuntimeConfig`).
-    driver?: 'log' | 'resend' | 'ses' | 'cloudflare' | (string & {})
+    driver?: 'log' | 'resend' | 'ses' | 'cloudflare' | 'cloudflare-binding' | (string & {})
   }
   sms?: {
     // Selects the driver used to deliver SMS notifications dispatched through this module: either
@@ -317,7 +338,7 @@ export type ModuleOptions = {
 /** Private runtime config (`runtimeConfig.notify`), overridable through `NUXT_NOTIFY_*` env vars. */
 export type NotifyRuntimeConfig = {
   email: {
-    /** `NUXT_NOTIFY_EMAIL_DRIVER`: `log` (default), `resend`, `ses` or `cloudflare`. */
+    /** `NUXT_NOTIFY_EMAIL_DRIVER`: `log` (default), `resend`, `ses`, `cloudflare` or `cloudflare-binding`. */
     driver: string
     /** `NUXT_NOTIFY_EMAIL_FROM`: sender address, e.g. `Frigear <no-reply@frigear.nu>`. */
     from: string
@@ -327,5 +348,7 @@ export type NotifyRuntimeConfig = {
     ses: { region: string, accessKeyId: string, secretAccessKey: string, sessionToken: string }
     /** `NUXT_NOTIFY_EMAIL_CLOUDFLARE_ACCOUNT_ID`, `_API_TOKEN` */
     cloudflare: { accountId: string, apiToken: string }
+    /** `NUXT_NOTIFY_EMAIL_BINDING_NAME`: the Workers `send_email` binding of `cloudflare-binding` (`SEND_EMAIL`). */
+    binding: { name: string }
   }
 }
