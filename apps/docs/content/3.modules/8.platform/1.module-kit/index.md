@@ -76,12 +76,13 @@ from `#imports`.
 
 ## Options
 
-Options go under the `moduleKit` key. The key is internal: `registerModule` writes to it, and you never set it by
+Options go under the `moduleKit` key. `_modules` is internal: `registerModule` writes to it, and you never set it by
 hand.
 
 | Option | Type | Default | Purpose |
 | --- | --- | --- | --- |
 | `_modules` | `string[]` | `[]` | The Frigear modules registered in this app, de-duplicated. |
+| `clientOnly` | `boolean` | on with `@frigear-nu/mobile` in `modules` | The app has no server of its own. See [Client-only apps](#client-only-apps). |
 
 ## Exports
 
@@ -248,6 +249,41 @@ The `Nitro v3` workflow (`.github/workflows/nitro-v3.yml`) runs module tests on 
 App code in `src/runtime/**` outside `server/` gets no auto-imports in `node_modules`. Import from `#imports`
 explicitly. The `no-undef` rule of `@frigear-nu/eslint-config` enforces it.
 ::
+
+### Client-only apps
+
+A client-only app is a static build (`nuxt generate`) with no server of its own, such as a
+[Mobile](/modules/interface/mobile) app. It installs modules for their pages and calls a remote API. In such an app a
+module leaves out what only a server uses, and keeps its pages, components, composables, i18n, menus, widgets, tabs,
+permissions and public runtime config.
+
+| Helper | Signature | Purpose |
+| --- | --- | --- |
+| `isClientOnlyApp` | `(nuxt: Nuxt) => boolean` | Whether the app is client only. |
+| `serverModuleDependencies` | `(nuxt: Nuxt, dependencies) => dependencies \| {}` | The dependencies in a server app, none in a client-only one. |
+| `markClientOnlyApp` | `(nuxt: Nuxt) => void` | Marks the app client only. Mobile calls it. |
+
+```ts
+moduleDependencies: nuxt => ({
+  ...serverModuleDependencies(nuxt, { '@nuxthub/core': { version: '>=0.10' } }),
+  '@frigear-nu/ui': { version: '>=0.0.1' },
+}),
+async setup(options, nuxt) {
+  // Pages, components, menus, widgets and `registerAccess` stay.
+  if (!isClientOnlyApp(nuxt)) {
+    addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    addNitroPlugin(resolver.resolve('./runtime/server/plugins/sync'))
+  }
+},
+```
+
+`addModuleRoutes` and `registerSearchIndex` register nothing in a client-only app, and the database helpers only run
+with `@nuxthub/core`, so a module needs no check around them. Keep `registerAccess`: client guards read the
+permissions.
+
+The app's `moduleKit.clientOnly` decides when set. Otherwise the app is client only when it lists
+`@frigear-nu/mobile` in `modules`, or a module marked it. Nuxt picks every module's dependencies before any `setup()`
+runs, so an app that installs Mobile through a layer sets `moduleKit: { clientOnly: true }`.
 
 ### `addOptionalImports`
 
