@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { FormAdminDto, FormDefinition, FormStatus } from '../../../types'
 import { formDefinitionSchema, formsApi } from '../../utils'
-import { $fetch, computed, errorMessage, navigateTo, reactive, ref, toRaw, useAction, useFetch, useFormActions, useFormsPaths, useModuleT, useRoute, watch } from '#imports'
+import { $fetch, computed, errorMessage, navigateTo, reactive, ref, toRaw, useAction, useFetch, useFormActions, useFormsPaths, useModuleT, useQueryTab, useRoute, watch } from '#imports'
 
 const t = useModuleT('forms')
 const route = useRoute()
@@ -19,7 +19,8 @@ const draft = reactive({ name: form.value?.name ?? '', slug: form.value?.slug ??
 // The builder and the JSON editor both work on `definition`; the JSON text is only (re)generated when
 // its tab opens, so typing is never reformatted underneath the cursor.
 const definition = ref<FormDefinition>(structuredClone(toRaw(form.value?.definition ?? { mode: 'single', storage: 'db', steps: [] })))
-const tab = ref('builder')
+// The tab is in `?tab=` (a query-only change keeps the page and its draft mounted), so Back and links restore it.
+const tab = useQueryTab(['builder', 'settings', 'access', 'json'] as const)
 const json = ref('')
 const jsonError = ref<string>()
 
@@ -51,7 +52,7 @@ const checked = computed(() => {
     : { definition: undefined, issues: result.error.issues.map(issue => `${issue.path.join('.') || '(root)'}: ${issue.message}`) }
 })
 
-// The builder, settings, access and JSON tabs edit one unsaved draft, so they are state tabs, not routes.
+// The builder, settings, access and JSON tabs edit one unsaved draft, so they are state tabs of one page, not routes.
 const tabs = computed(() => [
   { value: 'builder', label: t('admin.builder', 'Builder'), icon: 'i-lucide-layout-list' },
   { value: 'settings', label: t('admin.settings', 'Delivery & storage'), icon: 'i-lucide-settings' },

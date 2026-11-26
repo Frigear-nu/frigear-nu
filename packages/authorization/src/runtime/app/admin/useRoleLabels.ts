@@ -1,6 +1,6 @@
 import type { AuthRoleSource } from '@frigear-nu/auth/utils'
 import type { AuthorizationPermissionGrant, AuthorizationPermissionSource, AuthorizationRoleSummaryDto } from '../../utils/api'
-import { computed, useLocaleLink, useModuleT, useRoute, useRouter, useRuntimeConfig } from '#imports'
+import { computed, useLocaleLink, useModuleT, useRuntimeConfig } from '#imports'
 import { useRoleLabel } from '../composables/useRoleLabel'
 
 type RoleKind = 'assignable' | 'default' | 'auto' | 'fixed'
@@ -61,17 +61,4 @@ export function useRoleLabels() {
   const provenanceColors = { host: 'primary', module: 'info', grantTo: 'success', inherit: 'neutral' } as const
 
   return { t, translated, moduleLabel, provenanceLabel, provenanceColors, rolesPath, rolePath, userPath, roleLabel, kindOf, kindLabel, kindColors, sourceLabel, sourceColors, grantLabel, grantColors }
-}
-
-/** A tab kept in the URL (`?tab=`), so a tab can be linked and survives a reload. The first value is the default. */
-export function useQueryTab<T extends string>(values: readonly [T, ...T[]]) {
-  const route = useRoute()
-  const router = useRouter()
-  return computed<T>({
-    get: () => values.includes(route.query.tab as T) ? route.query.tab as T : values[0],
-    set: (tab) => {
-      const query = { ...route.query, tab: tab === values[0] ? undefined : tab, page: undefined }
-      router.replace({ query: Object.fromEntries(Object.entries(query).filter(([, value]) => value !== undefined)) })
-    },
-  })
 }

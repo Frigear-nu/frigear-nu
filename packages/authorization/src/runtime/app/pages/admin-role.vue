@@ -3,8 +3,8 @@ import { authorizationApi } from '../../utils/api'
 import type { AuthorizationRoleDto, AuthorizationRoleSummaryDto } from '../../utils/api'
 import RolePermissions from '../admin/RolePermissions.vue'
 import RoleUsers from '../admin/RoleUsers.vue'
-import { useQueryTab, useRoleLabels } from '../admin/useRoleLabels'
-import { computed, errorMessage, useFetch, useRoute } from '#imports'
+import { useRoleLabels } from '../admin/useRoleLabels'
+import { computed, errorMessage, useFetch, useQueryTab, useRoute } from '#imports'
 
 defineOptions({ name: 'AuthorizationAdminRolePage' })
 
