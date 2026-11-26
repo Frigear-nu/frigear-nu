@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/notify",
-  "version": "0.2.7",
+  "version": "0.3.0",
   "type": "module",
   "description": "Email, SMS, push and generic notification dispatch (pluggable drivers), and notifyUser: per-user channel choices over a topic registry. Shared across Frigear modules.",
   "license": "MIT",
