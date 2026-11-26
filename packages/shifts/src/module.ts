@@ -18,13 +18,14 @@ import {
   inlineModuleRuntime,
   addModuleRoutes,
   isPathUnder,
+  joinPagePath,
   resolveDashboardHubPath,
 } from '@frigear-nu/module-kit/utils'
 import { defineMapLayer, extendMaps } from '@frigear-nu/maps/utils'
 import { OPERATIONS_VENUE_SURFACE } from '@frigear-nu/operations/utils'
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { perksAccess, shiftsAccess } from './runtime/access'
-import { SHIFTS_DEFAULT_PAGES, SHIFTS_HOME_TAB, shiftsMinePath, shiftsSwapsPath } from './runtime/utils/links'
+import { SHIFTS_DEFAULT_PAGES, SHIFTS_HOME_TAB, SHIFTS_HUB_SHIFT_SEGMENT, shiftsMinePath, shiftsSwapsPath } from './runtime/utils/links'
 import { resolveCrewHomePath } from '@frigear-nu/crew/utils'
 import type { ModuleOptions as CrewModuleOptions } from '@frigear-nu/crew/utils'
 import { isValidTimeZone } from '@frigear-nu/module-kit/time'
@@ -163,7 +164,11 @@ export default defineNuxtModule<ModuleOptions>({
     const shiftsSetting = settings.pages?.shifts ?? true
     const swapsSetting = settings.pages?.swaps ?? true
     const shiftsPath = tabsOnly && typeof shiftsSetting !== 'string' ? undefined : resolvePagePath(shiftsSetting, SHIFTS_DEFAULT_PAGES.shifts)
-    const shiftPath = resolvePagePath(settings.pages?.shift ?? true, SHIFTS_DEFAULT_PAGES.shift)
+    // One shift goes with My shifts: under the crew home in the hub (`/dashboard/crew/shifts/:assignmentId`, in the hub's
+    // layout, guard and menu), its old path redirecting there; else at `/shifts/:assignmentId`.
+    const shiftSetting = settings.pages?.shift ?? true
+    const shiftInHub = tabsOnly && !!crewHome && shiftSetting === true
+    const shiftPath = resolvePagePath(shiftSetting, shiftInHub ? joinPagePath(crewHome!, SHIFTS_HUB_SHIFT_SEGMENT) : SHIFTS_DEFAULT_PAGES.shift)
     const swapsPath = tabsOnly && typeof swapsSetting !== 'string' ? undefined : resolvePagePath(swapsSetting, SHIFTS_DEFAULT_PAGES.swaps)
     const checkInPath = resolvePagePath(settings.pages?.checkIn ?? true, SHIFTS_DEFAULT_PAGES.checkIn)
     const leadPath = resolvePagePath(settings.pages?.lead ?? true, SHIFTS_DEFAULT_PAGES.lead)
@@ -337,6 +342,8 @@ export default defineNuxtModule<ModuleOptions>({
       // Before the detail page: `/shifts/station/:stationId` has two segments after `/shifts`.
       { name: 'shifts-station', path: stationPath, file: './runtime/app/pages/station.vue' },
       { name: 'shifts-shift', path: shiftPath, file: './runtime/app/pages/shift.vue' },
+      // The detail page moved into the hub: its old path (links in sent emails, bookmarks) sends on to it.
+      { name: 'shifts-shift-legacy', path: shiftInHub ? SHIFTS_DEFAULT_PAGES.shift : undefined, file: './runtime/app/pages/shift-redirect.vue' },
     ])
 
     // The `shifts.on-duty` live layer of `@frigear-nu/maps`: a point per shift location on the venue layout of an

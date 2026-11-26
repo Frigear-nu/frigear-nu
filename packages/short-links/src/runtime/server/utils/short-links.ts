@@ -50,12 +50,14 @@ export function toShortLink(row: ShortLinkRow): ShortLink {
 
 /**
  * The short URL of a link: `<baseUrl>/<path>/<code>[/<subject>]`. The origin is `shortLinks.baseUrl` (a separate
- * short domain), else the site URL (`runtimeConfig.public.siteUrl`); without either the path alone is returned.
+ * short domain), else the site URL (`runtimeConfig.public.siteUrl`), else the origin of `event`'s request (an app
+ * without a fixed URL, such as a preview); without any of them the path alone is returned.
  * `subject` is opaque to this module (a campaign delivery token, say) and reaches the `short-links:clicked` hook.
  */
 export function shortLinkUrl(link: Pick<ShortLink, 'code'>, subject?: string | null, event?: H3Event): string {
-  const { path, baseUrl } = shortLinksConfig(event)
+  const { path, baseUrl: configured } = shortLinksConfig(event)
   const relative = shortLinkPath(path, link.code, subject)
+  const baseUrl = configured || (event ? getRequestURL(event).origin : '')
   if (!baseUrl) return relative
   try {
     const origin = new URL(baseUrl)

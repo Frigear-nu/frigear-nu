@@ -1942,6 +1942,17 @@ describe('shifts (authenticated, database-backed)', async () => {
         expect(response.headers.get('location'), path).toBe(location)
       }
     }, 180_000)
+
+    it('shows one shift below the crew home in the hub, and sends the old /shifts/:assignmentId there', async () => {
+      const volunteer = await user('Detailvol')
+      const page = await (await fetch('/dashboard/crew/shifts/sha_missing', { headers: { cookie: volunteer.cookie } })).text()
+      expect(page).toContain('This shift is not yours, or no longer exists')
+      // The hub's layout: its navigation around the page.
+      expect(page).toContain('aria-label="Dashboard navigation"')
+      const response = await fetch('/shifts/sha_missing', { redirect: 'manual', headers: { cookie: volunteer.cookie } })
+      expect(response.status).toBe(301)
+      expect(response.headers.get('location')).toBe('/dashboard/crew/shifts/sha_missing')
+    }, 180_000)
   })
 
   describe('notifyUser (notify, with preferences and push installed in this fixture)', () => {
