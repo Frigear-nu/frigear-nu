@@ -35,56 +35,59 @@ async function unsubscribe() {
 </script>
 
 <template>
-  <UContainer>
-    <UPage>
-      <UPageHeader
-        :title="t('unsubscribe.title', 'Unsubscribe')"
-        :description="t('unsubscribe.description', 'Stop getting a newsletter.')"
+  <!-- Centred on the screen like the sign-in pages: a page people land on from a link in a message. -->
+  <UContainer class="flex min-h-[calc(100dvh-var(--ui-header-height,4rem))] flex-col items-center justify-center py-12 sm:py-16">
+    <div class="flex w-full max-w-md flex-col gap-6">
+      <div class="flex flex-col items-center gap-1.5 text-center">
+        <h1 class="text-xl font-semibold text-highlighted">
+          {{ t('unsubscribe.title', 'Unsubscribe') }}
+        </h1>
+        <p class="text-sm text-muted">
+          {{ t('unsubscribe.description', 'Stop getting a newsletter.') }}
+        </p>
+      </div>
+      <UAlert
+        v-if="result"
+        icon="i-lucide-circle-check"
+        color="success"
+        variant="subtle"
+        :title="t('unsubscribe.done', 'You are unsubscribed from {list}', { list: tr(result.list.name) })"
+        :description="t('unsubscribe.doneDescription', 'You will not get it any more. You can sign up again at any time.')"
+        :actions="links.account() ? [{ label: t('confirm.manage', 'Manage your newsletters'), to: links.account(), color: 'neutral', variant: 'outline' }] : []"
       />
-      <UPageBody class="max-w-2xl">
+      <UEmpty
+        v-else-if="!token"
+        icon="i-lucide-link-2-off"
+        :title="t('unsubscribe.noToken', 'This link is incomplete')"
+        :description="t('unsubscribe.noTokenDescription', 'Open the unsubscribe link from the message again, or copy all of it into the address bar.')"
+      />
+      <template v-else>
         <UAlert
-          v-if="result"
-          icon="i-lucide-circle-check"
-          color="success"
+          v-if="failure"
+          icon="i-lucide-circle-alert"
+          color="error"
           variant="subtle"
-          :title="t('unsubscribe.done', 'You are unsubscribed from {list}', { list: tr(result.list.name) })"
-          :description="t('unsubscribe.doneDescription', 'You will not get it any more. You can sign up again at any time.')"
-          :actions="links.account() ? [{ label: t('confirm.manage', 'Manage your newsletters'), to: links.account(), color: 'neutral', variant: 'outline' }] : []"
+          class="mb-4"
+          :title="failureCode === 'invalid_token' ? t('unsubscribe.invalid', 'This link does not work') : t('unsubscribe.failed', 'You could not be unsubscribed')"
+          :description="failureCode === 'invalid_token' ? t('unsubscribe.invalidDescription', 'Open the link from the message again, or copy all of it into the address bar.') : errorMessage(failure, '')"
         />
-        <UEmpty
-          v-else-if="!token"
-          icon="i-lucide-link-2-off"
-          :title="t('unsubscribe.noToken', 'This link is incomplete')"
-          :description="t('unsubscribe.noTokenDescription', 'Open the unsubscribe link from the message again, or copy all of it into the address bar.')"
-        />
-        <template v-else>
-          <UAlert
-            v-if="failure"
-            icon="i-lucide-circle-alert"
-            color="error"
-            variant="subtle"
-            class="mb-4"
-            :title="failureCode === 'invalid_token' ? t('unsubscribe.invalid', 'This link does not work') : t('unsubscribe.failed', 'You could not be unsubscribed')"
-            :description="failureCode === 'invalid_token' ? t('unsubscribe.invalidDescription', 'Open the link from the message again, or copy all of it into the address bar.') : errorMessage(failure, '')"
-          />
-          <SectionCard :title="t('unsubscribe.cardTitle', 'Unsubscribe from this newsletter')">
-            <p class="text-muted text-sm">
-              {{ t('unsubscribe.explanation', 'You will stop getting it at this address or phone number.') }}
-            </p>
-            <template #footer>
-              <div class="flex justify-end gap-2">
-                <UButton
-                  :loading="busy"
-                  color="error"
-                  icon="i-lucide-bell-off"
-                  :label="t('unsubscribe.action', 'Unsubscribe')"
-                  @click="unsubscribe"
-                />
-              </div>
-            </template>
-          </SectionCard>
-        </template>
-      </UPageBody>
-    </UPage>
+        <SectionCard :title="t('unsubscribe.cardTitle', 'Unsubscribe from this newsletter')">
+          <p class="text-muted text-sm">
+            {{ t('unsubscribe.explanation', 'You will stop getting it at this address or phone number.') }}
+          </p>
+          <template #footer>
+            <div class="flex justify-end gap-2">
+              <UButton
+                :loading="busy"
+                color="error"
+                icon="i-lucide-bell-off"
+                :label="t('unsubscribe.action', 'Unsubscribe')"
+                @click="unsubscribe"
+              />
+            </div>
+          </template>
+        </SectionCard>
+      </template>
+    </div>
   </UContainer>
 </template>

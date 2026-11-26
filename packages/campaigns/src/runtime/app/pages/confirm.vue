@@ -39,69 +39,72 @@ async function confirm() {
 </script>
 
 <template>
-  <UContainer>
-    <UPage>
-      <UPageHeader
-        :title="t('confirm.title', 'Confirm your subscription')"
-        :description="t('confirm.description', 'One click, and the newsletter is on its way to you.')"
+  <!-- Centred on the screen like the sign-in pages: a page people land on from a link in a message. -->
+  <UContainer class="flex min-h-[calc(100dvh-var(--ui-header-height,4rem))] flex-col items-center justify-center py-12 sm:py-16">
+    <div class="flex w-full max-w-md flex-col gap-6">
+      <div class="flex flex-col items-center gap-1.5 text-center">
+        <h1 class="text-xl font-semibold text-highlighted">
+          {{ t('confirm.title', 'Confirm your subscription') }}
+        </h1>
+        <p class="text-sm text-muted">
+          {{ t('confirm.description', 'One click, and the newsletter is on its way to you.') }}
+        </p>
+      </div>
+      <UAlert
+        v-if="result"
+        icon="i-lucide-circle-check"
+        color="success"
+        variant="subtle"
+        :title="t('confirm.done', 'You are subscribed to {list}', { list: tr(result.list.name) })"
+        :description="t('confirm.doneDescription', 'Every message has a link to unsubscribe again.')"
+        :actions="links.account() ? [{ label: t('confirm.manage', 'Manage your newsletters'), to: links.account(), color: 'neutral', variant: 'outline' }] : []"
       />
-      <UPageBody class="max-w-2xl">
+      <UAlert
+        v-else-if="!token && subscribed"
+        icon="i-lucide-mail-check"
+        color="success"
+        variant="subtle"
+        :title="mustConfirm ? t('confirm.checkInbox', 'Check your inbox') : t('confirm.signedUp', 'You are signed up')"
+        :description="mustConfirm
+          ? t('confirm.checkInboxDescription', 'We sent you a link. Open it and confirm, and the newsletter starts coming to you.')
+          : t('confirm.signedUpDescription', 'Thank you for signing up.')"
+      />
+      <UEmpty
+        v-else-if="!token"
+        icon="i-lucide-link-2-off"
+        :title="t('confirm.noToken', 'This link is incomplete')"
+        :description="t('confirm.noTokenDescription', 'Open the link from the confirmation message again, or copy all of it into the address bar.')"
+      />
+      <template v-else>
         <UAlert
-          v-if="result"
-          icon="i-lucide-circle-check"
-          color="success"
+          v-if="failure"
+          icon="i-lucide-circle-alert"
+          color="error"
           variant="subtle"
-          :title="t('confirm.done', 'You are subscribed to {list}', { list: tr(result.list.name) })"
-          :description="t('confirm.doneDescription', 'Every message has a link to unsubscribe again.')"
-          :actions="links.account() ? [{ label: t('confirm.manage', 'Manage your newsletters'), to: links.account(), color: 'neutral', variant: 'outline' }] : []"
+          class="mb-4"
+          :title="failureCode === 'token_expired'
+            ? t('confirm.expired', 'This link has expired')
+            : failureCode === 'invalid_token' ? t('confirm.invalid', 'This link does not work any more') : t('confirm.failed', 'The subscription could not be confirmed')"
+          :description="failureCode === 'invalid_token'
+            ? t('confirm.invalidDescription', 'It may have been used already. Sign up again if you are not getting the newsletter.')
+            : failureCode === 'token_expired' ? t('confirm.expiredDescription', 'Sign up again to get a new link.') : errorMessage(failure, '')"
         />
-        <UAlert
-          v-else-if="!token && subscribed"
-          icon="i-lucide-mail-check"
-          color="success"
-          variant="subtle"
-          :title="mustConfirm ? t('confirm.checkInbox', 'Check your inbox') : t('confirm.signedUp', 'You are signed up')"
-          :description="mustConfirm
-            ? t('confirm.checkInboxDescription', 'We sent you a link. Open it and confirm, and the newsletter starts coming to you.')
-            : t('confirm.signedUpDescription', 'Thank you for signing up.')"
-        />
-        <UEmpty
-          v-else-if="!token"
-          icon="i-lucide-link-2-off"
-          :title="t('confirm.noToken', 'This link is incomplete')"
-          :description="t('confirm.noTokenDescription', 'Open the link from the confirmation message again, or copy all of it into the address bar.')"
-        />
-        <template v-else>
-          <UAlert
-            v-if="failure"
-            icon="i-lucide-circle-alert"
-            color="error"
-            variant="subtle"
-            class="mb-4"
-            :title="failureCode === 'token_expired'
-              ? t('confirm.expired', 'This link has expired')
-              : failureCode === 'invalid_token' ? t('confirm.invalid', 'This link does not work any more') : t('confirm.failed', 'The subscription could not be confirmed')"
-            :description="failureCode === 'invalid_token'
-              ? t('confirm.invalidDescription', 'It may have been used already. Sign up again if you are not getting the newsletter.')
-              : failureCode === 'token_expired' ? t('confirm.expiredDescription', 'Sign up again to get a new link.') : errorMessage(failure, '')"
-          />
-          <SectionCard :title="t('confirm.cardTitle', 'Confirm your subscription')">
-            <p class="text-muted text-sm">
-              {{ t('confirm.explanation', 'Confirm that you want this newsletter. You can unsubscribe from every message.') }}
-            </p>
-            <template #footer>
-              <div class="flex justify-end gap-2">
-                <UButton
-                  :loading="busy"
-                  icon="i-lucide-check"
-                  :label="t('confirm.action', 'Confirm subscription')"
-                  @click="confirm"
-                />
-              </div>
-            </template>
-          </SectionCard>
-        </template>
-      </UPageBody>
-    </UPage>
+        <SectionCard :title="t('confirm.cardTitle', 'Confirm your subscription')">
+          <p class="text-muted text-sm">
+            {{ t('confirm.explanation', 'Confirm that you want this newsletter. You can unsubscribe from every message.') }}
+          </p>
+          <template #footer>
+            <div class="flex justify-end gap-2">
+              <UButton
+                :loading="busy"
+                icon="i-lucide-check"
+                :label="t('confirm.action', 'Confirm subscription')"
+                @click="confirm"
+              />
+            </div>
+          </template>
+        </SectionCard>
+      </template>
+    </div>
   </UContainer>
 </template>
