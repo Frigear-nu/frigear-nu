@@ -49,6 +49,8 @@ export default defineNuxtConfig({
     '@frigear-nu/shifts',
     '@frigear-nu/help-center',
     '@frigear-nu/inbox',
+    // Short counted links for emails and SMS (`/l/:code`), with the staff list at `/admin/short-links`.
+    '@frigear-nu/short-links',
   ],
 
   $development: {

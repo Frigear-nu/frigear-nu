@@ -335,6 +335,9 @@ importers:
       '@frigear-nu/shifts':
         specifier: workspace:*
         version: link:../../packages/shifts
+      '@frigear-nu/short-links':
+        specifier: workspace:*
+        version: link:../../packages/short-links
       '@frigear-nu/stripe':
         specifier: workspace:*
         version: link:../../packages/stripe
