@@ -422,8 +422,9 @@ export default defineNuxtConfig({
       // The domains the inbox receives all mail for (comma separated). NUXT_INBOX_DOMAINS also sets them at run time.
       domains: (process.env.NUXT_INBOX_DOMAINS ?? '').split(',').map(domain => domain.trim()).filter(Boolean),
       // Inbound email: the signed JSON webhook, Cloudflare Email Routing to this Worker (route each inbox domain's
-      // catch-all to it) and Resend's inbound webhook. Each stays idle until its routing or secret is set up.
-      inbound: { webhook: true, cloudflare: true, resend: true },
+      // catch-all to it), Resend's inbound webhook and Google Workspace mailboxes (email accounts with
+      // `config.inbound: 'gmail'`, NUXT_INBOX_GMAIL_*). Each stays idle until its routing, secret or accounts are set up.
+      inbound: { webhook: true, cloudflare: true, resend: true, gmail: true },
     },
     // Mailboxes created on the first request when their key does not exist, never changed afterwards: set them with
     // NUXT_INBOX_MAILBOXES (JSON, see .env.example), or create them at /admin/inbox/settings.
