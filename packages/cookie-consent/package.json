@@ -80,7 +80,7 @@
     "@frigear-nu/ui": "workspace:^",
     "@libsql/client": "^0.18.0",
     "@nuxt/kit": "catalog:",
-    "@vueuse/core": "^15.0.0",
+    "@vueuse/core": "^15.1.0",
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
     "zod": "^4.6.7"
