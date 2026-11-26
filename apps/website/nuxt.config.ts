@@ -221,6 +221,14 @@ export default defineNuxtConfig({
     },
   },
 
+  vite: {
+    build: {
+      // The largest client chunk is MDC's markdown parser (unified, remark, rehype, parse5; ~500 kB), which only pages
+      // that render markdown load, all at once. Splitting it would not make those pages download less.
+      chunkSizeWarningLimit: 600,
+    },
+  },
+
   hooks: {
     // nitropack 2 bundles `scheduledTasks` into the worker's `scheduled` handler but never writes the cron
     // expressions to wrangler.json, so Cloudflare has nothing to trigger. Mirror them into `triggers.crons`.

@@ -4,6 +4,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import store from '#auth/user-store'
 import type { AuthUser } from '../../types'
 import { findStoredUsers } from '../../utils/stored-users'
+import { optionalTable } from '../optional-tables'
 
 /** The store the sign-in flows read and write users through (provided by `@frigear-nu/users`). */
 export function useAuthUserStore() {
@@ -32,6 +33,7 @@ export async function loadAuthUsers(ids: Iterable<string | number>): Promise<Map
  */
 export function rekeyUserAuthData(from: number, to: number, executor: Pick<typeof db, 'update'> = db) {
   const roles = authorizationUserRoles()
+  const oauthTokens = optionalTable('authOAuthTokens')
   return [
     // Resource mode has no API tokens (no `auth_user_tokens`).
     ...(schema.authUserTokens ? [executor.update(schema.authUserTokens).set({ userId: String(to) }).where(eq(schema.authUserTokens.userId, String(from)))] : []),
@@ -41,7 +43,7 @@ export function rekeyUserAuthData(from: number, to: number, executor: Pick<typeo
     ...(schema.userCredentials ? [executor.update(schema.userCredentials).set({ userId: to }).where(eq(schema.userCredentials.userId, from))] : []),
     ...(schema.passwordResets ? [executor.update(schema.passwordResets).set({ userId: to }).where(eq(schema.passwordResets.userId, from))] : []),
     ...(schema.magicLinks ? [executor.update(schema.magicLinks).set({ userId: to }).where(eq(schema.magicLinks.userId, from))] : []),
-    ...(schema.authOAuthTokens ? [executor.update(schema.authOAuthTokens).set({ userId: to }).where(eq(schema.authOAuthTokens.userId, from))] : []),
+    ...(oauthTokens ? [executor.update(oauthTokens).set({ userId: to }).where(eq(oauthTokens.userId, from))] : []),
   ]
 }
 
@@ -52,7 +54,8 @@ export async function deleteUserAuthData(userId: number) {
   if (schema.userCredentials) await db.delete(schema.userCredentials).where(eq(schema.userCredentials.userId, userId))
   if (schema.passwordResets) await db.delete(schema.passwordResets).where(eq(schema.passwordResets.userId, userId))
   if (schema.magicLinks) await db.delete(schema.magicLinks).where(eq(schema.magicLinks.userId, userId))
-  if (schema.authOAuthTokens) await db.delete(schema.authOAuthTokens).where(eq(schema.authOAuthTokens.userId, userId))
+  const oauthTokens = optionalTable('authOAuthTokens')
+  if (oauthTokens) await db.delete(oauthTokens).where(eq(oauthTokens.userId, userId))
   const roles = authorizationUserRoles()
   if (roles) await db.delete(roles).where(eq(roles.userId, userId))
 }
@@ -93,6 +96,7 @@ export async function clearUnverifiedAuthCredentials(userId: number, event?: H3E
   // Each of these tables only exists when the feature owning it is enabled (no API tokens in resource mode).
   if (schema.authUserTokens) await db.delete(schema.authUserTokens).where(eq(schema.authUserTokens.userId, String(userId)))
   if (schema.userCredentials) await db.delete(schema.userCredentials).where(eq(schema.userCredentials.userId, userId))
-  if (schema.authOAuthTokens) await db.delete(schema.authOAuthTokens).where(eq(schema.authOAuthTokens.userId, userId))
+  const oauthTokens = optionalTable('authOAuthTokens')
+  if (oauthTokens) await db.delete(oauthTokens).where(eq(oauthTokens.userId, userId))
   await notifyAuthCredentialsChanged({ userId, reason: 'unverified-account', event })
 }

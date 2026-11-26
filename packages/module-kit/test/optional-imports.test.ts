@@ -15,12 +15,13 @@ vi.mock('@nuxt/kit', async (importOriginal) => {
 afterEach(() => vi.clearAllMocks())
 
 /** Runs `addOptionalImports`, then `modules:done`, and returns the generated module, its type and the aliases. */
-async function generate(available: boolean) {
+async function generate(available: boolean, autoImports?: Array<{ name: string, as?: string, from: string }>) {
   const hooks: Array<() => Promise<void> | void> = []
   const nuxt = {
     options: { alias: {} as Record<string, string> },
-    hook: (name: string, fn: () => Promise<void> | void) => {
+    hook: (name: string, fn: (context?: unknown) => Promise<void> | void) => {
       if (name === 'modules:done') hooks.push(fn)
+      if (name === 'imports:context' && autoImports) hooks.push(() => fn({ getImports: async () => autoImports }))
     },
   } as unknown as Nuxt
   let installed = false
@@ -34,9 +35,9 @@ async function generate(available: boolean) {
   installed = available
   for (const hook of hooks) await hook()
 
-  const template = vi.mocked(addTemplate).mock.calls[0]![0] as { filename: string, getContents: () => string }
+  const template = vi.mocked(addTemplate).mock.calls[0]![0] as { filename: string, getContents: () => Promise<string> }
   const types = vi.mocked(addTypeTemplate).mock.calls[0]![0] as { filename: string, getContents: () => string }
-  return { nuxt, module: template.getContents(), filename: template.filename, types: types.getContents() }
+  return { nuxt, module: await template.getContents(), filename: template.filename, types: types.getContents() }
 }
 
 describe('addOptionalImports', () => {
@@ -46,6 +47,21 @@ describe('addOptionalImports', () => {
     expect(nuxt.options.alias['#menu/optional']).toBe('/generated/menu/optional.mjs')
     expect(module).toBe('export { queryCollection } from \'#imports\'\n')
     expect(types).toContain('export { queryCollection } from \'#imports\'')
+  })
+
+  it('re-exports it from the file that provides it once the auto-imports are known', async () => {
+    // Not through the `#imports` barrel, which would put every auto-import with a side effect in the client entry.
+    const { module, types } = await generate(true, [
+      { name: 'useMenu', from: '/menu/useMenu.ts' },
+      { name: 'queryCollectionImpl', as: 'queryCollection', from: '/content/client.js' },
+    ])
+    expect(module).toBe('export { queryCollectionImpl as queryCollection } from "/content/client.js"\n')
+    expect(types).toContain('export { queryCollection } from \'#imports\'')
+  })
+
+  it('falls back to `#imports` for a name the auto-imports do not list', async () => {
+    const { module } = await generate(true, [{ name: 'useMenu', from: '/menu/useMenu.ts' }])
+    expect(module).toBe('export { queryCollection } from \'#imports\'\n')
   })
 
   it('exports the stand-in when it is not', async () => {
