@@ -1,5 +1,5 @@
 import type { EmailDriver } from '../../../types'
-import { assertOk, requireConfig, resolveFrom, toArray, type EmailConfig } from './shared'
+import { assertOk, hasHeaders, requireConfig, resolveFrom, toArray, type EmailConfig } from './shared'
 
 export interface ResendConfig extends EmailConfig {
   apiToken?: string
@@ -20,6 +20,7 @@ export const createResendDriver = (config: ResendConfig): EmailDriver => async (
       html: n.body,
       text: n.text,
       reply_to: n.replyTo,
+      headers: hasHeaders(n.headers) ? n.headers : undefined,
     }),
   })
   await assertOk('Resend', response)

@@ -79,6 +79,12 @@ describe('notifyUser', () => {
     expect(dispatch.dispatchSMSNotification).not.toHaveBeenCalled()
   })
 
+  it('passes the email headers on', async () => {
+    const headers = { 'List-Unsubscribe': '<https://x.test/u/1>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
+    await notifyUser(2, { topic: 'shifts.reminder', email: { subject: 'Hi', body: '<p>Hi</p>', headers } })
+    expect(dispatch.dispatchEmailNotification).toHaveBeenCalledWith({ to: 'b@example.com', subject: 'Hi', body: '<p>Hi</p>', headers })
+  })
+
   it('honours the user\'s choices and picks the SMS text of their locale', async () => {
     state.choicesStore = memoryChoices({ 1: { 'shifts.reminder': { email: false, sms: true } } }).store
     const result = await notifyUser(1, { topic: 'shifts.reminder', ...content })

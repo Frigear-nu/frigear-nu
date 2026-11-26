@@ -1,5 +1,5 @@
 import type { EmailDriver } from '../../../types'
-import { assertOk, requireConfig, resolveFrom, toArray, type EmailConfig } from './shared'
+import { assertOk, hasHeaders, requireConfig, resolveFrom, toArray, type EmailConfig } from './shared'
 import { signRequest } from './sigv4'
 
 export interface SesConfig extends EmailConfig {
@@ -26,6 +26,7 @@ export const createSesDriver = (config: SesConfig): EmailDriver => async (n) => 
           Html: { Data: n.body, Charset: 'UTF-8' },
           ...(n.text ? { Text: { Data: n.text, Charset: 'UTF-8' } } : {}),
         },
+        ...(hasHeaders(n.headers) ? { Headers: Object.entries(n.headers).map(([Name, Value]) => ({ Name, Value })) } : {}),
       },
     },
   })

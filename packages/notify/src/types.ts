@@ -79,6 +79,13 @@ export interface EmailNotification<M = NotificationMeta> {
    */
   cc?: string | string[]
   /**
+   * Extra headers, such as `List-Unsubscribe` and `List-Unsubscribe-Post` (RFC 8058). The built-in `resend`, `ses` and
+   * `cloudflare` drivers pass them on, and `log` logs them. Headers the provider sets itself (`From`, `To`, `Subject`,
+   * `Message-ID`, `Date`) cannot be set; Cloudflare accepts only its allowlisted headers and `X-` headers and rejects the
+   * whole send otherwise. A custom driver whose transport has no headers may ignore them.
+   */
+  headers?: Record<string, string>
+  /**
    * Template to render this email from instead of `subject`/`body`/`text`, when a renderer is
    * installed (`@frigear-nu/email-templates` listens on the `notify:email` hook). Without one,
    * the notification goes out as built, so `subject` and `body` are always the fallback.
@@ -241,7 +248,7 @@ export type NotifyUserInput = {
    * The email to send, to the recipient's address. `template` and `meta` are handed to `dispatchEmailNotification` as
    * they are (`subject` and `body` stay the fallback when no renderer is installed).
    */
-  email?: { subject: string, body: string, text?: string, replyTo?: string, template?: EmailTemplateRef, meta?: Record<string, unknown> }
+  email?: { subject: string, body: string, text?: string, replyTo?: string, headers?: Record<string, string>, template?: EmailTemplateRef, meta?: Record<string, unknown> }
   /** The text of an SMS, or one per locale (the recipient's locale picks it). */
   sms?: { body: Translated }
   /** The push notification, through notify's push driver (`dispatchPushNotification`). */

@@ -86,4 +86,16 @@ describe('email templates', async () => {
     const rendered = await $fetch<{ body: string }>(`/api/render/${name}`, { method: 'POST', body: props })
     expect(rendered.body).toContain('color:#b91c1c')
   })
+
+  it('shows the footer\'s unsubscribe and preferences links only when they are given', async () => {
+    const both = await $fetch<{ body: string, text: string }>('/api/render/footer-links', { method: 'POST', body: { unsubscribeUrl: 'https://x.test/u/1', preferencesUrl: 'https://x.test/p' } })
+    expect(both.body).toContain('href="https://x.test/u/1"')
+    expect(both.body).toContain('Afmeld')
+    expect(both.body).toContain('href="https://x.test/p"')
+    expect(both.body).toContain('Email preferences')
+    expect(both.text).toContain('You get this because you subscribed.')
+    const none = await $fetch<{ body: string }>('/api/render/footer-links', { method: 'POST', body: {} })
+    expect(none.body).not.toContain('Afmeld')
+    expect(none.body).not.toContain('Email preferences')
+  })
 })
