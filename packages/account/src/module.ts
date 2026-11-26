@@ -19,6 +19,7 @@ import {
   resolvePagePath,
   inlineModuleRuntime,
   addOptionalImports,
+  serverModuleDependencies,
 } from '@frigear-nu/module-kit/utils'
 import { guardPages, localizedRoutePatterns } from '@frigear-nu/auth/utils'
 import type { ModuleOptions, PublicModuleOptions } from './types'
@@ -41,10 +42,8 @@ export default defineNuxtModule<ModuleOptions>({
   defaults: {
     settings: { pages: {} },
   },
-  moduleDependencies: {
-    '@nuxthub/core': {
-      version: '>=0.10',
-    },
+  moduleDependencies: nuxt => ({
+    ...serverModuleDependencies(nuxt, { '@nuxthub/core': { version: '>=0.10' } }),
     '@frigear-nu/module-kit': {
       version: '>=0.0.1',
     },
@@ -64,7 +63,7 @@ export default defineNuxtModule<ModuleOptions>({
       version: '>=0.0.0',
       optional: true,
     },
-  },
+  }),
   async setup(options, nuxt) {
     registerModule('@frigear-nu/account', nuxt)
     const resolver = createResolver(import.meta.url)

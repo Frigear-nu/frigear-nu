@@ -20,6 +20,8 @@ import {
   registerModule,
   registerTailwindSource,
   resolvePagePath,
+  isClientOnlyApp,
+  serverModuleDependencies,
 } from '@frigear-nu/module-kit/utils'
 import { addSessionUserFilter, registerAccess } from '@frigear-nu/auth/utils'
 import { setNotifyChoicesStore } from '@frigear-nu/notify/utils'
@@ -45,8 +47,8 @@ const MODULE_NAME = '@frigear-nu/preferences'
 export default defineNuxtModule<ModuleOptions>({
   meta: { name: MODULE_NAME, configKey: 'preferences' },
   defaults: { pages: {} },
-  moduleDependencies: {
-    '@nuxthub/core': { version: '>=0.10' },
+  moduleDependencies: nuxt => ({
+    ...serverModuleDependencies(nuxt, { '@nuxthub/core': { version: '>=0.10' } }),
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
     '@frigear-nu/users': { version: '>=0.0.1' },
@@ -58,7 +60,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/account': { version: '>=0.0.0', optional: true },
     // Only needed to forward preferences as claims; listed so it is installed before this module is set up.
     '@frigear-nu/oauth-server': { version: '>=0.0.1', optional: true },
-  },
+  }),
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
@@ -131,8 +133,10 @@ declare module '#preferences/definitions' {
       },
     }, { nitro: true, nuxt: true })
 
-    addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
+    // A client-only app (`isClientOnlyApp`, e.g. a mobile app) calls a remote API: no server utils or plugins.
+    const server = !isClientOnlyApp(nuxt)
+    if (server) addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     addImports({ name: 'useUserPreferences', from: resolver.resolve('./runtime/app/composables/useUserPreferences') })
 
     // `preferences:notifications`: the notification routes, also for API tokens and OAuth access tokens given it.
@@ -151,7 +155,7 @@ declare module '#preferences/definitions' {
     ])
     if (notificationsPath) addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'account' })
 
-    if (hasNuxtModule('@frigear-nu/oauth-server')) {
+    if (server && hasNuxtModule('@frigear-nu/oauth-server')) {
       addNitroPlugin(resolver.resolve('./runtime/server/plugins/oauth-claims'))
     }
   },

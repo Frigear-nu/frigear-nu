@@ -18,6 +18,8 @@ import {
   addOptionalMenuSource,
   inlineModuleRuntime,
   addModuleRoutes,
+  isClientOnlyApp,
+  serverModuleDependencies,
 } from '@frigear-nu/module-kit/utils'
 import { addPolicies, extendGrants, registerAccess } from '@frigear-nu/auth/utils'
 import { teamsAccess } from './runtime/access'
@@ -72,8 +74,8 @@ export default defineNuxtModule<ModuleOptions>({
   defaults: {
     settings: { pages: {} },
   },
-  moduleDependencies: {
-    '@nuxthub/core': { version: '>=0.10' },
+  moduleDependencies: nuxt => ({
+    ...serverModuleDependencies(nuxt, { '@nuxthub/core': { version: '>=0.10' } }),
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
     // Members are users: the members list and the user lookup read the `users` table.
@@ -85,7 +87,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/dashboard': { version: '>=0.0.0', optional: true },
     // Provides the admin route and shell the admin pages live in; the page components come from `@frigear-nu/ui`.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
-  },
+  }),
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
@@ -152,10 +154,14 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'delete', path: ':id/members/:userId', file: 'admin/member.delete' },
     ], { base: '/api/admin/teams' })
 
-    addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
-    // Answers `teams:owner:resolve` for `team`, and for `operation` when the operations table is there.
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/owners'))
+    // A client-only app (`isClientOnlyApp`, e.g. a mobile app) calls a remote API: no server utils or plugins.
+    const server = !isClientOnlyApp(nuxt)
+    if (server) {
+      addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+      // Answers `teams:owner:resolve` for `team`, and for `operation` when the operations table is there.
+      addNitroPlugin(resolver.resolve('./runtime/server/plugins/owners'))
+    }
     // The `team` grant kind (`@frigear-nu/auth`): the users holding a minimum role on one team.
     extendGrants(nuxt, {
       kind: 'team',
@@ -168,10 +174,10 @@ export default defineNuxtModule<ModuleOptions>({
       order: 20,
     })
     // Stores the option's ladders on the first request (insert-if-missing).
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/ladders'))
+    if (server) addNitroPlugin(resolver.resolve('./runtime/server/plugins/ladders'))
 
     // Optional integrations, checked once every module has registered (they may come after this one in `modules`).
-    nuxt.hook('modules:done', () => {
+    if (server) nuxt.hook('modules:done', () => {
       // `plan` mapping rules: an active subscription to the plan.
       if (hasNuxtModule('@frigear-nu/subscriptions', nuxt)) {
         addNitroPlugin(resolver.resolve('./runtime/server/plugins/subscriptions'))
