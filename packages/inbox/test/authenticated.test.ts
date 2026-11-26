@@ -436,7 +436,8 @@ describe('inbox (authenticated, database-backed)', async () => {
       })
       await as().json('POST', formsApi.submit('contact'), { answers: { name: 'Lise', email: 'Lise@Example.org', subject: 'Volunteering', message: 'Can I help at the bar?' }, locale: 'en' })
       const [thread] = await threadsOf(admin, '&channel=form')
-      expect(thread).toMatchObject({ subject: 'Volunteering', preview: 'Can I help at the bar?', contact: { name: 'Lise', email: 'lise@example.org' } })
+      expect(thread).toMatchObject({ subject: 'Volunteering', contact: { name: 'Lise', email: 'lise@example.org' } })
+      expect(thread!.preview).toMatch(/^Can I help at the bar\?/)
 
       await as(admin).json('POST', inboxApi.admin.messages(thread!.id), { body: 'Yes, welcome!' })
       const sent = (await getEmails()).at(-1)!
@@ -447,7 +448,7 @@ describe('inbox (authenticated, database-backed)', async () => {
       expect(answer.threadId).toBe(thread!.id)
       const conversation = await detail(admin, thread!.id)
       expect(conversation.messages.map((message: Json) => [message.direction, message.body])).toEqual([
-        ['in', 'Can I help at the bar?'],
+        ['in', 'Can I help at the bar?\n\nSubject: Volunteering'],
         ['out', 'Yes, welcome!'],
         ['in', 'Great, see you there!'],
       ])
@@ -486,7 +487,8 @@ describe('inbox (authenticated, database-backed)', async () => {
       const mine = await formThreads(person.email)
       expect(mine).toHaveLength(1)
       expect(mine[0]!.contact.userId).toBe(person.id)
-      expect((await detail(admin, mine[0]!.id)).messages.map((message: Json) => message.body)).toEqual(['First of mine', 'Second of mine'])
+      // The joined submission keeps its own subject in its message.
+      expect((await detail(admin, mine[0]!.id)).messages.map((message: Json) => message.body)).toEqual(['First of mine\n\nSubject: Mine', 'Second of mine\n\nSubject: Mine again'])
     })
 
     it('files an email answer to a form thread under the person who sent it, for export and erase', async () => {
@@ -510,7 +512,7 @@ describe('inbox (authenticated, database-backed)', async () => {
       expect(exported.contact).toMatchObject({ id: emailContact, channel: 'email', email: address })
       expect((exported.related as Json[]).map(contact => contact.id)).toEqual([formThread.contactId])
       expect((exported.threads as Json[]).map(item => item.thread.id)).toEqual([formThread.id])
-      expect(exported.threads[0].messages.map((message: Json) => message.body)).toEqual(['Asked in the form', 'Answered by staff', 'Answered by email'])
+      expect(exported.threads[0].messages.map((message: Json) => message.body)).toEqual(['Asked in the form\n\nSubject: Bar shifts', 'Answered by staff', 'Answered by email'])
 
       // So does an erase: both contacts go, the thread is blanked, and the answer never comes back.
       const erased = await as(admin).json<Json>('POST', inboxApi.admin.contactErase(emailContact))
@@ -519,6 +521,50 @@ describe('inbox (authenticated, database-backed)', async () => {
       expect(after.messages.every((message: Json) => message.body === '')).toBe(true)
       expect(after.contact.erasedAt).toBeTruthy()
       expect(await (await postEmail(answerPayload)).json()).toEqual({ status: 'ignored', reason: 'removed' })
+    })
+
+    it('titles a thread with the chosen option\'s label, or the text typed for it, and keeps every answer', async () => {
+      await as(admin).json('POST', formsApi.admin.forms, {
+        slug: 'contact-topics',
+        name: 'Contact by topic',
+        status: 'published',
+        definition: {
+          mode: 'single',
+          storage: 'db',
+          access: { availability: 'web', auth: 'none' },
+          steps: [{
+            id: 'main',
+            fields: [
+              { key: 'name', type: 'text', required: true, label: 'Name' },
+              { key: 'email', type: 'email', required: true, label: { en: 'Email', da: 'E-mail' } },
+              { key: 'phone', type: 'text', label: { en: 'Phone', da: 'Telefon' } },
+              { key: 'subject', type: 'select', required: true, label: { en: 'Subject', da: 'Emne' }, options: [
+                { value: 'volunteering', label: { en: 'Volunteering', da: 'Frivillig' } },
+                { value: 'other', label: { en: 'Other', da: 'Andet' } },
+              ] },
+              { key: 'subjectOther', type: 'text', label: { en: 'Other subject', da: 'Andet emne' }, showIf: { field: 'subject', op: 'eq', value: 'other' } },
+              { key: 'message', type: 'textarea', required: true, label: 'Message' },
+            ],
+          }],
+        },
+      })
+      await as(admin).json('POST', inboxApi.admin.channels, { mailboxId: support.id, channel: 'form', address: 'contact-topics' })
+      const submit = async (answers: Json, locale = 'en') => {
+        const address = `topic${++counter}@example.org`
+        await as().json('POST', formsApi.submit('contact-topics'), { answers: { name: 'Topic', email: address, ...answers }, locale })
+        const thread = (await threadsOf(admin, '&channel=form&status=all')).find(item => item.contact?.email === address)!
+        return { thread, bodies: (await detail(admin, thread.id)).messages.map((message: Json) => message.body) }
+      }
+
+      // A chosen option titles the thread with its label in the submission's language, never its value.
+      const chosen = await submit({ subject: 'volunteering', phone: '+45 20 00 00 00', message: 'Can I help?' }, 'da')
+      expect(chosen.thread.subject).toBe('Frivillig')
+      expect(chosen.bodies).toEqual(['Can I help?\n\nTelefon: +45 20 00 00 00\nEmne: Frivillig'])
+
+      // "Other" with a typed subject: the typed text titles the thread, and both answers stay in the message.
+      const other = await submit({ subject: 'other', subjectOther: 'Lost and found', message: 'I lost my jacket' })
+      expect(other.thread.subject).toBe('Lost and found')
+      expect(other.bodies).toEqual(['I lost my jacket\n\nSubject: Other\nOther subject: Lost and found'])
     })
   })
 
