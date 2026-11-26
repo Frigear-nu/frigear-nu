@@ -4,6 +4,8 @@ import { createCloudflareDriver } from '../src/runtime/drivers/email/cloudflare'
 import { createSesDriver } from '../src/runtime/drivers/email/ses'
 import { signRequest } from '../src/runtime/drivers/email/sigv4'
 
+const unsubscribe = { 'List-Unsubscribe': '<https://x.test/u/1>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
+
 const mail = { to: ['a@x.test', 'b@x.test'], subject: 'Hi', body: '<p>Hi</p>', text: 'Hi', replyTo: 'r@x.test' }
 
 function mockFetch(status = 200, body = '{}') {
@@ -49,6 +51,14 @@ describe('resend', () => {
     await createResendDriver({ apiToken: 't', from: 'f@x.test' })(mail)
     expect(call(g).json).not.toHaveProperty('cc')
   })
+  it('passes headers on, and leaves them out when there are none', async () => {
+    const f = mockFetch()
+    await createResendDriver({ apiToken: 't', from: 'f@x.test' })({ ...mail, headers: unsubscribe })
+    expect(call(f).json.headers).toEqual(unsubscribe)
+    const g = mockFetch()
+    await createResendDriver({ apiToken: 't', from: 'f@x.test' })({ ...mail, headers: {} })
+    expect(call(g).json).not.toHaveProperty('headers')
+  })
 })
 
 describe('cloudflare', () => {
@@ -71,6 +81,14 @@ describe('cloudflare', () => {
     const g = mockFetch()
     await createCloudflareDriver({ accountId: 'acc', apiToken: 'tok', from: 'me@x.test' })(mail)
     expect(call(g).json).not.toHaveProperty('cc')
+  })
+  it('passes headers on, and leaves them out when there are none', async () => {
+    const f = mockFetch()
+    await createCloudflareDriver({ accountId: 'acc', apiToken: 'tok', from: 'me@x.test' })({ ...mail, headers: unsubscribe })
+    expect(call(f).json.headers).toEqual(unsubscribe)
+    const g = mockFetch()
+    await createCloudflareDriver({ accountId: 'acc', apiToken: 'tok', from: 'me@x.test' })(mail)
+    expect(call(g).json).not.toHaveProperty('headers')
   })
 })
 
@@ -98,6 +116,17 @@ describe('ses', () => {
     const g = mockFetch()
     await createSesDriver(config)(mail)
     expect(call(g).json.Destination).toEqual({ ToAddresses: mail.to })
+  })
+  it('passes headers on as Name/Value pairs of the simple content, and leaves them out when there are none', async () => {
+    const f = mockFetch()
+    await createSesDriver(config)({ ...mail, headers: unsubscribe })
+    expect(call(f).json.Content.Simple.Headers).toEqual([
+      { Name: 'List-Unsubscribe', Value: '<https://x.test/u/1>' },
+      { Name: 'List-Unsubscribe-Post', Value: 'List-Unsubscribe=One-Click' },
+    ])
+    const g = mockFetch()
+    await createSesDriver(config)(mail)
+    expect(call(g).json.Content.Simple).not.toHaveProperty('Headers')
   })
 })
 

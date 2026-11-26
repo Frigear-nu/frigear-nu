@@ -131,13 +131,14 @@ export async function notifyUser(userId: number, input: NotifyUserInput): Promis
 
   await run('email', async () => {
     if (!recipient?.email || !input.email) return false
-    const { subject, body, text, replyTo, template, meta } = input.email
+    const { subject, body, text, replyTo, headers, template, meta } = input.email
     await dispatchEmailNotification({
       to: recipient.email,
       subject,
       body,
       ...(text !== undefined ? { text } : {}),
       ...(replyTo !== undefined ? { replyTo } : {}),
+      ...(headers !== undefined ? { headers } : {}),
       ...(template !== undefined ? { template: template.locale || !recipient.locale ? template : { ...template, locale: recipient.locale } } : {}),
       ...(meta !== undefined ? { meta } : {}),
     })

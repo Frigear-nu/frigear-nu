@@ -4,6 +4,9 @@ export interface EmailConfig {
   from?: string
 }
 
+/** True when `headers` has at least one entry, so a driver leaves an empty object out of the request. */
+export const hasHeaders = (headers: Record<string, string> | undefined): headers is Record<string, string> => !!headers && Object.keys(headers).length > 0
+
 export const toArray = (value: string | string[]): string[] => Array.isArray(value) ? value : [value]
 
 /** Throws a config error naming the env var an operator needs to set. */
