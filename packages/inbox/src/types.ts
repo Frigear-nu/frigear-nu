@@ -1,4 +1,5 @@
-import type { H3Event } from 'h3'
+import type { EventHandler, H3Event } from 'h3'
+import type { NitroApp } from 'nitropack'
 import type { Grant } from '@frigear-nu/auth/grants'
 import type { OwnerRef } from '@frigear-nu/teams'
 
@@ -47,6 +48,17 @@ export type InboxInboundMessage = {
   cc?: string[]
   /** A thread id the message answers (`[ibt_...]` in an email subject); used when it belongs to the same mailbox and contact. */
   threadId?: string | null
+  /**
+   * A thread id the address named (`support+ibt_...@inbox.example.org`, the `Reply-To` of a reply). Tried before
+   * `references` and `threadId`, with the same checks.
+   */
+  threadHint?: string | null
+  /**
+   * The provider ids of the messages this one answers, most telling first (an email's `In-Reply-To`, then its
+   * `References` newest first). A stored message of the same account with one of them (`<channel>:<id>`) names the
+   * thread, tried after `threadHint` and before `threadId`.
+   */
+  references?: string[]
   /**
    * Whether the channel verified the sender: a signed-in user, Meta's signed webhook, an email that passed SPF, DKIM or
    * DMARC. Only an authenticated message joins an existing thread or renames its contact; anything else (the default)
@@ -120,7 +132,42 @@ export type InboxChannelDefinition = {
 /** What a channel looks like to the app (`#inbox/registry`). */
 export type InboxChannelInfo = { id: string, label: Translated, icon?: string }
 
-export type InboxExtension = { channels?: InboxChannelDefinition[] }
+export type InboxExtension = { channels?: InboxChannelDefinition[], emailDrivers?: InboxEmailDriverDefinition[] }
+
+// --- Inbound email drivers ---------------------------------------------------------------------------------------------
+
+/**
+ * An inbound email driver, the default export of the file an `emailDrivers` registration names
+ * (`defineInboxEmailDriver`). It receives email from one provider and hands it to `inboxIngestEmail`, which routes it
+ * to the mailboxes and stores it. A driver has a `handler`, mounted at `POST /api/inbox/email/<name>` (a provider's
+ * webhook), a `setup` run once in a Nitro plugin (a runtime hook such as `cloudflare:email`), or both.
+ */
+export type InboxEmailDriver = {
+  name: string
+  /** Answers `POST /api/inbox/email/<name>`. Verify the request (a signature) before anything else. */
+  handler?: EventHandler
+  /** Runs once when the server starts, with the Nitro app: register runtime hooks here. */
+  setup?: (nitroApp: NitroApp) => void
+}
+
+/** An inbound email driver registration: its name and the server file default-exporting `defineInboxEmailDriver()`. */
+export type InboxEmailDriverDefinition = {
+  /** Lower case words joined by `.`, `_` or `-`; the last part of its URL. */
+  name: string
+  /** Absolute path of the server file. */
+  driver: string
+}
+
+/** The settings of an `email` channel account (`config`), none of them secret. */
+export type InboxEmailAccountConfig = {
+  /** Where answers to replies go when the address is not on an inbox domain. Defaults to the address. */
+  replyTo?: string
+  /**
+   * Send replies from this address (`"<Mailbox name>" <address>`) instead of Notify's `from`. The domain must be
+   * verified with the email provider Notify sends through. Defaults to `false`.
+   */
+  sendFromAddress?: boolean
+}
 
 // --- DTOs --------------------------------------------------------------------------------------------------------------
 
@@ -153,6 +200,14 @@ export type InboxChannelAccountDto = {
   enabled: boolean
   createdAt: string
   updatedAt: string
+}
+
+/** How email reaches the inbox on this server (`GET /api/admin/inbox/email`). */
+export type InboxEmailSettingsDto = {
+  /** The inbox domains (`NUXT_INBOX_DOMAINS`). */
+  domains: string[]
+  /** The inbound email drivers installed besides the signed JSON webhook (`cloudflare`, `resend`, a host's own). */
+  drivers: string[]
 }
 
 /** A contact as everyone with access to the thread sees them: no contact details. */
@@ -335,6 +390,34 @@ export type ModuleOptions = {
   email?: {
     /** HMAC secret of `POST /api/inbox/webhooks/email` (`NUXT_INBOX_EMAIL_WEBHOOK_SECRET`). */
     webhookSecret?: string
+    /**
+     * The domains the inbox receives all mail for (`inbox.example.org`), overridden at run time by `NUXT_INBOX_DOMAINS`
+     * (a comma separated list). A reply from an account on one goes out with the thread's reply address
+     * (`support+ibt_...@inbox.example.org`), and an address on one that no account has is unknown (a bounce, where the
+     * driver can send one). None by default.
+     */
+    domains?: string[]
+    /**
+     * The built-in inbound email drivers to install; several can be on at once. Defaults to `{ webhook: true }`.
+     * - `webhook`: the signed JSON webhook, `POST /api/inbox/webhooks/email`.
+     * - `cloudflare`: Cloudflare Email Routing to this Worker (the `cloudflare:email` hook of the `cloudflare-module`
+     *   preset).
+     * - `resend`: Resend's `email.received` webhook, `POST /api/inbox/email/resend`.
+     */
+    inbound?: {
+      webhook?: boolean
+      cloudflare?: boolean
+      resend?: boolean | {
+        /** The webhook's signing secret, `whsec_...` (`NUXT_INBOX_RESEND_WEBHOOK_SECRET`). */
+        webhookSecret?: string
+        /** An API key that can read received emails (`NUXT_INBOX_RESEND_API_KEY`). */
+        apiKey?: string
+        /** Defaults to `https://api.resend.com`. */
+        apiBase?: string
+      }
+    }
+    /** Inbound email drivers of the host, next to the built-in ones and those of other modules (`extendInbox`). */
+    drivers?: InboxEmailDriverDefinition[]
   }
   meta?: {
     /** The Meta app secret: checks `X-Hub-Signature-256` (`NUXT_INBOX_META_APP_SECRET`). */
@@ -375,6 +458,9 @@ export type PublicModuleOptions = {
 export type InboxRuntimeConfig = {
   retention: { days: number | false, mode: InboxRetentionMode, batch: number, tombstoneDays: number }
   email: { webhookSecret: string }
+  /** The inbox domains: `NUXT_INBOX_DOMAINS`, a comma separated list (read with `inboxDomains()`). */
+  domains: string | string[]
+  resend: { webhookSecret: string, apiKey: string, apiBase: string }
   meta: { appSecret: string, verifyToken: string, apiBase: string, apiVersion: string, timeoutMs: number }
   secrets: Record<string, string>
   mailboxes: InboxMailboxSeed[]

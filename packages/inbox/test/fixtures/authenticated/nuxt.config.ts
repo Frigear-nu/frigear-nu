@@ -64,7 +64,9 @@ export default defineNuxtConfig({
     settings: { rateLimit: 0, pages: { form: true } },
   },
   inbox: {
-    email: { webhookSecret: 'test-email-secret' },
+    // `reply.test` is an inbox domain: replies from an account on it carry a reply address (`help+ibt_...@reply.test`).
+    // The Cloudflare and Resend drivers are installed; Resend has no secret here, so its webhook answers 501.
+    email: { webhookSecret: 'test-email-secret', domains: ['reply.test'], inbound: { webhook: true, cloudflare: true, resend: true } },
     meta: { appSecret: 'test-app-secret', verifyToken: 'test-verify-token' },
     // `ENV_TOKEN` is declared empty and set by `NUXT_INBOX_SECRETS_ENV_TOKEN` in the test's environment.
     // `FAKE_WEBHOOK` is the fake channel's `inboundSecret`, the token its webhook checks.
