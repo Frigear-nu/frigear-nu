@@ -15,3 +15,5 @@ export { detectAppPlatform, initPlatform, listWorkspaceApps, resolvePlatformApp,
 export type { InitPlatformOptions, InitPlatformResult, ResolvePlatformAppOptions, WorkspaceApp } from './platform/init.ts'
 export { resolveAppsDir } from './utils/workspace.ts'
 export type { AppsDir } from './utils/workspace.ts'
+export { BUILTIN_SECRETS, DEFAULT_ENV_DIRS, describeEnvResult, generateSecret, prepareEnv, resolveEnvConfig } from './env/prepare.ts'
+export type { EnvConfig, PrepareEnvOptions, PrepareEnvResult, SecretGenerator } from './env/prepare.ts'
