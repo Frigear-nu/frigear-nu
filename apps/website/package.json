@@ -40,6 +40,7 @@
     "@frigear-nu/preferences": "workspace:*",
     "@frigear-nu/push": "workspace:*",
     "@frigear-nu/shifts": "workspace:*",
+    "@frigear-nu/short-links": "workspace:*",
     "@frigear-nu/stripe": "workspace:*",
     "@frigear-nu/subscriptions": "workspace:*",
     "@frigear-nu/teams": "workspace:*",

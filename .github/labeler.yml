@@ -41,6 +41,7 @@
           - packages/preferences/**
           - packages/push/**
           - packages/shifts/**
+          - packages/short-links/**
           - packages/stripe/**
           - packages/subscriptions/**
           - packages/teams/**
