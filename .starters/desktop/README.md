@@ -18,7 +18,8 @@ and sign-out). Every page needs a signed-in user through one `@frigear-nu/author
 
 Requirements: Node 24 (see `.nvmrc`), pnpm 12 (`corepack enable`), Rust from [rustup.rs](https://rustup.rs) and your
 OS's prerequisites (Xcode Command Line Tools, WebView2 and the C++ Build Tools, or WebKitGTK 4.1), and
-[Bun](https://bun.sh) for local mode. `pnpm desktop:doctor` checks them.
+[Bun](https://bun.sh) for local mode. `pnpm desktop:setup` installs Rust and Bun when they are missing, and
+`pnpm desktop:doctor` checks the rest.
 
 ```bash
 pnpx giget@latest gh:Frigear-nu/frigear-nu/.starters/desktop my-app
@@ -27,7 +28,7 @@ git init
 corepack enable
 pnpm install
 pnpm prepare:env
-pnpm desktop:init     # creates apps/desktop/src-tauri/ for the current mode
+pnpm desktop:setup    # installs Rust and Bun if missing, creates apps/desktop/src-tauri/
 ```
 
 Remote mode: point `apps/desktop/.env` at your issuer and API:
@@ -77,6 +78,7 @@ Run everything from the repository root:
 | `pnpm typecheck` / `pnpm typecheck:local` | Type check everywhere / `apps/desktop` in local mode |
 | `pnpm test` | Run the tests of every app and package that has them |
 | `pnpm db:generate` | Generate a migration for local mode (commit it) |
+| `pnpm desktop:setup` | Install what is missing (Rust, Bun in local mode, the Tauri packages), create `src-tauri/`, then check |
 | `pnpm desktop:doctor` | Check Rust, the OS prerequisites, Bun (local mode) and the Tauri packages |
 | `pnpm desktop:init` | Create `apps/desktop/src-tauri/` for the current mode (`--force` to recreate it) |
 | `pnpm desktop:sync` | Merge the `desktop` options of `nuxt.config.ts` into `src-tauri/` |

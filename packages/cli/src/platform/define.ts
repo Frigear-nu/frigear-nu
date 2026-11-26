@@ -122,6 +122,7 @@ export const BUILTIN_PLATFORMS: Record<string, PlatformDefinition> = {
     template: 'desktop',
     scripts: {
       'dev:<name>': 'pnpm --filter <dir> dev',
+      '<name>:setup': 'pnpm --filter <dir> run setup',
       '<name>:doctor': 'pnpm --filter <dir> run doctor',
       '<name>:init': 'pnpm --filter <dir> run native',
       '<name>:sync': 'pnpm --filter <dir> run native:sync',
@@ -129,7 +130,7 @@ export const BUILTIN_PLATFORMS: Record<string, PlatformDefinition> = {
       '<name>:build': 'pnpm --filter <dir> run native:build',
       '<name>:sidecar': 'pnpm --filter <dir> run sidecar',
     },
-    nextSteps: context => clientSteps(context, 'init', 'desktop'),
+    nextSteps: context => clientSteps(context, 'setup', 'desktop'),
     targets: {
       tauri: { description: 'The Tauri project (src-tauri/)', aliases: ['desktop'], script: 'native', bin: ['frigear-desktop', 'init'] },
     },
