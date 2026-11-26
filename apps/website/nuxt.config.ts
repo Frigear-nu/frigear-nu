@@ -51,6 +51,8 @@ export default defineNuxtConfig({
     '@frigear-nu/inbox',
     // Short counted links for emails and SMS (`/l/:code`), with the staff list at `/admin/short-links`.
     '@frigear-nu/short-links',
+    // Newsletters: lists people sign up to with double opt-in, the signup component and the staff pages.
+    '@frigear-nu/campaigns',
   ],
 
   $development: {
