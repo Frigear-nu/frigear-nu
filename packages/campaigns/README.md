@@ -33,4 +33,4 @@ export default defineNuxtConfig({
 Generate and commit a migration for the new tables. Unsubscribe links are signed with a key derived from
 `NUXT_APP_SECRET` (or `NUXT_CAMPAIGNS_SIGNING_KEY`).
 
-Full documentation: `apps/docs/content/3.modules/6.communication/5.campaigns`.
+Full documentation: `apps/docs/content/3.modules/6.communication/6.campaigns`.
