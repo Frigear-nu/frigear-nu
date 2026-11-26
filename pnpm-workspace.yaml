@@ -20,6 +20,10 @@ overrides:
   # `cssnano-utils@8.2.0`. Fixed upstream in `postcss-merge-rules@9.1.2`, which bumps its
   # `cssnano-utils` dependency to `^8.2.0`.
   postcss-merge-rules: ^9.1.2
+  # `@nuxt/content` 3.17 sets its `#content/server-fetch` alias with `@nuxt/kit`'s `resolveServerVariant`, which
+  # answers nothing on Nuxt 4.6, so the docs prerender fails ("#content/server-fetch is not defined"). Docus and
+  # Nuxt UI pull 3.17 in as a peer on any lockfile re-resolve. Drop this with the Nuxt 4.7 upgrade.
+  '@nuxt/content': ~3.16.2
 
 # One Nuxt toolchain for the whole workspace: every app and package references these as `catalog:`, so pnpm
 # resolves a single copy of each (instead of one per package with its own peer set).
