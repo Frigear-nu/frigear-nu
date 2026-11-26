@@ -432,8 +432,22 @@ export default defineNuxtConfig({
   },
   // Signing keys come from NUXT_OAUTH_SERVER_PRIVATE_KEY (see .env.example); `oauth:manage` is held by admins.
   oauthServer: {
-    // The Capacitor webview on iOS (`capacitor://localhost`) and Android (`https://localhost`) calls the token endpoints.
-    cors: { origins: ['capacitor://localhost', 'https://localhost'] },
+    cors: {
+      // The Capacitor webview on iOS (`capacitor://localhost`) and Android (`https://localhost`) calls the token
+      // endpoints, and with `Authorization: Bearer` the site's API under `paths`.
+      origins: ['capacitor://localhost', 'https://localhost'],
+      paths: ['/api/'],
+    },
+    // apps/mobile (appId `nu.frigear.app`) signs in with PKCE as this public client. Its dev server's redirect URI,
+    // and so its origin `http://localhost:3001` for CORS, is accepted under `nuxt dev` only.
+    clients: [{
+      id: 'mobile',
+      name: 'Frigear app',
+      redirectUris: ['nu.frigear.app:/auth/callback'],
+      devRedirectUris: ['http://localhost:3001/auth/callback'],
+      // Stays signed in while the app is opened at least every six months.
+      refreshToken: { idleTtl: 60 * 60 * 24 * 180 },
+    }],
     settings: {
       mcp: true,
       pages: { admin: true, applications: true },
