@@ -75,6 +75,7 @@ packages/oauth-server/test/fixtures/authenticated/.data
 packages/operations/test/fixtures/authenticated/.data
 packages/payments/test/fixtures/authenticated/.data
 packages/push/test/fixtures/authenticated/.data
+packages/short-links/test/fixtures/authenticated/.data
 packages/stripe/test/fixtures/authenticated/.data
 packages/stripe/test/fixtures/custom-path/.data
 packages/subscriptions/test/fixtures/authenticated/.data
