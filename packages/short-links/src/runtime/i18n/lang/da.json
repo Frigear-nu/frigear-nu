@@ -1,0 +1,79 @@
+{
+  "shortLinks": {
+    "tryAgain": "Prøv igen",
+    "menu": {
+      "admin": {
+        "label": "Korte links",
+        "description": "Alle modulers korte links, deres klik og links lavet i hånden."
+      }
+    },
+    "permissions": {
+      "manage": "Administrere korte links",
+      "manageDescription": "Se alle korte links og deres klik, lave links i hånden, redigere dem og deaktivere ethvert link."
+    },
+    "admin": {
+      "title": "Korte links",
+      "description": "Alle modulers korte links og dem, der er lavet i hånden, med deres klik.",
+      "create": "Opret kort link",
+      "createAction": "Opret kort link",
+      "createDescription": "En kort adresse, der sender folk videre til en længere.",
+      "editTitle": "Rediger kort link",
+      "edit": "Rediger kort link",
+      "saveAction": "Gem kort link",
+      "saved": "{name} er gemt",
+      "created": "{name} er oprettet",
+      "newLink": "Det korte link",
+      "saveFailed": "Det korte link kunne ikke gemmes",
+      "search": "Søg i korte links",
+      "allOwners": "Alle ejere",
+      "allStatuses": "Alle statusser",
+      "ownerManual": "Lavet i hånden",
+      "clearFilters": "Ryd filtre",
+      "forbidden": "Du har ikke adgang til korte links",
+      "loadFailed": "De korte links kunne ikke hentes",
+      "noMatches": "Ingen korte links passer til din søgning",
+      "empty": "Ingen korte links endnu",
+      "emptyDescription": "Moduler laver korte links, når de sender beskeder; du kan også lave et i hånden.",
+      "openTarget": "Åbn destination",
+      "copy": "Kopiér kort link",
+      "copied": "Det korte link til {name} er kopieret",
+      "enable": "Aktivér kort link",
+      "enabled": "{name} er aktiveret",
+      "enableFailed": "Det korte link kunne ikke aktiveres",
+      "disableAction": "Deaktivér kort link",
+      "disableTitle": "Deaktivér {name}?",
+      "disableDescription": "Folk, der åbner det, får 'ikke fundet' fra nu af. Du kan aktivere det igen.",
+      "disableOwnedDescription": "Det tilhører {owner}: folk, der åbner det, for eksempel fra en besked, der allerede er sendt, får 'ikke fundet' fra nu af. Du kan aktivere det igen.",
+      "disabled": "{name} er deaktiveret",
+      "disableFailed": "Det korte link kunne ikke deaktiveres",
+      "statuses": {
+        "active": "Aktiv",
+        "expired": "Udløbet",
+        "disabled": "Deaktiveret"
+      },
+      "columns": {
+        "link": "Kort link",
+        "target": "Destination",
+        "owner": "Ejer",
+        "status": "Status",
+        "clicks": "Klik",
+        "lastClicked": "Seneste klik"
+      },
+      "form": {
+        "url": "Destination",
+        "urlHelp": "Hvor det korte link sender folk hen.",
+        "urlInvalid": "Skriv en hel adresse, der starter med http:// eller https://",
+        "code": "Kode",
+        "codeHelp": "Lad feltet stå tomt for en tilfældig kode. Bogstaver, tal, bindestreger og understreger.",
+        "codeEditHelp": "Ændrer du den, virker det gamle korte link ikke længere.",
+        "codeInvalid": "3 til 64 bogstaver, tal, bindestreger eller understreger",
+        "title": "Titel",
+        "titleHelp": "Kun personalet ser den, så links kan skelnes fra hinanden.",
+        "expiresAt": "Udløber",
+        "expiresAtHelp": "Derefter svarer linket 'ikke fundet'. Lad feltet stå tomt, så det bliver ved med at virke.",
+        "track": "Registrér hvert klik",
+        "trackHelp": "Gem en række pr. klik (tidspunkt og henvisende side, aldrig IP-adressen). Antallet af klik gemmes under alle omstændigheder."
+      }
+    }
+  }
+}

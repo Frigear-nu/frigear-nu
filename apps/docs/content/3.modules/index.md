@@ -50,6 +50,7 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Plan an operation's shifts, let volunteers swap them, check them in by pass, station or location and earn perks | [Shifts](/modules/volunteering/shifts) | Crew, Teams, Operations, Notify, Auth, Users, Maps, UI |
 | Let a module store a location or a venue layout, with a picker, an editor and viewers | [Maps](/modules/interface/maps) | UI |
 | Answer the contact form, email, WhatsApp, Messenger and Instagram from shared inboxes | [Inbox](/modules/communication/inbox) | Auth, Notify, UI |
+| Put short, counted links in emails and SMS, and learn who clicked | [Short links](/modules/communication/short-links) | Auth, UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
 module's page.
@@ -122,7 +123,7 @@ Ready-made product features.
 
 ### Communication
 
-Reaching people: email, SMS and push, the templates they use, each user's choice of channel, and shared inboxes for the replies.
+Reaching people: email, SMS and push, the templates they use, each user's choice of channel, short links that count clicks, and shared inboxes for the replies.
 
 | Module | What it does | Server | Client | Mobile |
 | --- | --- | :---: | :---: | :---: |
@@ -130,6 +131,7 @@ Reaching people: email, SMS and push, the templates they use, each user's choice
 | [Email Templates](/modules/communication/email-templates) | Vue email templates that modules ship and apps override. | ✓ |  |  |
 | [Push](/modules/communication/push) | Device registration and FCM and APNs delivery, as the push driver of Notify. | ✓ | ✓ | ✓ |
 | [Inbox](/modules/communication/inbox) | Shared mailboxes for the contact form, email and Meta's channels, with assignment, notes, hidden threads, an audit log, retention and GDPR export and erase. | ✓ | ✓ |  |
+| [Short links](/modules/communication/short-links) | Short links any module makes for emails and SMS, with click counts without IP addresses and a hook that tells the owner who clicked. | ✓ | ✓ |  |
 
 ### Interface
 

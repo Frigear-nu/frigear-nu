@@ -1,0 +1,79 @@
+{
+  "shortLinks": {
+    "tryAgain": "Try again",
+    "menu": {
+      "admin": {
+        "label": "Short links",
+        "description": "Short links of every module, their clicks, and links made by hand."
+      }
+    },
+    "permissions": {
+      "manage": "Manage short links",
+      "manageDescription": "See every short link and its clicks, make links by hand, edit them and disable any link."
+    },
+    "admin": {
+      "title": "Short links",
+      "description": "Short links of every module and the ones made by hand, with their clicks.",
+      "create": "Create short link",
+      "createAction": "Create short link",
+      "createDescription": "A short address that sends people on to a longer one.",
+      "editTitle": "Edit short link",
+      "edit": "Edit short link",
+      "saveAction": "Save short link",
+      "saved": "Saved {name}",
+      "created": "Created {name}",
+      "newLink": "the short link",
+      "saveFailed": "Could not save the short link",
+      "search": "Search short links",
+      "allOwners": "All owners",
+      "allStatuses": "All statuses",
+      "ownerManual": "Made by hand",
+      "clearFilters": "Clear filters",
+      "forbidden": "You do not have access to short links",
+      "loadFailed": "Short links could not be loaded",
+      "noMatches": "No short links match your search",
+      "empty": "No short links yet",
+      "emptyDescription": "Modules make short links when they send messages; you can also make one by hand.",
+      "openTarget": "Open target",
+      "copy": "Copy short link",
+      "copied": "Copied the short link of {name}",
+      "enable": "Enable short link",
+      "enabled": "Enabled {name}",
+      "enableFailed": "Could not enable the short link",
+      "disableAction": "Disable short link",
+      "disableTitle": "Disable {name}?",
+      "disableDescription": "People who open it get 'not found' from now on. You can enable it again.",
+      "disableOwnedDescription": "It belongs to {owner}: people who open it, for example from a message already sent, get 'not found' from now on. You can enable it again.",
+      "disabled": "Disabled {name}",
+      "disableFailed": "Could not disable the short link",
+      "statuses": {
+        "active": "Active",
+        "expired": "Expired",
+        "disabled": "Disabled"
+      },
+      "columns": {
+        "link": "Short link",
+        "target": "Target",
+        "owner": "Owner",
+        "status": "Status",
+        "clicks": "Clicks",
+        "lastClicked": "Last click"
+      },
+      "form": {
+        "url": "Target",
+        "urlHelp": "Where the short link sends people.",
+        "urlInvalid": "Enter a full http:// or https:// address",
+        "code": "Code",
+        "codeHelp": "Leave empty for a random code. Letters, digits, dashes and underscores.",
+        "codeEditHelp": "Changing it breaks the old short link.",
+        "codeInvalid": "3 to 64 letters, digits, dashes or underscores",
+        "title": "Title",
+        "titleHelp": "Only staff see it, to tell links apart.",
+        "expiresAt": "Expires",
+        "expiresAtHelp": "After this the link answers 'not found'. Leave empty to keep it working.",
+        "track": "Record each click",
+        "trackHelp": "Keep a row per click (time and referring site, never the IP address). The click count is kept either way."
+      }
+    }
+  }
+}
