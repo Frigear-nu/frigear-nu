@@ -1,8 +1,8 @@
 import { db, schema } from '@nuxthub/db'
-import { and, count, eq, sql } from 'drizzle-orm'
+import { and, count, eq, inArray, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { z } from 'zod'
-import { apiError, isoDate, likeContains, notFound, orderByQuery, pageQuery, pageRange, paginate } from '@frigear-nu/module-kit/server'
+import { apiError, chunkParams, isoDate, likeContains, notFound, orderByQuery, pageQuery, pageRange, paginate } from '@frigear-nu/module-kit/server'
 import type { Page } from '@frigear-nu/module-kit/server'
 import { newId } from '@frigear-nu/module-kit/id'
 import type {
@@ -69,7 +69,11 @@ export async function listCampaigns(query: z.output<typeof campaignsListQuery>):
   const rows = await db.select().from(c).where(where)
     .orderBy(...orderByQuery({ createdAt: c.createdAt, scheduledAt: c.scheduledAt, name: c.name, status: c.status }, query, { tiebreaker: c.id }))
     .limit(limit).offset(offset)
-  return paginate({ items: rows.map(toCampaignDto), total: Number(total?.total ?? 0), query })
+  // Opens and clicks keep arriving after a campaign is sent, so the counts come from the delivery rows while they exist;
+  // the ones kept on the campaign are only for campaigns whose rows retention has deleted.
+  const live = await campaignDeliveryCountsMany(rows.filter(row => row.startedAt).map(row => row.id))
+  const items = rows.map(row => ({ ...toCampaignDto(row), counts: live.get(row.id) ?? row.counts ?? null }))
+  return paginate({ items, total: Number(total?.total ?? 0), query })
 }
 
 export async function findCampaign(id: string): Promise<CampaignRow | undefined> {
@@ -130,27 +134,37 @@ const emptyChannelCounts = (): CampaignChannelCounts => ({ total: 0, queued: 0, 
 
 /** Counts per channel from the delivery rows (`queued` includes claimed rows). */
 export async function campaignDeliveryCounts(campaignId: string): Promise<CampaignCounts> {
+  return (await campaignDeliveryCountsMany([campaignId])).get(campaignId) ?? {}
+}
+
+/** {@link campaignDeliveryCounts} for several campaigns; a campaign without delivery rows is left out of the map. */
+export async function campaignDeliveryCountsMany(campaignIds: readonly string[]): Promise<Map<string, CampaignCounts>> {
   const d = schema.campaignDeliveries
-  const rows = await db.select({
-    channel: d.channel,
-    status: d.status,
-    total: count(),
-    opened: sql<number>`sum(case when ${d.openedAt} is not null then 1 else 0 end)`,
-    clicked: sql<number>`sum(case when ${d.clickedAt} is not null then 1 else 0 end)`,
-    clicks: sql<number>`sum(${d.clicks})`,
-  }).from(d).where(eq(d.campaignId, campaignId)).groupBy(d.channel, d.status)
-  const counts: CampaignCounts = {}
-  for (const row of rows) {
-    const entry = counts[row.channel as CampaignSendChannel] ??= emptyChannelCounts()
-    const total = Number(row.total)
-    entry.total += total
-    if (row.status === 'sending' || row.status === 'queued') entry.queued += total
-    else entry[row.status as 'sent' | 'skipped' | 'failed'] += total
-    entry.opened += Number(row.opened ?? 0)
-    entry.clicked += Number(row.clicked ?? 0)
-    entry.clicks += Number(row.clicks ?? 0)
+  const result = new Map<string, CampaignCounts>()
+  for (const ids of chunkParams(campaignIds)) {
+    const rows = await db.select({
+      campaignId: d.campaignId,
+      channel: d.channel,
+      status: d.status,
+      total: count(),
+      opened: sql<number>`sum(case when ${d.openedAt} is not null then 1 else 0 end)`,
+      clicked: sql<number>`sum(case when ${d.clickedAt} is not null then 1 else 0 end)`,
+      clicks: sql<number>`sum(${d.clicks})`,
+    }).from(d).where(inArray(d.campaignId, ids)).groupBy(d.campaignId, d.channel, d.status)
+    for (const row of rows) {
+      let counts = result.get(row.campaignId)
+      if (!counts) result.set(row.campaignId, counts = {})
+      const entry = counts[row.channel as CampaignSendChannel] ??= emptyChannelCounts()
+      const total = Number(row.total)
+      entry.total += total
+      if (row.status === 'sending' || row.status === 'queued') entry.queued += total
+      else entry[row.status as 'sent' | 'skipped' | 'failed'] += total
+      entry.opened += Number(row.opened ?? 0)
+      entry.clicked += Number(row.clicked ?? 0)
+      entry.clicks += Number(row.clicks ?? 0)
+    }
   }
-  return counts
+  return result
 }
 
 /**

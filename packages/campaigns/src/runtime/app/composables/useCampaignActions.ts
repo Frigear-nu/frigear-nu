@@ -69,7 +69,9 @@ export function useCampaignActions() {
       const channels = Object.entries(preview.channels)
         .map(([channel, count]) => t(`campaign.reachChannel.${channel}`, { email: '{count} by email', sms: '{count} by SMS', push: '{count} by push' }[channel] ?? '{count}', { count: count ?? 0 }))
         .join(', ')
-      return t('campaign.reach', 'It reaches {count} people now: {channels}.', { count: preview.recipients, channels })
+      return preview.recipients === 1
+        ? t('campaign.reachOne', 'It reaches {count} person now: {channels}.', { count: preview.recipients, channels })
+        : t('campaign.reach', 'It reaches {count} people now: {channels}.', { count: preview.recipients, channels })
     }
     catch (error) {
       showError(error, t('campaign.previewFailed', 'Could not count who it reaches'))

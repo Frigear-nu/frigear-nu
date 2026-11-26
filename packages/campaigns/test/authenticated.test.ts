@@ -500,6 +500,9 @@ describe('campaigns (authenticated, database-backed)', async () => {
       await fetch(new URL(pixelUrl).pathname)
       const stats = await as(admin).json<CampaignStatsDto>('GET', campaignsApi.admin.stats(campaign.id))
       expect(stats.counts.email?.opened).toBe(1)
+      // The list counts from the delivery rows too, not the counts kept when the campaign finished (before this open).
+      const page = await as(admin).json<{ items: CampaignDto[] }>('GET', `${campaignsApi.admin.campaigns}?q=Opens`)
+      expect(page.items.find(item => item.id === campaign.id)?.counts?.email?.opened).toBe(1)
 
       // RFC 8058: the mail app posts to the List-Unsubscribe URL.
       const oneClick = mail.headers!['List-Unsubscribe']!.slice(1, -1)

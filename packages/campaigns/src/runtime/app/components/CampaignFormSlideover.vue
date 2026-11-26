@@ -178,6 +178,7 @@ async function save(event: FormSubmitEvent<CampaignFormState>) {
             v-model="state.grants"
             :kinds="sendKinds"
             :empty-text="t('campaign.fields.groupsEmpty', 'No groups yet: add the groups to send to, or pick people above.')"
+            :add-label="t('campaign.fields.groupsAdd', 'Add a group')"
           />
         </UFormField>
       </template>

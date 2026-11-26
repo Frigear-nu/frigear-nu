@@ -58,7 +58,7 @@ function audienceSummary(campaign: CampaignDto): string {
   const people = audience.userIds?.length ?? 0
   const groups = audience.grants?.length ?? 0
   return [
-    people ? t('campaign.peopleCount', '{count} people', { count: people }) : '',
+    people ? (people === 1 ? t('campaign.personCount', '{count} person', { count: people }) : t('campaign.peopleCount', '{count} people', { count: people })) : '',
     groups ? t('campaign.groupsCount', '{count} groups', { count: groups }) : '',
   ].filter(Boolean).join(', ')
 }

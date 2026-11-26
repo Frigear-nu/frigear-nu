@@ -14,6 +14,8 @@ const props = defineProps<{
   disabled?: boolean
   /** The line shown while the list is empty, for a list that is not about who sees a record (a send's recipients). */
   emptyText?: string
+  /** The "Add" button's label, for the same kind of list ("Add a group"). */
+  addLabel?: string
 }>()
 const model = defineModel<Grant[]>({ default: () => [] })
 
@@ -129,7 +131,7 @@ function remove(index: number) {
         color="neutral"
         variant="outline"
         class="self-start"
-        :label="t('grants.editor.add', 'Add who may see it')"
+        :label="addLabel ?? t('grants.editor.add', 'Add who may see it')"
         :disabled="disabled || !addItems.length"
       />
     </UDropdownMenu>

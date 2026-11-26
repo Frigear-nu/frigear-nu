@@ -510,7 +510,7 @@ const deliveryColumns = computed<TableColumn<CampaignDeliveryDto>[]>(() => [
             >
               <div class="border-b border-default px-4 py-2 text-sm">
                 <span class="text-muted">{{ t('campaign.fields.subject', 'Subject') }}:</span>
-                <span class="text-highlighted font-medium"> {{ text(campaign.content.email.subject) }}</span>
+                <span class="ms-1 text-highlighted font-medium">{{ text(campaign.content.email.subject) }}</span>
               </div>
               <!-- eslint-disable vue/no-v-html -- renderMarkdown escapes everything first -->
               <div
