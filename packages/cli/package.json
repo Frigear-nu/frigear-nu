@@ -1,6 +1,6 @@
 {
   "name": "@frigear-nu/cli",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "type": "module",
   "private": false,
   "description": "Frigear CLI: scaffold projects, apps and modules, and add Frigear modules to an app.",
