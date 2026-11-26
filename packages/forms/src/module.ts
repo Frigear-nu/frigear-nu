@@ -201,7 +201,7 @@ export default defineNuxtModule<ModuleOptions>({
     ])
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
     // Global so MDC (Nuxt Content) resolves `::form-embed{slug="..."}` in any collection without a local wrapper.
-    addComponent({ name: 'FormEmbed', filePath: resolver.resolve('./runtime/app/components/FormEmbed.vue'), global: true })
+    addComponent({ name: 'FormEmbed', filePath: resolver.resolve('./runtime/app/components/FormEmbed.vue'), global: true, priority: 1 })
 
     // Pages are opt-in (they require `@nuxt/ui` in the consuming app).
     addModulePages(MODULE_NAME, resolver, [

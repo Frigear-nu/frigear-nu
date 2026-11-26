@@ -102,7 +102,7 @@ The layer registers these modules, so your app does not list them again.
 | Layer | `modules/config` (the i18n `baseUrl` default) and `modules/routing` (see [Routing](/modules/platform/base-layer/layouts-and-routing#routing)) |
 | Nuxt | `@nuxt/eslint`, `@nuxt/icon`, `@nuxt/image`, `@nuxt/fonts`, `@nuxt/hints`, `@nuxt/ui`, `@nuxt/content`, `@nuxtjs/device`, `@nuxtjs/i18n` |
 | SEO | `@nuxtjs/sitemap`, `@nuxtjs/robots`, `nuxt-og-image`, `nuxt-seo-utils` |
-| Content | `@comark/nuxt` |
+| Content | `@comark/vue` |
 | Frigear | `@frigear-nu/menu` |
 
 The layer also adds `app/assets/css/main.css`: Tailwind, Nuxt UI, the colour scales and the `Public Sans` font.

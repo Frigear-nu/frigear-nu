@@ -9,7 +9,7 @@ export default defineNuxtConfig({
     '@nuxt/eslint',
     '@nuxt/icon',
     '@nuxt/image',
-    '@comark/nuxt',
+    '@comark/vue',
     '@nuxtjs/device',
     '@nuxt/hints',
     '@nuxt/fonts',
@@ -25,6 +25,19 @@ export default defineNuxtConfig({
       if (!nuxt.options.css.find(css => css.includes('main.css'))) {
         nuxt.options.css.push(resolver.resolve('./app/assets/css/main.css'))
       }
+      // `@comark/vue` and `@nuxtjs/mdc` (Nuxt Content) both auto-import `parseMarkdown`. Keep MDC's (what content
+      // and help-center use) and drop comark's, which stays importable from `@comark/vue/parse`.
+      const dropComarkParse = (imports: { name: string, from: string }[]) => {
+        if (imports.filter(entry => entry.name === 'parseMarkdown').length < 2) return
+        const index = imports.findIndex(entry => entry.name === 'parseMarkdown' && entry.from === '@comark/vue/parse')
+        if (index !== -1) imports.splice(index, 1)
+      }
+      nuxt.hook('modules:done', () => {
+        nuxt.hook('imports:extend', dropComarkParse)
+        nuxt.hook('nitro:config', (config) => {
+          if (config.imports && Array.isArray(config.imports.imports)) dropComarkParse(config.imports.imports)
+        })
+      })
     },
   ],
   $meta: {
@@ -124,9 +137,10 @@ export default defineNuxtConfig({
     },
   },
 
-  // Keep app/API/auth routes out of search results; `site.indexable` (set by the host app) decides whether
+  // Keep app/auth routes out of search results (API routes are never linked, and blocking `/api` can block what
+  // crawlers fetch to render a page); `site.indexable` (set by the host app) decides whether
   // the site as a whole may be indexed at all.
   robots: {
-    disallow: ['/admin', '/api', '/auth', '/account'],
+    disallow: ['/admin', '/auth', '/account'],
   },
 })
