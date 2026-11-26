@@ -264,10 +264,10 @@ export default defineNuxtConfig({
       siteUrl: process.env.PR_NUMBER ? undefined : knownSiteUrl,
       trustRequestOrigin: true,
       afterLogin: '/dashboard',
-      // Production accounts are created on frigear.nu itself; previews and local dev keep the local register page.
+      // The site serves its own register page everywhere (the sign-in link keeps `?redirect=`, e.g. an OAuth sign-in).
       pages: {
         login: '/sign-in',
-        register: process.env.NODE_ENV === 'production' && !process.env.PR_NUMBER ? 'https://frigear.nu/sign-up' : '/sign-up',
+        register: '/sign-up',
       },
       password: true,
       webAuthn: true,
