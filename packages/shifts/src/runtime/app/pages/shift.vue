@@ -5,7 +5,8 @@ import { SHIFT_ASSIGNMENT_STATUS_LABELS, SHIFT_SWAP_OFFER_STATUS_LABELS, SHIFT_S
 import { dayKey } from '@frigear-nu/module-kit/time'
 import { countdownParts } from '../../utils/time'
 import type { MyShiftDetailDto, ShiftPassDto, ShiftPassPerkDto, ShiftSelfCheckInDto, ShiftSwapKind, ShiftSwapOfferDto } from '../../../types'
-import { $fetch, computed, errorMessage, navigateTo, onBeforeUnmount, onMounted, ref, useAction, useAuthPages, useConfirmDialog, useFetch, useHead, useLazyFetch, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate, watch } from '#imports'
+import { $fetch, computed, errorMessage, navigateTo, onBeforeUnmount, onMounted, ref, useAction, useAuthPages, useConfirmDialog, useFetch, useHead, useLazyFetch, useModuleT, useRoute, useRuntimeConfig, useShiftsFormat, useShiftsLinks, useShiftsTranslate, watch } from '#imports'
+import { UContainer } from '#components'
 
 defineOptions({ name: 'ShiftsShiftPage' })
 
@@ -192,337 +193,340 @@ const facts = computed(() => data.value
     ]
   : [])
 
+// Below the signed-in hub (`/dashboard/crew/shifts/:assignmentId`) an app page in the hub's layout; elsewhere a page of
+// the site, in its own container.
+const config = useRuntimeConfig().public
+const inHub = computed(() => {
+  const hub = (config.dashboard as { pages?: { home?: string } } | undefined)?.pages?.home
+  const page = config.shifts?.pages?.shift
+  return !!(hub && page && (hub === '/' || page.startsWith(`${hub}/`)))
+})
+const heading = computed(() => data.value ? `${tr(data.value.teamName)} · ${format.time(data.value.shift.startsAt)}–${format.time(data.value.shift.endsAt)}` : t('shift.title', 'My shift'))
+
 useHead({ title: () => t('shift.title', 'My shift') })
 </script>
 
 <template>
-  <UContainer>
-    <UPage>
-      <UPageHeader
-        :title="data ? `${tr(data.teamName)} · ${format.time(data.shift.startsAt)}–${format.time(data.shift.endsAt)}` : t('shift.title', 'My shift')"
-        :description="data ? format.day(dayKey(data.shift.startsAt, format.timeZone)) : undefined"
+  <component
+    :is="inHub ? 'div' : UContainer"
+    class="flex flex-col gap-4"
+    :class="inHub ? undefined : 'py-8'"
+  >
+    <PageHeading
+      :title="heading"
+      :description="data ? format.day(dayKey(data.shift.startsAt, format.timeZone)) : undefined"
+      :breadcrumb="[{ label: t('shift.back', 'My shifts'), to: links.shifts() }, { label: heading }]"
+    />
+    <div class="flex max-w-2xl flex-col gap-4">
+      <UEmpty
+        v-if="error && error.statusCode !== 401"
+        icon="i-lucide-circle-alert"
+        :title="error.statusCode === 404 ? t('shift.notFound', 'This shift is not yours, or no longer exists') : t('shift.loadFailed', 'The shift could not be loaded')"
+        :description="error.statusCode === 404 ? undefined : errorMessage(error, '')"
+        :actions="[{ label: t('shift.back', 'My shifts'), to: links.shifts(), color: 'neutral', variant: 'outline' }]"
+      />
+      <div
+        v-else-if="data"
+        class="flex flex-col gap-4"
       >
-        <template #links>
-          <UButton
-            :to="links.shifts()"
-            icon="i-lucide-arrow-left"
-            color="neutral"
-            variant="ghost"
-            :label="t('shift.back', 'My shifts')"
-          />
-        </template>
-      </UPageHeader>
-      <UPageBody class="max-w-2xl">
-        <UEmpty
-          v-if="error && error.statusCode !== 401"
-          icon="i-lucide-circle-alert"
-          :title="error.statusCode === 404 ? t('shift.notFound', 'This shift is not yours, or no longer exists') : t('shift.loadFailed', 'The shift could not be loaded')"
-          :description="error.statusCode === 404 ? undefined : errorMessage(error, '')"
-          :actions="[{ label: t('shift.back', 'My shifts'), to: links.shifts(), color: 'neutral', variant: 'outline' }]"
-        />
-        <div
-          v-else-if="data"
-          class="flex flex-col gap-4"
+        <SectionCard
+          v-if="holdsPlace"
+          :title="t('shift.pass', 'Check-in pass')"
+          icon="i-lucide-qr-code"
         >
-          <SectionCard
-            v-if="holdsPlace"
-            :title="t('shift.pass', 'Check-in pass')"
-            icon="i-lucide-qr-code"
+          <div
+            v-if="passOpen && qr"
+            class="flex flex-col items-center gap-2"
           >
-            <div
-              v-if="passOpen && qr"
-              class="flex flex-col items-center gap-2"
+            <img
+              :src="qr"
+              :alt="t('shift.passAlt', 'QR code to check in')"
+              class="size-60 rounded-md bg-white p-2"
             >
-              <img
-                :src="qr"
-                :alt="t('shift.passAlt', 'QR code to check in')"
-                class="size-60 rounded-md bg-white p-2"
-              >
-              <p class="text-muted text-center text-sm">
-                {{ canStation || canLocation ? t('shift.passHelpSelf', 'Check in below, or show this to the lead of your team.') : t('shift.passHelp', 'Show this to the lead of your team when you arrive.') }}
-              </p>
-              <UButton
-                color="neutral"
-                variant="outline"
-                icon="i-lucide-maximize-2"
-                :label="t('shift.passLarger', 'Show larger')"
-                @click="large = true"
-              />
-            </div>
-            <USkeleton
-              v-else-if="passOpen"
-              class="mx-auto size-60"
+            <p class="text-muted text-center text-sm">
+              {{ canStation || canLocation ? t('shift.passHelpSelf', 'Check in below, or show this to the lead of your team.') : t('shift.passHelp', 'Show this to the lead of your team when you arrive.') }}
+            </p>
+            <UButton
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-maximize-2"
+              :label="t('shift.passLarger', 'Show larger')"
+              @click="large = true"
             />
-            <div
-              v-else
-              class="flex flex-col gap-1"
-            >
-              <p
-                v-if="now && now < Date.parse(data.passOpensAt)"
-                class="text-highlighted text-lg font-semibold tabular-nums"
-              >
-                {{ t('shift.passOpensIn', 'Opens in {time}', { time: countdown }) }}
-              </p>
-              <p class="text-muted text-sm">
-                {{ now < Date.parse(data.passOpensAt)
-                  ? t('shift.passLater', 'Your pass shows here from {time}.', { time: format.dateTime(data.passOpensAt) })
-                  : t('shift.passClosed', 'Check-in for this shift has closed.') }}
-              </p>
-            </div>
-            <div
-              v-if="checkedIn || canStation || canLocation || checkInResult"
-              class="border-default mt-3 flex flex-col gap-2 border-t pt-3"
-            >
-              <UAlert
-                v-if="checkInResult"
-                :color="checkInResult.tone"
-                variant="subtle"
-                :icon="checkInResult.tone === 'success' ? 'i-lucide-check-circle' : checkInResult.tone === 'warning' ? 'i-lucide-info' : 'i-lucide-circle-alert'"
-                :title="checkInResult.title"
-              />
-              <p
-                v-else-if="checkedIn"
-                class="text-success flex items-center gap-1.5 text-sm font-medium"
-              >
-                <UIcon
-                  name="i-lucide-check-circle"
-                  class="size-4"
-                />
-                {{ t('checkIn.checkedInAt', 'Checked in at {time}', { time: format.time(data.assignment.checkedInAt!) }) }}
-              </p>
-              <div
-                v-if="!checkedIn && (canStation || canLocation)"
-                class="flex flex-wrap gap-2"
-              >
-                <UButton
-                  v-if="canStation"
-                  icon="i-lucide-scan-line"
-                  :color="scanning ? 'neutral' : 'primary'"
-                  :variant="scanning ? 'outline' : 'solid'"
-                  :label="scanning ? t('checkIn.stopScanning', 'Stop scanning') : t('checkIn.scanStation', 'Scan the station code')"
-                  @click="scanning = !scanning"
-                />
-                <UButton
-                  v-if="canLocation"
-                  icon="i-lucide-map-pin"
-                  :color="canStation ? 'neutral' : 'primary'"
-                  :variant="canStation ? 'outline' : 'solid'"
-                  :loading="checkInBusy"
-                  :label="t('checkIn.imHere', 'I\'m here: check in')"
-                  @click="checkInHere"
-                />
-              </div>
-              <ShiftQrScanner
-                v-if="scanning && !checkedIn"
-                :paused="checkInBusy"
-                @detect="onStationScan"
-              />
-            </div>
+          </div>
+          <USkeleton
+            v-else-if="passOpen"
+            class="mx-auto size-60"
+          />
+          <div
+            v-else
+            class="flex flex-col gap-1"
+          >
             <p
-              v-if="leadNames.length"
-              class="text-muted mt-3 flex items-center gap-1.5 text-sm"
+              v-if="now && now < Date.parse(data.passOpensAt)"
+              class="text-highlighted text-lg font-semibold tabular-nums"
+            >
+              {{ t('shift.passOpensIn', 'Opens in {time}', { time: countdown }) }}
+            </p>
+            <p class="text-muted text-sm">
+              {{ now < Date.parse(data.passOpensAt)
+                ? t('shift.passLater', 'Your pass shows here from {time}.', { time: format.dateTime(data.passOpensAt) })
+                : t('shift.passClosed', 'Check-in for this shift has closed.') }}
+            </p>
+          </div>
+          <div
+            v-if="checkedIn || canStation || canLocation || checkInResult"
+            class="border-default mt-3 flex flex-col gap-2 border-t pt-3"
+          >
+            <UAlert
+              v-if="checkInResult"
+              :color="checkInResult.tone"
+              variant="subtle"
+              :icon="checkInResult.tone === 'success' ? 'i-lucide-check-circle' : checkInResult.tone === 'warning' ? 'i-lucide-info' : 'i-lucide-circle-alert'"
+              :title="checkInResult.title"
+            />
+            <p
+              v-else-if="checkedIn"
+              class="text-success flex items-center gap-1.5 text-sm font-medium"
             >
               <UIcon
-                name="i-lucide-shield-check"
+                name="i-lucide-check-circle"
                 class="size-4"
               />
-              {{ t('shift.leadOnDutyIs', 'Lead on duty: {names}', { names: leadNames.join(', ') }) }}
+              {{ t('checkIn.checkedInAt', 'Checked in at {time}', { time: format.time(data.assignment.checkedInAt!) }) }}
             </p>
             <div
-              v-if="perks.length"
-              class="border-default mt-3 flex flex-col gap-1.5 border-t pt-3"
+              v-if="!checkedIn && (canStation || canLocation)"
+              class="flex flex-wrap gap-2"
             >
-              <h3 class="text-highlighted text-sm font-semibold">
-                {{ t('shift.perks', 'What this shift earns') }}
-              </h3>
-              <ul class="flex flex-col gap-1 text-sm">
-                <li
-                  v-for="perk in perks"
-                  :key="perk.perkId"
-                  class="flex items-center justify-between gap-2"
-                >
-                  <span>{{ perk.quantity }} × {{ tr(perk.name) }}</span>
-                  <UBadge
-                    :color="perkColor(perk)"
-                    variant="subtle"
-                    :label="perkLabel(perk)"
-                  />
-                </li>
-              </ul>
-            </div>
-          </SectionCard>
-
-          <SectionCard :title="t('shift.details', 'Shift')">
-            <DescriptionList :items="facts" />
-          </SectionCard>
-
-          <SectionCard
-            :title="t('shift.leadOnDuty', 'Lead on duty')"
-            icon="i-lucide-shield-check"
-          >
-            <p
-              v-if="!data.leadsOnDuty.length"
-              class="text-muted text-sm"
-            >
-              {{ t('shift.noLead', 'No lead of your team is on shift with you yet.') }}
-            </p>
-            <div
-              v-else
-              class="flex flex-wrap gap-3"
-            >
-              <TableIdentity
-                v-for="lead in data.leadsOnDuty"
-                :key="lead.userId"
-                :title="lead.name ?? `#${lead.userId}`"
-                :avatar="{ src: lead.avatar ?? undefined, alt: lead.name ?? '' }"
+              <UButton
+                v-if="canStation"
+                icon="i-lucide-scan-line"
+                :color="scanning ? 'neutral' : 'primary'"
+                :variant="scanning ? 'outline' : 'solid'"
+                :label="scanning ? t('checkIn.stopScanning', 'Stop scanning') : t('checkIn.scanStation', 'Scan the station code')"
+                @click="scanning = !scanning"
+              />
+              <UButton
+                v-if="canLocation"
+                icon="i-lucide-map-pin"
+                :color="canStation ? 'neutral' : 'primary'"
+                :variant="canStation ? 'outline' : 'solid'"
+                :loading="checkInBusy"
+                :label="t('checkIn.imHere', 'I\'m here: check in')"
+                @click="checkInHere"
               />
             </div>
-          </SectionCard>
-
-          <SectionCard
-            :title="t('shift.swap', 'Swap')"
-            icon="i-lucide-arrow-left-right"
-            :description="data.settings.approval === 'lead' ? t('shift.swapApprovalHelp', 'A lead of the team approves a swap you accept.') : t('shift.swapPeerHelp', 'A swap is done as soon as you accept an offer.')"
+            <ShiftQrScanner
+              v-if="scanning && !checkedIn"
+              :paused="checkInBusy"
+              @detect="onStationScan"
+            />
+          </div>
+          <p
+            v-if="leadNames.length"
+            class="text-muted mt-3 flex items-center gap-1.5 text-sm"
           >
-            <template
-              v-if="swap"
-              #actions
-            >
-              <div class="flex items-center gap-2">
+            <UIcon
+              name="i-lucide-shield-check"
+              class="size-4"
+            />
+            {{ t('shift.leadOnDutyIs', 'Lead on duty: {names}', { names: leadNames.join(', ') }) }}
+          </p>
+          <div
+            v-if="perks.length"
+            class="border-default mt-3 flex flex-col gap-1.5 border-t pt-3"
+          >
+            <h3 class="text-highlighted text-sm font-semibold">
+              {{ t('shift.perks', 'What this shift earns') }}
+            </h3>
+            <ul class="flex flex-col gap-1 text-sm">
+              <li
+                v-for="perk in perks"
+                :key="perk.perkId"
+                class="flex items-center justify-between gap-2"
+              >
+                <span>{{ perk.quantity }} × {{ tr(perk.name) }}</span>
                 <UBadge
-                  color="neutral"
+                  :color="perkColor(perk)"
                   variant="subtle"
-                  :label="swap.kind === 'trade' ? t('swapKinds.trade', 'Trade') : t('swapKinds.release', 'Give away')"
+                  :label="perkLabel(perk)"
                 />
-                <StatusBadge
-                  :status="swap.status"
-                  :label="t(`swapStatuses.${swap.status}`, SHIFT_SWAP_STATUS_LABELS[swap.status])"
-                />
-              </div>
-            </template>
-            <UAlert
-              v-if="mustWorkAll"
-              class="mb-3"
-              color="info"
-              variant="subtle"
-              icon="i-lucide-info"
-              :title="t('shift.tradeOnly', 'Trade only: you must work all your shifts.')"
+              </li>
+            </ul>
+          </div>
+        </SectionCard>
+
+        <SectionCard :title="t('shift.details', 'Shift')">
+          <DescriptionList :items="facts" />
+        </SectionCard>
+
+        <SectionCard
+          :title="t('shift.leadOnDuty', 'Lead on duty')"
+          icon="i-lucide-shield-check"
+        >
+          <p
+            v-if="!data.leadsOnDuty.length"
+            class="text-muted text-sm"
+          >
+            {{ t('shift.noLead', 'No lead of your team is on shift with you yet.') }}
+          </p>
+          <div
+            v-else
+            class="flex flex-wrap gap-3"
+          >
+            <TableIdentity
+              v-for="lead in data.leadsOnDuty"
+              :key="lead.userId"
+              :title="lead.name ?? `#${lead.userId}`"
+              :avatar="{ src: lead.avatar ?? undefined, alt: lead.name ?? '' }"
             />
-            <UAlert
-              v-if="swap && !allowsSwapKind(data.settings, swap.kind)"
-              class="mb-3"
-              color="warning"
-              variant="subtle"
-              icon="i-lucide-triangle-alert"
-              :title="t('shift.swapNoLongerAllowed', 'The schedule no longer allows this kind of swap: withdraw it and open a new one.')"
-            />
-            <div
-              v-if="swap"
-              class="flex flex-col gap-3"
-            >
-              <p
-                v-if="!waitingOffers.length"
-                class="text-muted text-sm"
-              >
-                {{ swap.kind === 'trade'
-                  ? t('shift.noTradeOffers', 'No offers yet. People who can take your shift see it in the open swaps and offer one of theirs.')
-                  : t('shift.noOffers', 'No offers yet. People who can take your shift see it in the open swaps.') }}
-              </p>
-              <ul
-                v-else
-                class="divide-default divide-y"
-              >
-                <li
-                  v-for="offer in waitingOffers"
-                  :key="offer.id"
-                  class="flex flex-wrap items-center justify-between gap-2 py-2"
-                >
-                  <div class="flex flex-col text-sm">
-                    <span class="text-highlighted font-medium">{{ offer.person?.name ?? `#${offer.userId}` }}</span>
-                    <span class="text-muted">
-                      {{ offer.offeredShift
-                        ? t('shift.offerBack', 'Gives you {team}, {when}', { team: tr(offer.offeredShift.teamName), when: format.range(offer.offeredShift.startsAt, offer.offeredShift.endsAt) })
-                        : t('shift.offerTake', 'Takes your shift over') }}
-                    </span>
-                  </div>
-                  <div
-                    v-if="offer.status === 'offered' && swap.status === 'offered' && canAccept(offer)"
-                    class="flex gap-2"
-                  >
-                    <UButton
-                      color="neutral"
-                      variant="outline"
-                      size="sm"
-                      :loading="busy"
-                      :label="t('shift.rejectOffer', 'Turn down offer')"
-                      @click="decide(offer, false)"
-                    />
-                    <UButton
-                      size="sm"
-                      :loading="busy"
-                      :label="t('shift.acceptOffer', 'Accept offer')"
-                      @click="decide(offer, true)"
-                    />
-                  </div>
-                  <UBadge
-                    v-else
-                    color="neutral"
-                    variant="subtle"
-                    :label="t(`offerStatuses.${offer.status}`, SHIFT_SWAP_OFFER_STATUS_LABELS[offer.status])"
-                  />
-                </li>
-              </ul>
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          :title="t('shift.swap', 'Swap')"
+          icon="i-lucide-arrow-left-right"
+          :description="data.settings.approval === 'lead' ? t('shift.swapApprovalHelp', 'A lead of the team approves a swap you accept.') : t('shift.swapPeerHelp', 'A swap is done as soon as you accept an offer.')"
+        >
+          <template
+            v-if="swap"
+            #actions
+          >
+            <div class="flex items-center gap-2">
+              <UBadge
+                color="neutral"
+                variant="subtle"
+                :label="swap.kind === 'trade' ? t('swapKinds.trade', 'Trade') : t('swapKinds.release', 'Give away')"
+              />
+              <StatusBadge
+                :status="swap.status"
+                :label="t(`swapStatuses.${swap.status}`, SHIFT_SWAP_STATUS_LABELS[swap.status])"
+              />
             </div>
+          </template>
+          <UAlert
+            v-if="mustWorkAll"
+            class="mb-3"
+            color="info"
+            variant="subtle"
+            icon="i-lucide-info"
+            :title="t('shift.tradeOnly', 'Trade only: you must work all your shifts.')"
+          />
+          <UAlert
+            v-if="swap && !allowsSwapKind(data.settings, swap.kind)"
+            class="mb-3"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-triangle-alert"
+            :title="t('shift.swapNoLongerAllowed', 'The schedule no longer allows this kind of swap: withdraw it and open a new one.')"
+          />
+          <div
+            v-if="swap"
+            class="flex flex-col gap-3"
+          >
             <p
-              v-else-if="!canOpenSwap"
+              v-if="!waitingOffers.length"
               class="text-muted text-sm"
             >
-              {{ t('shift.cannotSwap', 'This shift cannot be swapped now.') }}
+              {{ swap.kind === 'trade'
+                ? t('shift.noTradeOffers', 'No offers yet. People who can take your shift see it in the open swaps and offer one of theirs.')
+                : t('shift.noOffers', 'No offers yet. People who can take your shift see it in the open swaps.') }}
             </p>
-            <template
-              v-if="(swap && swap.status !== 'accepted') || (canOpenSwap && kinds.length)"
-              #footer
+            <ul
+              v-else
+              class="divide-default divide-y"
             >
-              <div class="flex flex-wrap justify-end gap-2">
-                <UButton
-                  v-if="swap && swap.status !== 'accepted'"
+              <li
+                v-for="offer in waitingOffers"
+                :key="offer.id"
+                class="flex flex-wrap items-center justify-between gap-2 py-2"
+              >
+                <div class="flex flex-col text-sm">
+                  <span class="text-highlighted font-medium">{{ offer.person?.name ?? `#${offer.userId}` }}</span>
+                  <span class="text-muted">
+                    {{ offer.offeredShift
+                      ? t('shift.offerBack', 'Gives you {team}, {when}', { team: tr(offer.offeredShift.teamName), when: format.range(offer.offeredShift.startsAt, offer.offeredShift.endsAt) })
+                      : t('shift.offerTake', 'Takes your shift over') }}
+                  </span>
+                </div>
+                <div
+                  v-if="offer.status === 'offered' && swap.status === 'offered' && canAccept(offer)"
+                  class="flex gap-2"
+                >
+                  <UButton
+                    color="neutral"
+                    variant="outline"
+                    size="sm"
+                    :loading="busy"
+                    :label="t('shift.rejectOffer', 'Turn down offer')"
+                    @click="decide(offer, false)"
+                  />
+                  <UButton
+                    size="sm"
+                    :loading="busy"
+                    :label="t('shift.acceptOffer', 'Accept offer')"
+                    @click="decide(offer, true)"
+                  />
+                </div>
+                <UBadge
+                  v-else
                   color="neutral"
-                  variant="outline"
-                  :loading="busy"
-                  :label="t('shift.withdrawSwap', 'Withdraw swap')"
-                  @click="withdrawSwap"
+                  variant="subtle"
+                  :label="t(`offerStatuses.${offer.status}`, SHIFT_SWAP_OFFER_STATUS_LABELS[offer.status])"
                 />
-                <template v-else-if="canOpenSwap">
-                  <UButton
-                    v-if="kinds.includes('release')"
-                    :color="kinds.includes('trade') ? 'neutral' : 'primary'"
-                    :variant="kinds.includes('trade') ? 'outline' : 'solid'"
-                    icon="i-lucide-hand"
-                    :loading="busy"
-                    :label="t('shift.openRelease', 'Give shift away')"
-                    @click="openSwap('release')"
-                  />
-                  <UButton
-                    v-if="kinds.includes('trade')"
-                    icon="i-lucide-arrow-left-right"
-                    :loading="busy"
-                    :label="t('shift.openTrade', 'Offer shift for a trade')"
-                    @click="openSwap('trade')"
-                  />
-                </template>
-              </div>
-            </template>
-          </SectionCard>
-        </div>
-      </UPageBody>
-    </UPage>
+              </li>
+            </ul>
+          </div>
+          <p
+            v-else-if="!canOpenSwap"
+            class="text-muted text-sm"
+          >
+            {{ t('shift.cannotSwap', 'This shift cannot be swapped now.') }}
+          </p>
+          <template
+            v-if="(swap && swap.status !== 'accepted') || (canOpenSwap && kinds.length)"
+            #footer
+          >
+            <div class="flex flex-wrap justify-end gap-2">
+              <UButton
+                v-if="swap && swap.status !== 'accepted'"
+                color="neutral"
+                variant="outline"
+                :loading="busy"
+                :label="t('shift.withdrawSwap', 'Withdraw swap')"
+                @click="withdrawSwap"
+              />
+              <template v-else-if="canOpenSwap">
+                <UButton
+                  v-if="kinds.includes('release')"
+                  :color="kinds.includes('trade') ? 'neutral' : 'primary'"
+                  :variant="kinds.includes('trade') ? 'outline' : 'solid'"
+                  icon="i-lucide-hand"
+                  :loading="busy"
+                  :label="t('shift.openRelease', 'Give shift away')"
+                  @click="openSwap('release')"
+                />
+                <UButton
+                  v-if="kinds.includes('trade')"
+                  icon="i-lucide-arrow-left-right"
+                  :loading="busy"
+                  :label="t('shift.openTrade', 'Offer shift for a trade')"
+                  @click="openSwap('trade')"
+                />
+              </template>
+            </div>
+          </template>
+        </SectionCard>
+      </div>
+    </div>
     <ShiftPassFullscreen
       v-if="large && qr"
       :qr="qr"
       :code="pass?.code"
-      :title="data ? `${tr(data.teamName)} · ${format.time(data.shift.startsAt)}–${format.time(data.shift.endsAt)}` : ''"
+      :title="heading"
       :leads="leadNames"
       @close="large = false"
     />
-  </UContainer>
+  </component>
 </template>
