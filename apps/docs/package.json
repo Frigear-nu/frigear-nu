@@ -7,7 +7,7 @@
     "lint": "node ../../scripts/docs-check-links.mjs"
   },
   "dependencies": {
-    "docus": "latest",
+    "docus": "5.15.0",
     "nuxt": "catalog:"
   },
   "devDependencies": {
