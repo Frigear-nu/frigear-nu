@@ -9,7 +9,6 @@ Guidance for AI coding agents (and humans) working in this repository.
 /apps/mobile      Capacitor app (Nuxt 4 SPA) on @frigear-nu/mobile, signing in at apps/web
 /apps/**          Other apps - could be any language or deployment target
 /packages/**      Shared workspace packages (config, types, utils, ...)
-/scripts          Workspace scripts (prepare-env.mjs)
 ```
 
 This is a pnpm workspace monorepo. Packages under `packages/**` are consumed by the apps (and each other) via

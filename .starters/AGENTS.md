@@ -17,16 +17,16 @@ The starters are templates for a **new project outside this repo**, each a pnpm 
 
 - They are not part of this pnpm workspace (`pnpm-workspace.yaml` only lists `apps/*` and `packages/*`): they depend on
   the **published** `@frigear-nu/*` versions, never `workspace:*` or `catalog:`, and have their own `AGENTS.md`.
-- **Shared files stay identical.** `.github/`, `.nvmrc`, `.gitignore`, `pnpm-workspace.yaml`, `scripts/` and
-  `packages/` are the same in every starter, `apps/mobile` is the same in `mobile`, `mobile-standalone` and
+- **Shared files stay identical.** `.github/`, `.nvmrc`, `.gitignore`, `pnpm-workspace.yaml` and `packages/` are the same in every starter, `apps/mobile` is the same in `mobile`, `mobile-standalone` and
   `multi-platform`, and `mobile-standalone/apps/web` differs from `workspace/apps/web` only in `nuxt.config.ts`,
   `package.json`, `.env.example`, `AGENTS.md`, the migrations and `server/api/`. `multi-platform/apps/web` differs from
   `mobile-standalone/apps/web` only in `nuxt.config.ts`, `package.json`, `AGENTS.md` and the migrations, and
   `multi-platform/apps/desktop` from `desktop/apps/desktop` only in `nuxt.config.ts`, `identity.ts`, `.env.example`,
   `AGENTS.md` and the migrations. Change a shared file in every starter in the same commit; the `drift` job of
   `.github/workflows/starters.yml` fails otherwise.
-- `scripts/prepare-env.mjs` (`pnpm prepare:env`) is zero-dependency: it copies each `.env.example` and fills in empty
-  secrets, never overwriting a value.
+- `pnpm prepare:env` runs `pnpx @frigear-nu/cli prepare env` (`packages/cli/src/env/prepare.ts`): it copies each
+  `.env.example` and fills in empty secrets, never overwriting a value. A starter that needs a new secret adds it to
+  `BUILTIN_SECRETS` there (and releases the CLI), not a script of its own.
 - Work on a starter in a copy outside the repo (`cp -R .starters/<starter> "$TMPDIR/<starter>"`, then `pnpm install`
   there) and copy the changes back. To try unreleased packages, point `@frigear-nu/*` at packed or linked builds with
   `overrides` in the copy only. Never commit its `node_modules`, `.nuxt`, `.output`, `.data`, `.env`,

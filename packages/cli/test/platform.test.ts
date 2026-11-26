@@ -41,7 +41,7 @@ const platform = async (rawArgs: string[]) => {
 const webProject = async (dir: string, extra: Record<string, unknown> = {}) => {
   await mkdir(join(dir, 'apps/web'), { recursive: true })
   await writeFile(join(dir, 'pnpm-workspace.yaml'), 'packages:\n  - \'apps/*\'\n  - \'packages/*\'\n')
-  await writeFile(join(dir, 'package.json'), JSON.stringify({ name: 'project', scripts: { 'dev': 'pnpm --filter ./apps/web dev', 'prepare:env': 'node scripts/prepare-env.mjs' }, ...extra }))
+  await writeFile(join(dir, 'package.json'), JSON.stringify({ name: 'project', scripts: { 'dev': 'pnpm --filter ./apps/web dev', 'prepare:env': 'pnpx @frigear-nu/cli prepare env' }, ...extra }))
   await writeFile(join(dir, 'apps/web/package.json'), JSON.stringify({ name: '@workspace/web', dependencies: { nuxt: '^4.0.0' } }))
   return dir
 }

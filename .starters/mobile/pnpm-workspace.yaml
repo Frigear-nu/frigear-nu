@@ -17,6 +17,7 @@ minimumReleaseAgeExclude:
   - '@frigear-nu/admin@0.5.2'
   - '@frigear-nu/auth@0.6.7'
   - '@frigear-nu/authorization@0.6.4'
+  - '@frigear-nu/cli@0.2.6'
   - '@frigear-nu/dashboard@0.1.2'
   - '@frigear-nu/desktop@0.0.4'
   - '@frigear-nu/email-templates@0.1.4'

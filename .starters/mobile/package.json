@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "pnpm --filter ./apps/mobile dev",
     "build": "pnpm -r build",
-    "prepare:env": "node scripts/prepare-env.mjs",
+    "prepare:env": "pnpx @frigear-nu/cli prepare env",
     "mobile:native": "pnpm --filter ./apps/mobile run native",
     "mobile:doctor": "pnpm --filter ./apps/mobile run doctor",
     "mobile:watch": "pnpm --filter ./apps/mobile run watch",

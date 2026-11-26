@@ -252,7 +252,7 @@ jobs:
             fi
           }
           for starter in mobile mobile-standalone desktop multi-platform; do
-            for shared in .github .nvmrc .gitignore pnpm-workspace.yaml scripts packages; do
+            for shared in .github .nvmrc .gitignore pnpm-workspace.yaml packages; do
               compare ".starters/workspace/$shared" ".starters/$starter/$shared"
             done
           done
