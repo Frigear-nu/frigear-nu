@@ -16,7 +16,7 @@ export const createSesDriver = (config: SesConfig): EmailDriver => async (n) => 
 
   const url = `https://email.${region}.amazonaws.com/v2/email/outbound-emails`
   const body = JSON.stringify({
-    FromEmailAddress: resolveFrom(config),
+    FromEmailAddress: resolveFrom(config, n),
     Destination: { ToAddresses: toArray(n.to), ...(n.cc ? { CcAddresses: toArray(n.cc) } : {}) },
     ReplyToAddresses: n.replyTo ? [n.replyTo] : undefined,
     Content: {

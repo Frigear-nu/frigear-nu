@@ -130,6 +130,42 @@ describe('ses', () => {
   })
 })
 
+describe('from', () => {
+  const from = '"Support" <support@inbox.x.test>'
+  it('resend sends the notification\'s own from instead of the configured one', async () => {
+    const f = mockFetch()
+    await createResendDriver({ apiToken: 't', from: 'me@x.test' })({ ...mail, from })
+    expect(call(f).json.from).toBe(from)
+    const g = mockFetch()
+    await createResendDriver({ apiToken: 't', from: 'me@x.test' })(mail)
+    expect(call(g).json.from).toBe('me@x.test')
+  })
+  it('needs no configured from when the notification has one', async () => {
+    const f = mockFetch()
+    await createResendDriver({ apiToken: 't' })({ ...mail, from: 'a@x.test' })
+    expect(call(f).json.from).toBe('a@x.test')
+  })
+  it('ses sends it as FromEmailAddress', async () => {
+    const f = mockFetch()
+    await createSesDriver({ region: 'eu-west-1', accessKeyId: 'AKID', secretAccessKey: 'secret', from: 'me@x.test' })({ ...mail, from })
+    expect(call(f).json.FromEmailAddress).toBe(from)
+  })
+  it('cloudflare sends a display name as { address, name }, and a bare address as it is', async () => {
+    const f = mockFetch()
+    await createCloudflareDriver({ accountId: 'acc', apiToken: 'tok', from: 'me@x.test' })({ ...mail, from })
+    expect(call(f).json.from).toEqual({ address: 'support@inbox.x.test', name: 'Support' })
+    const g = mockFetch()
+    await createCloudflareDriver({ accountId: 'acc', apiToken: 'tok', from: 'me@x.test' })(mail)
+    expect(call(g).json.from).toBe('me@x.test')
+  })
+  it('passes In-Reply-To and References on as headers', async () => {
+    const f = mockFetch()
+    const headers = { 'In-Reply-To': '<a@x.test>', 'References': '<a@x.test>' }
+    await createCloudflareDriver({ accountId: 'acc', apiToken: 'tok', from: 'me@x.test' })({ ...mail, headers })
+    expect(call(f).json.headers).toEqual(headers)
+  })
+})
+
 describe('sigv4', () => {
   // Deterministic: same input must yield the same signature, and it must change with the secret.
   const base = { method: 'POST', url: 'https://email.us-east-1.amazonaws.com/v2/email/outbound-emails', body: '{}', region: 'us-east-1', service: 'ses', accessKeyId: 'AKID', now: new Date('2015-08-30T12:36:00Z') }
