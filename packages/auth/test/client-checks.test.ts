@@ -86,6 +86,31 @@ describe('client mode: setup', () => {
       .rejects.toThrow(/`@frigear-nu\/users` is installed \(by the app\), but client mode has no server: it needs a database/)
   })
 
+  // A mobile app installs modules for their pages; they call a remote API.
+  it('allows @frigear-nu/users in a client-only app, without a database', async () => {
+    const nuxt = await load({ modules: [fileURLToPath(new URL('../../users/src/module', import.meta.url))], moduleKit: { clientOnly: true } })
+    expect(installed(nuxt)).toContain('@frigear-nu/users')
+    expect(installed(nuxt)).not.toContain('@nuxthub/core')
+    expect(nuxt.options.serverHandlers.filter(handler => handler.route?.startsWith('/api/users'))).toEqual([])
+    await nuxt.close()
+  })
+
+  it('provides `#auth/grant-fields` for the grant list editor of module pages', async () => {
+    const nuxt = await load()
+    expect(nuxt.options.alias['#auth/grant-fields']).toMatch(/auth\/grant-fields\.mjs$/)
+    await nuxt.close()
+  })
+
+  it('routes the app\'s `/api/` requests to the API only with `client.routeApi`', async () => {
+    const routeApi = (nuxt: Awaited<ReturnType<typeof load>>) => (nuxt.options.runtimeConfig.public.authentication as { client: { routeApi: boolean } }).client.routeApi
+    const plain = await load()
+    expect(routeApi(plain)).toBe(false)
+    await plain.close()
+    const routed = await load({ authentication: { client: { routeApi: true } } })
+    expect(routeApi(routed)).toBe(true)
+    await routed.close()
+  })
+
   it('keeps the redirects of client mode on this site', async () => {
     const nuxt = await load({ authentication: { client: { redirect: { afterLogin: '//evil.test', afterLogout: 'https://evil.test' } } } })
     const config = (nuxt.options.runtimeConfig.public.authentication as { client: { redirect: Record<string, string> } }).client
