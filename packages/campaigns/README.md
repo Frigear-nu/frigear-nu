@@ -12,11 +12,12 @@ lists. Every message goes through [notify](../notify), on the drivers the app se
 - `GET`/`PATCH /api/campaigns/me/subscriptions` for the signed-in user (`campaigns:subscriptions`).
 - Staff routes under `/api/admin/campaigns/lists` (`campaigns:manage`; addresses need `campaigns:pii`).
 - Pages `/newsletter/confirm`, `/newsletter/unsubscribe` (both act on a button, never on opening the link),
-  `/account/newsletters`, and with `@frigear-nu/admin` `/admin/campaigns/lists` and `/admin/campaigns/lists/:id`.
+  `/account/newsletters`, and with `@frigear-nu/admin` `/admin/campaigns`, `/admin/campaigns/:id`,
+  `/admin/campaigns/lists` and `/admin/campaigns/lists/:id` (one "Campaigns" item in the admin sidebar).
 - The `campaigns-confirm` and `campaigns-message` email templates (with `@frigear-nu/email-templates`).
 - Campaigns: newsletters to list subscribers (email, SMS) and messages to users (email, SMS, push; the
   `campaigns.message` notify topic, or `important` past the user's choices). Staff routes under `/api/admin/campaigns`
-  (drafts, preview, send, schedule, cancel, stats, deliveries with `campaigns:pii`); the `campaigns:deliver` task sends
+  (drafts, preview, send, schedule, cancel, stats, deliveries with `campaigns:pii`, a people lookup for the form); the `campaigns:deliver` task sends
   them in batches every minute, with tracked short links (`@frigear-nu/short-links`), an optional open pixel
   (`GET /api/campaigns/o/:token`) and `List-Unsubscribe` one-click headers.
 

@@ -11,6 +11,10 @@ export function useCampaignsLinks() {
     adminLists: () => pages.adminLists ? localize(pages.adminLists) : undefined,
     /** One newsletter's staff page. */
     adminList: (id: string) => pages.adminList ? localize(pages.adminList.replace(':id', encodeURIComponent(id))) : undefined,
+    /** The staff list of campaigns. */
+    adminCampaigns: () => pages.adminCampaigns ? localize(pages.adminCampaigns) : undefined,
+    /** One campaign's staff page. */
+    adminCampaign: (id: string) => pages.adminCampaign ? localize(pages.adminCampaign.replace(':id', encodeURIComponent(id))) : undefined,
     /** The signed-in user's newsletters. */
     account: () => pages.account ? localize(pages.account) : undefined,
   }

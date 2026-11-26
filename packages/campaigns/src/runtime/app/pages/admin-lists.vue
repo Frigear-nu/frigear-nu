@@ -74,10 +74,7 @@ const columns = computed<TableColumn<CampaignListDto>[]>(() => [
 
 <template>
   <div class="flex flex-col gap-4">
-    <PageHeading
-      :title="t('admin.title', 'Newsletters')"
-      :description="t('admin.description', 'The lists people sign up to, their signup and their subscribers.')"
-    >
+    <CampaignsAdminHeading>
       <template #actions>
         <UButton
           icon="i-lucide-plus"
@@ -85,7 +82,7 @@ const columns = computed<TableColumn<CampaignListDto>[]>(() => [
           @click="create"
         />
       </template>
-    </PageHeading>
+    </CampaignsAdminHeading>
 
     <UEmpty
       v-if="error"

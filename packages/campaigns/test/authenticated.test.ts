@@ -5,7 +5,7 @@ import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
 import { campaignsAccess } from '../src/runtime/access'
 import { campaignsApi } from '../src/runtime/utils/api'
-import type { CampaignDeliveryDto, CampaignDto, CampaignListDto, CampaignMySubscriptionsDto, CampaignPreviewDto, CampaignStatsDto, CampaignSubscriberDto, CampaignSubscriptionResultDto } from '../src/types'
+import type { CampaignDeliveryDto, CampaignDto, CampaignListDto, CampaignMySubscriptionsDto, CampaignPreviewDto, CampaignStatsDto, CampaignSubscriberDto, CampaignSubscriptionResultDto, CampaignUserLookupDto } from '../src/types'
 import { BROWSER_UA, createToken, deliveryTokenOf, emailsTo, getDeliveries, getMessages, getSubscriptions, registerUser, runDeliver, subscriptionOf, tokenOf, verifyEmail, withServerEnv } from './helpers'
 import type { Session } from './helpers'
 
@@ -610,6 +610,66 @@ describe('campaigns (authenticated, database-backed)', async () => {
       expect((await bearer(pii).json<{ total: number }>('GET', campaignsApi.admin.deliveries(first!.id))).total).toBe(withPii.total)
       const noScope = await createToken(admin.cookie, [campaignsAccess.permissions.subscriptions])
       await expectApiError(bearer(noScope).fetch('GET', campaignsApi.admin.campaigns), 403, 'insufficient_scope')
+    })
+
+    it('counts skipped deliveries by reason', async () => {
+      const { items } = await as(admin).json<{ items: CampaignDto[] }>('GET', `${campaignsApi.admin.campaigns}?status=sent&kind=message`)
+      const all = await Promise.all(items.map(item => as(admin).json<CampaignStatsDto>('GET', campaignsApi.admin.stats(item.id))))
+      const stats = all.find(entry => (entry.counts.email?.skipped ?? 0) > 0)!
+      // The plain message skipped the user who turned email off for messages.
+      expect(stats.skipReasons.disabled).toBeGreaterThanOrEqual(1)
+      for (const entry of all) {
+        const skipped = Object.values(entry.counts).reduce((sum, counts) => sum + (counts?.skipped ?? 0), 0)
+        expect(Object.values(entry.skipReasons).reduce<number>((sum, count) => sum + (count ?? 0), 0)).toBe(skipped)
+      }
+    })
+
+    it('looks up people for the message form: names for `campaigns:manage`, emails with `campaigns:pii`', async () => {
+      const byName = await as(manager).json<CampaignUserLookupDto[]>('GET', `${campaignsApi.admin.users}?q=Sender`)
+      expect(byName.map(user => user.id)).toContain(sender.id)
+      expect(byName.every(user => !('email' in user))).toBe(true)
+      // Without `campaigns:pii` an email address finds nobody.
+      expect(await as(manager).json<CampaignUserLookupDto[]>('GET', `${campaignsApi.admin.users}?q=${encodeURIComponent(sender.email)}`)).toEqual([])
+      const withPii = await as(admin).json<CampaignUserLookupDto[]>('GET', `${campaignsApi.admin.users}?q=${encodeURIComponent(sender.email)}`)
+      expect(withPii).toEqual([expect.objectContaining({ id: sender.id, email: sender.email })])
+      const byId = await as(manager).json<CampaignUserLookupDto[]>('GET', `${campaignsApi.admin.users}?ids=${sender.id},${admin.id},x`)
+      expect(byId.map(user => user.id).sort()).toEqual([admin.id, sender.id].sort())
+      await expectApiError(as(member).fetch('GET', `${campaignsApi.admin.users}?q=Sender`), 403, 'forbidden')
+    })
+
+    it('renders the campaign pages, with the send actions and the recipients only for those allowed', async () => {
+      const [sent] = (await as(admin).json<{ items: CampaignDto[] }>('GET', `${campaignsApi.admin.campaigns}?status=sent&kind=newsletter`)).items
+      const draft = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, newsletterInput({ name: 'Page draft' }))
+      const message = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, { kind: 'message', name: 'Page message', audience: { userIds: [String(sender.id)] }, channels: ['email', 'push'] })
+      const render = async (session: Session, path: string) => {
+        const response = await fetch(path, { headers: { cookie: session.cookie } })
+        const html = await response.text()
+        expect(response.status, `${path}: ${html.slice(0, 3000)}`).toBe(200)
+        return html
+      }
+      const list = await render(admin, '/admin/campaigns')
+      expect(list).toContain('data-campaigns-table')
+      expect(list).toContain('Page draft')
+      await render(admin, '/admin/campaigns/lists')
+      await render(admin, `/admin/campaigns/${message.id}`)
+      expect(await render(admin, '/admin/campaigns/cmp_missing')).toContain('Campaign not found')
+
+      // Deliveries name recipients: `campaigns:pii` only, which `campaigns:*` never reaches.
+      expect(await render(admin, `/admin/campaigns/${sent!.id}`)).toContain('data-campaign-deliveries')
+      expect(await render(wild, `/admin/campaigns/${sent!.id}`)).not.toContain('data-campaign-deliveries')
+      expect(await render(manager, `/admin/campaigns/${sent!.id}`)).not.toContain('data-campaign-deliveries')
+
+      // Send and schedule need `campaigns:send`; a draft that is ready shows no list of what is missing.
+      const ready = await render(admin, `/admin/campaigns/${draft.id}`)
+      expect(ready).toContain('data-campaign-send')
+      expect(ready).toContain('data-campaign-schedule')
+      expect(ready).not.toContain('data-campaign-issues')
+      expect(await render(sender, `/admin/campaigns/${draft.id}`)).toContain('data-campaign-send')
+      expect(await render(manager, `/admin/campaigns/${draft.id}`)).not.toContain('data-campaign-send')
+      // The message has no texts yet: it lists what is missing.
+      expect(await render(admin, `/admin/campaigns/${message.id}`)).toContain('data-campaign-issues')
+      await as(admin).fetch('DELETE', campaignsApi.admin.campaign(draft.id))
+      await as(admin).fetch('DELETE', campaignsApi.admin.campaign(message.id))
     })
 
     it('prunes the per-recipient rows after `retentionDays`, keeping the counts', async () => {

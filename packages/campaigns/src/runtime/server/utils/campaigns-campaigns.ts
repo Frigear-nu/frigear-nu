@@ -153,7 +153,10 @@ export async function campaignDeliveryCounts(campaignId: string): Promise<Campai
   return counts
 }
 
-/** Counts (from the rows while they exist, else the ones kept on the campaign) and clicks per link. */
+/**
+ * Counts (from the rows while they exist, else the ones kept on the campaign), skipped rows by reason (while the rows
+ * exist) and clicks per link.
+ */
 export async function campaignStats(row: CampaignRow): Promise<CampaignStatsDto> {
   const live = await campaignDeliveryCounts(row.id)
   const counts = Object.keys(live).length ? live : (row.counts ?? {})
@@ -166,9 +169,18 @@ export async function campaignStats(row: CampaignRow): Promise<CampaignStatsDto>
     recipients: sql<number>`count(distinct ${k.deliveryId})`,
   }).from(k).innerJoin(l, eq(k.linkId, l.id)).where(eq(l.campaignId, row.id)).groupBy(k.linkId)
   const byLink = new Map(clickRows.map(entry => [entry.linkId, entry]))
+  const d = schema.campaignDeliveries
+  const skipRows = await db.select({ reason: d.skipReason, total: count() }).from(d)
+    .where(and(eq(d.campaignId, row.id), eq(d.status, 'skipped'))).groupBy(d.skipReason)
+  const skipReasons: Partial<Record<string, number>> = {}
+  for (const entry of skipRows) {
+    const reason = entry.reason ?? 'unavailable'
+    skipReasons[reason] = (skipReasons[reason] ?? 0) + Number(entry.total)
+  }
   return {
     status: row.status,
     counts,
+    skipReasons,
     links: links.map((link): CampaignLinkStatsDto => ({
       id: link.id,
       url: link.url,
@@ -179,6 +191,13 @@ export async function campaignStats(row: CampaignRow): Promise<CampaignStatsDto>
     })),
   }
 }
+
+/** `GET /api/admin/campaigns/users`: a search term, or the ids of people to name (`1,2,3`, at most 200). */
+export const campaignsUserLookupQuery = z.object({
+  q: z.string().trim().max(200).optional(),
+  ids: z.string().trim().max(2000).optional()
+    .transform(value => value ? value.split(',').map(id => id.trim()).filter(id => /^\d+$/.test(id)).slice(0, 200) : []),
+})
 
 /** `GET /api/admin/campaigns/:id/deliveries`: `useTableQuery`'s keys plus `status` and `channel`. */
 export const campaignDeliveriesQuery = pageQuery({

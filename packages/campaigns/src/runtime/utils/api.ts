@@ -47,5 +47,10 @@ export const campaignsApi = {
     stats: (id: string) => `/api/admin/campaigns/${segment(id)}/stats`,
     /** `GET` a page of deliveries with their recipients (`campaigns:pii`). */
     deliveries: (id: string) => `/api/admin/campaigns/${segment(id)}/deliveries`,
+    /**
+     * `GET ?q=` people by name for the message form's picker, or `?ids=1,2` the people a draft names (`campaigns:manage`;
+     * matching and showing emails with `campaigns:pii`).
+     */
+    users: '/api/admin/campaigns/users',
   },
 } as const
