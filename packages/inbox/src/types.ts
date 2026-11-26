@@ -1,5 +1,4 @@
 import type { EventHandler, H3Event } from 'h3'
-import type { NitroApp } from 'nitropack'
 import type { Grant } from '@frigear-nu/auth/grants'
 import type { OwnerRef } from '@frigear-nu/teams'
 
@@ -142,12 +141,21 @@ export type InboxExtension = { channels?: InboxChannelDefinition[], emailDrivers
  * to the mailboxes and stores it. A driver has a `handler`, mounted at `POST /api/inbox/email/<name>` (a provider's
  * webhook), a `setup` run once in a Nitro plugin (a runtime hook such as `cloudflare:email`), or both.
  */
+/**
+ * The parts of the Nitro app a driver's `setup` gets. Typed here rather than as nitropack's `NitroApp`, so the published
+ * types do not pull in nitropack (and through it vite and esbuild). Cast `hooks` to the hook a driver registers.
+ */
+export type InboxNitroApp = {
+  hooks: object
+  localFetch: (url: string, init?: RequestInit) => Promise<Response>
+}
+
 export type InboxEmailDriver = {
   name: string
   /** Answers `POST /api/inbox/email/<name>`. Verify the request (a signature) before anything else. */
   handler?: EventHandler
   /** Runs once when the server starts, with the Nitro app: register runtime hooks here. */
-  setup?: (nitroApp: NitroApp) => void
+  setup?: (nitroApp: InboxNitroApp) => void
 }
 
 /** An inbound email driver registration: its name and the server file default-exporting `defineInboxEmailDriver()`. */

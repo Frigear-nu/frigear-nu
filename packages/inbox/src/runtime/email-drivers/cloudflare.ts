@@ -1,6 +1,6 @@
 import PostalMime from 'postal-mime'
 import { z } from 'zod'
-import type { NitroApp } from 'nitropack'
+import type { InboxNitroApp } from '../../types'
 import { notFound } from '@frigear-nu/module-kit/server'
 import { randomToken } from '@frigear-nu/module-kit/id'
 import { sha256Hex } from '@frigear-nu/module-kit/crypto'
@@ -28,8 +28,12 @@ type CloudflareEmailMessage = {
 type CloudflareEmailHooks = { hook: (name: 'cloudflare:email', handler: (ctx: { message: CloudflareEmailMessage }) => Promise<void>) => unknown }
 
 const ROUTE = '/api/inbox/email/cloudflare'
-/** The token of the hook's own requests: random per Worker instance, never stored or sent anywhere else. */
-const INTERNAL_TOKEN = randomToken(32, 'hex')
+let instanceToken: string | undefined
+/**
+ * The token of the hook's own requests: random per Worker instance, never stored or sent anywhere else. Made on first
+ * use, since a Worker may not generate random values in global scope (it fails to start).
+ */
+const internalToken = () => (instanceToken ??= randomToken(32, 'hex'))
 
 const storedAttachment = z.object({
   filename: z.string().min(1).max(255),
@@ -43,7 +47,7 @@ const internalBody = z.object({
   attachments: z.array(storedAttachment).max(50),
 })
 
-async function receive(nitroApp: NitroApp, message: CloudflareEmailMessage): Promise<void> {
+async function receive(nitroApp: InboxNitroApp, message: CloudflareEmailMessage): Promise<void> {
   const route = await inboxRouteRecipient(message.to)
   if (route.kind !== 'account') {
     message.setReject('Unknown address')
@@ -55,7 +59,7 @@ async function receive(nitroApp: NitroApp, message: CloudflareEmailMessage): Pro
   const stored = await inboxStoreEmailFiles(payload.messageId, attachments)
   const response = await nitroApp.localFetch(ROUTE, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-inbox-internal': INTERNAL_TOKEN },
+    headers: { 'content-type': 'application/json', 'x-inbox-internal': internalToken() },
     body: JSON.stringify({ recipient: message.to, payload, attachments: stored }),
   })
   if (!response.ok) throw new Error(`the inbox refused the email (${response.status}): ${await response.text().catch(() => '')}`)
@@ -76,7 +80,7 @@ export default defineInboxEmailDriver({
   },
   async handler(event) {
     const token = getRequestHeader(event, 'x-inbox-internal')
-    if (!token || !(await secretsEqual(token, INTERNAL_TOKEN))) throw notFound('This email driver has no webhook.')
+    if (!token || !(await secretsEqual(token, internalToken()))) throw notFound('This email driver has no webhook.')
     const body = await readValidatedBody(event, internalBody.parse)
     return (await inboxIngestEmail(event, body.payload, { recipients: [body.recipient], attachments: body.attachments })).response
   },
