@@ -32,7 +32,9 @@ export function useShortLinkActions() {
     return await overlay.create(ShortLinkFormSlideover, { destroyOnClose: true, props: { link } }).open() as ShortLinkDto | false
   }
 
-  const copy = (link: ShortLinkDto) => write(link.shortUrl, t('admin.copied', 'Copied the short link of {name}', { name: shortLinkName(link) }))
+  // `shortUrl` is absolute whenever the server knows an origin; a bare path gets this page's origin.
+  const absolute = (url: string) => url.startsWith('/') && import.meta.client ? `${window.location.origin}${url}` : url
+  const copy = (link: ShortLinkDto) => write(absolute(link.shortUrl), t('admin.copied', 'Copied the short link of {name}', { name: shortLinkName(link) }))
 
   async function disable(link: ShortLinkDto): Promise<boolean> {
     const name = shortLinkName(link)
