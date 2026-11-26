@@ -190,6 +190,13 @@
       "when": 1795443015592,
       "tag": "0026_operations_venue_placement",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1795729555791,
+      "tag": "0027_campaigns_lists",
+      "breakpoints": true
     }
   ]
 }

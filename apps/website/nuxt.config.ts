@@ -49,6 +49,8 @@ export default defineNuxtConfig({
     '@frigear-nu/shifts',
     '@frigear-nu/help-center',
     '@frigear-nu/inbox',
+    // Newsletters: lists people sign up to with double opt-in, the signup component and the staff pages.
+    '@frigear-nu/campaigns',
   ],
 
   $development: {

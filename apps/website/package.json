@@ -22,6 +22,7 @@
     "@frigear-nu/auth": "workspace:*",
     "@frigear-nu/authorization": "workspace:*",
     "@frigear-nu/base": "workspace:*",
+    "@frigear-nu/campaigns": "workspace:*",
     "@frigear-nu/cookie-consent": "workspace:*",
     "@frigear-nu/crew": "workspace:*",
     "@frigear-nu/dashboard": "workspace:*",
