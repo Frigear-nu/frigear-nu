@@ -92,6 +92,13 @@
     "test/unit/role-migration.test.ts": 1,
     "test/unit/rules.test.ts": 1
   },
+  "@frigear-nu/campaigns": {
+    "test/authenticated.test.ts": 40,
+    "test/schema-parity.test.ts": 1,
+    "test/unit/consent.test.ts": 1,
+    "test/unit/schemas.test.ts": 1,
+    "test/unit/tokens.test.ts": 1
+  },
   "@frigear-nu/cli": {
     "test/commands.test.ts": 1,
     "test/refactor.test.ts": 1,
