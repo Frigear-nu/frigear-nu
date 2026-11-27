@@ -209,6 +209,20 @@ export interface ModuleOptions {
    * URL. Off by default.
    */
   host?: boolean | string | MobileHostOptions
+  /**
+   * On a device, the responses of `useCachedFetch` / `useCachedAsyncData` (`@frigear-nu/ui`) are also kept in the app's
+   * Cache directory (`@capacitor/filesystem`, one file per key, per signed-in user), so the pages show them at once
+   * after a cold start and refresh in the background. Default `true` (when the plugin and `@frigear-nu/ui` are
+   * installed); `false` keeps the cache in memory only. In a browser it does nothing.
+   */
+  persistentCache?: boolean | MobilePersistentCacheOptions
+}
+
+export interface MobilePersistentCacheOptions {
+  /** How old (ms) a stored response may be and still show at startup. Default seven days. */
+  maxAge?: number
+  /** How long (ms) the start of the app waits for the stored responses at most. Default `500`. */
+  timeout?: number
 }
 
 export interface MobileHostOptions {
@@ -237,6 +251,8 @@ export interface MobilePublicConfig {
   lanHost: string
   /** `mobile.host`: `url` is empty for the issuer of Auth in client mode. */
   host: { enabled: boolean, url: string, routes: boolean, links: boolean }
+  /** `mobile.persistentCache`. */
+  persistentCache: { enabled: boolean, maxAge: number, timeout: number }
 }
 
 /** `runtimeConfig.public.mobile.splashScreen`: the timing can be changed per environment. */

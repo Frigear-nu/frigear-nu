@@ -153,9 +153,11 @@ describe('useCachedFetch', () => {
     expect(again.status.value).toBe('pending')
     expect(again.data.value).toEqual(['a'])
     expect(again.loading.value).toBe(false)
-    release(['b'])
+    // Something on screen: awaiting it does not wait for the request.
     await again
-    expect(again.data.value).toEqual(['b'])
+    expect(again.data.value).toEqual(['a'])
+    release(['b'])
+    await vi.waitFor(() => expect(again.data.value).toEqual(['b']))
     expect(nuxt.calls).toHaveLength(2)
   })
 

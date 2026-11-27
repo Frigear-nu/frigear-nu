@@ -253,6 +253,11 @@ export default defineNuxtModule<ModuleOptions>({
       },
       lanHost: lanHost ?? '',
       host,
+      persistentCache: {
+        enabled: options.persistentCache !== false,
+        maxAge: (typeof options.persistentCache === 'object' ? options.persistentCache.maxAge : undefined) ?? 7 * 24 * 60 * 60 * 1000,
+        timeout: (typeof options.persistentCache === 'object' ? options.persistentCache.timeout : undefined) ?? 500,
+      },
     }
     const publicConfig = nuxt.options.runtimeConfig.public as { mobile?: Partial<MobilePublicConfig> }
     publicConfig.mobile = defu(publicConfig.mobile, publicDefaults) as MobilePublicConfig
@@ -290,6 +295,10 @@ declare module '#mobile/tabs' {
       { name: 'useAuth', available: () => clientAuth, fallback: 'undefined', fallbackType: `undefined | (() => { authenticated: import('vue').Ref<boolean>, isCallbackUrl: (url: string) => boolean })` },
       { name: 'useConfirmDialog', available: () => hasNuxtModule('@frigear-nu/ui', nuxt), fallback: 'undefined', fallbackType: `undefined | (() => (options: { title: string, description?: string, confirmText?: string, cancelText?: string, destructive?: boolean }) => Promise<boolean>)` },
       { name: 'useMenu', available: () => hasNuxtModule('@frigear-nu/menu', nuxt), fallback: 'undefined', fallbackType: `undefined | ((path: string) => { data: import('vue').Ref<import(${JSON.stringify(resolver.resolve('./runtime/shared/menu'))}).MenuItemLike[] | null | undefined> })` },
+      // `persistentCache`: the cache of `useCachedFetch`, which is `@frigear-nu/ui`'s.
+      { name: 'provideCachedFetchStorage', available: () => hasNuxtModule('@frigear-nu/ui', nuxt), fallback: 'undefined', fallbackType: `undefined | ((storage: unknown, options?: { maxAge?: number }) => void)` },
+      { name: 'hydrateCachedFetch', available: () => hasNuxtModule('@frigear-nu/ui', nuxt), fallback: 'undefined', fallbackType: `undefined | ((options?: { timeout?: number }) => Promise<void>)` },
+      { name: 'flushCachedFetch', available: () => hasNuxtModule('@frigear-nu/ui', nuxt), fallback: 'undefined', fallbackType: `undefined | (() => Promise<void>)` },
     ])
 
     // One tab registry: the app's `mobile.tabs`, then what modules added with `extendMobileTabs()`.
@@ -385,6 +394,13 @@ declare module '#mobile/tabs' {
         })
       }
     }
+    // `persistentCache`: `useCachedFetch` responses on disk. Needs `@frigear-nu/ui` (whose cache it is) and the plugin.
+    const persistentCache = options.persistentCache !== false && plugins.filesystem
+    nuxt.hook('modules:done', () => {
+      if (persistentCache && hasNuxtModule('@frigear-nu/ui', nuxt)) {
+        addPlugin({ src: resolver.resolve('./runtime/app/plugins/persistent-cache.client'), mode: 'client' })
+      }
+    })
     if (plugins.app) {
       if (deepLinkSchemes.length || deepLinks.hosts.length) {
         addPlugin({ src: resolver.resolve('./runtime/app/plugins/deep-links.client'), mode: 'client' })
@@ -419,6 +435,7 @@ declare module '#mobile/tabs' {
           splashScreen: splash.native,
           oauth: clientAuth,
           host: host.enabled,
+          persistentCache: options.persistentCache !== false && hasNuxtModule('@frigear-nu/ui', nuxt),
         }),
       }
     }

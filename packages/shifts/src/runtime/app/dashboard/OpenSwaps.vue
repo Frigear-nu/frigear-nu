@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { shiftsApi } from '../../utils/api'
 import type { ShiftSwapDto } from '../../../types'
-import { computed, surfaceClass, useLazyFetch, useModuleT, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
+import { computed, surfaceClass, useCachedFetch, useModuleT, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
 
 defineOptions({ name: 'ShiftsSwapsItem' })
 
@@ -12,12 +12,13 @@ const tr = useShiftsTranslate()
 const format = useShiftsFormat()
 const links = useShiftsLinks()
 
-const { data, status, error } = useLazyFetch<ShiftSwapDto[]>(shiftsApi.swaps, {
-  key: 'shifts:dashboard:swaps',
-  default: () => [],
+// The last response shows at once (also after a restart of the mobile app); every mount asks again in the background.
+const { data, error, loading } = useCachedFetch<ShiftSwapDto[]>(shiftsApi.swaps, {
+  key: 'shifts:swaps',
+  ttl: 0,
+  lazy: true,
   onResponseError: () => {},
 })
-const loading = computed(() => status.value === 'pending' && !data.value?.length)
 const swaps = computed(() => [...(data.value ?? [])].sort((a, b) => Date.parse(a.shift.startsAt) - Date.parse(b.shift.startsAt)))
 const shown = computed(() => swaps.value.slice(0, 3))
 </script>

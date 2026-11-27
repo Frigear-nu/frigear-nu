@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { shiftsApi } from '../../utils/api'
 import type { MyShiftDto } from '../../../types'
-import { computed, surfaceClass, useLazyFetch, useModuleT, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
+import { computed, surfaceClass, useCachedFetch, useModuleT, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
 
 defineOptions({ name: 'ShiftsNextItem' })
 
@@ -16,14 +16,17 @@ const tr = useShiftsTranslate()
 const format = useShiftsFormat()
 const links = useShiftsLinks()
 
-const { data, status, error } = useLazyFetch<MyShiftDto[]>(shiftsApi.me.shifts, {
+// The last response shows at once (also after a restart of the mobile app); every mount asks again in the background.
+const { data, error, loading } = useCachedFetch<MyShiftDto[]>(shiftsApi.me.shifts, {
   key: 'shifts:dashboard:next',
+  ttl: 0,
+  lazy: true,
   query: { from: new Date().toISOString() },
-  default: () => [],
   onResponseError: () => {},
 })
-const loading = computed(() => status.value === 'pending' && !data.value?.length)
-const next = computed(() => (data.value ?? []).find(item => item.assignment.status === 'assigned' || item.assignment.status === 'attended'))
+// A remembered response may hold shifts that have ended since: never shown as the next one.
+const next = computed(() => (data.value ?? []).find(item => (item.assignment.status === 'assigned' || item.assignment.status === 'attended')
+  && Date.parse(item.shift.endsAt) > Date.now()))
 const running = computed(() => !!next.value && Date.parse(next.value.shift.startsAt) <= Date.now())
 </script>
 

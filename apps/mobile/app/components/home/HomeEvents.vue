@@ -20,7 +20,9 @@ const format = useFormat()
 const host = useMobileHost()
 const hostPath = useHostPath()
 
-const { data: events, status, error, refresh } = await useFetch<EventSummary[]>('/api/events', { key: 'home-events', default: () => [] })
+// The last response shows at once (also after a restart of the app, `mobile.persistentCache`) and is asked for again in
+// the background once it is five minutes old.
+const { data: events, loading, error, refresh } = await useCachedFetch<EventSummary[]>('/api/events', { key: 'home-events', ttl: 5 * 60_000 })
 
 const items = computed(() => (events.value ?? []).map(event => ({
   ...event,
@@ -40,7 +42,7 @@ const open = (slug: string) => host.open(hostPath(`/events/${encodeURIComponent(
     </h2>
 
     <div
-      v-if="status === 'pending' && !items.length"
+      v-if="loading"
       class="flex flex-col gap-3"
     >
       <USkeleton
@@ -50,7 +52,7 @@ const open = (slug: string) => host.open(hostPath(`/events/${encodeURIComponent(
       />
     </div>
     <UAlert
-      v-else-if="error"
+      v-else-if="error && !items.length"
       color="warning"
       variant="subtle"
       icon="i-lucide-triangle-alert"

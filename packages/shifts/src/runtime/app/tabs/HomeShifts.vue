@@ -3,7 +3,7 @@ import { shiftsApi } from '../../utils/api'
 import { SHIFT_ASSIGNMENT_STATUS_LABELS, SHIFT_SWAP_STATUS_LABELS } from '../../utils/status'
 import { dayKey } from '@frigear-nu/module-kit/time'
 import type { MyShiftDto, ShiftsLedTeamDto } from '../../../types'
-import { computed, errorMessage, navigateTo, ref, shallowRef, useAuthPages, useLazyFetch, useModuleT, useRoute, useShiftsActions, useShiftsFormat, useShiftsLinks, useShiftsTranslate, watch } from '#imports'
+import { computed, errorMessage, navigateTo, ref, shallowRef, useAuthPages, useCachedFetch, useModuleT, useRoute, useShiftsActions, useShiftsFormat, useShiftsLinks, useShiftsTranslate, watch } from '#imports'
 
 defineOptions({ name: 'ShiftsHomeShiftsTab' })
 
@@ -20,10 +20,12 @@ const links = useShiftsLinks()
 const actions = useShiftsActions()
 const route = useRoute()
 
-const { data, status, error, refresh } = useLazyFetch<MyShiftDto[]>(shiftsApi.me.shifts, { key: 'shifts:me', default: () => [] })
+// The last responses show at once (also after a restart of the mobile app); every mount asks again in the background.
+const { data: fetched, error, loading, refresh } = useCachedFetch<MyShiftDto[]>(shiftsApi.me.shifts, { key: 'shifts:me', ttl: 0, lazy: true })
+const data = computed(() => fetched.value ?? [])
 // The teams I lead get a link to their lead page.
-const { data: led } = useLazyFetch<ShiftsLedTeamDto[]>(shiftsApi.me.leads, { key: 'shifts:leads', default: () => [] })
-const loading = computed(() => status.value === 'pending' && !data.value.length)
+const { data: ledTeams } = useCachedFetch<ShiftsLedTeamDto[]>(shiftsApi.me.leads, { key: 'shifts:leads', ttl: 0, lazy: true })
+const led = computed(() => ledTeams.value ?? [])
 // The pages around it are for signed-in people; a session that ran out goes to the sign-in page and comes back.
 watch(() => error.value?.statusCode, async (code) => {
   if (code === 401) await navigateTo({ path: useAuthPages().login, query: { redirect: route.fullPath } })

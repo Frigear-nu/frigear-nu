@@ -75,3 +75,6 @@ export function crewApplyNotice(status: CrewStatus | null, submitted = false): C
       : { key: 'apply.receivedDescription', fallback: 'We have received your application. We will email you when something changes.' },
   }
 }
+
+/** The `useCachedFetch` key of `GET /api/crew/me` (the person's own crew statuses), shared by the views that show it. */
+export const CREW_ME_KEY = 'crew:me'

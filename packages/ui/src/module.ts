@@ -1,5 +1,5 @@
-import { defineNuxtModule, createResolver, addComponentsDir, addImportsDir, hasNuxtModule } from '@nuxt/kit'
-import { inlineModuleRuntime, registerTailwindSource } from '@frigear-nu/module-kit/utils'
+import { defineNuxtModule, createResolver, addComponentsDir, addImportsDir, addPlugin, hasNuxtModule } from '@nuxt/kit'
+import { addOptionalImports, inlineModuleRuntime, registerTailwindSource } from '@frigear-nu/module-kit/utils'
 import { defaultI18nConfig } from './internal/utils'
 
 const resolver = createResolver(import.meta.url)
@@ -43,6 +43,18 @@ export default defineNuxtModule({
     // Auto-import composables and the pure helpers (`errorMessage`, `formatDate`, `statusColor`, …)
     addImportsDir(resolver.resolve('./runtime/composables'))
     addImportsDir(resolver.resolve('./runtime/utils'))
+
+    // `useCachedFetch`'s responses belong to the signed-in user: forgotten when they sign out or another user signs in.
+    // Who is signed in comes from `@frigear-nu/auth` (either mode), checked once every module is installed.
+    addOptionalImports(nuxt, '#ui/optional', [
+      {
+        name: 'useUserSession',
+        available: () => hasNuxtModule('@frigear-nu/auth', nuxt) || hasNuxtModule('nuxt-auth-utils', nuxt),
+        fallback: 'undefined',
+        fallbackType: `undefined | (() => { user: import('vue').Ref<unknown> })`,
+      },
+    ])
+    addPlugin({ src: resolver.resolve('./runtime/plugins/cached-fetch-owner.client'), mode: 'client' })
   },
   hooks: {
     'i18n:registerModule': (register) => {
