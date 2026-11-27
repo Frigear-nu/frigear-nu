@@ -177,6 +177,7 @@
         "email": "Se e-mailadressen på din konto"
       },
       "accountGroup": "Din konto",
+      "servicesGroup": "Andre tjenester",
       "unavailable": "Ikke tilgængeligt for din konto",
       "unavailableHint": "Applikationen får ikke disse.",
       "showAll": "Vis alle {count}",

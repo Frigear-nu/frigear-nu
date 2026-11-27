@@ -177,6 +177,7 @@
         "email": "See the email address of your account"
       },
       "accountGroup": "Your account",
+      "servicesGroup": "Other services",
       "unavailable": "Not available to your account",
       "unavailableHint": "The application will not get these.",
       "showAll": "Show all {count}",
