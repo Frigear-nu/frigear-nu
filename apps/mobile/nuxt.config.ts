@@ -52,10 +52,12 @@ export default defineNuxtConfig({
 
   // @frigear-nu/auth, installed by mobile, which fills in the native redirect scheme (from appId) and routes the
   // modules' `/api/` requests to the website. The issuer and API come from NUXT_PUBLIC_AUTHENTICATION_CLIENT_ISSUER /
-  // _API_BASE in `.env`; they are baked in at build time. Signed out, the public home is the sign-in page.
+  // _API_BASE in `.env`; they are baked in at build time. Signed out, the public home is the sign-in page. `userinfo`
+  // reads the user from the website after a sign-in and a profile save, so a language saved on the profile page switches
+  // the app at once (the id_token's claims only change at its next refresh).
   authentication: {
     mode: 'client',
-    client: { clientId, scopes, callbackPath, redirect: { login: '/' } },
+    client: { clientId, scopes, callbackPath, userinfo: true, redirect: { login: '/' } },
     settings: { pages: { login: false } },
   },
 

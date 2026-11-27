@@ -43,6 +43,8 @@ export function mapClaimsToUser(claims: IdTokenClaims): User {
   if (typeof claims.name === 'string') user.name = claims.name
   if (typeof claims.email === 'string') user.email = claims.email
   if (typeof claims.picture === 'string') user.avatar = claims.picture
+  // The saved language (OIDC `locale`), which the locale plugin applies with `@nuxtjs/i18n` and Users' profile page shows.
+  if (typeof claims.locale === 'string' && claims.locale) user.locale = claims.locale
   return user as User
 }
 
