@@ -3,10 +3,10 @@ export const PULL_TO_REFRESH_TIMEOUT = 10_000
 
 /**
  * Whether a page has native pull to refresh: its `definePageMeta({ mobile: { pullToRefresh } })`, else the app's
- * `pullToRefresh` option on a tab's root page.
+ * `pullToRefresh` option (every page).
  */
-export function wantsPullToRefresh(option: boolean | undefined, page: boolean | undefined, tabRoot: boolean): boolean {
-  return page ?? (!!option && tabRoot)
+export function wantsPullToRefresh(option: boolean | undefined, page: boolean | undefined): boolean {
+  return page ?? !!option
 }
 
 export interface PullToRefreshRunner {

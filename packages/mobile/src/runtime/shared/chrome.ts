@@ -26,7 +26,7 @@ export interface ChromeInput {
   /** The splash screen is up: no navbar or tab bar (the native ones draw above the WebView). */
   splash?: boolean
   appName: string
-  /** The app's `pullToRefresh` option: pull to refresh on tab root pages. */
+  /** The app's `pullToRefresh` option: pull to refresh on every page. */
   pullToRefresh?: boolean
   /** Translates an i18n key, returning `fallback` when there is none. */
   translate?: (key: string | undefined, fallback: string) => string
@@ -99,6 +99,6 @@ export function resolveChrome(input: ChromeInput): ChromeState {
       back: page.back ?? (activeTab ? !root : tabs.length > 0),
       actions: resolveNavbarActions([page.actions, input.actions], translate),
     },
-    pullToRefresh: wantsPullToRefresh(input.pullToRefresh, page.pullToRefresh, root) && input.overlays === 0 && !input.splash,
+    pullToRefresh: wantsPullToRefresh(input.pullToRefresh, page.pullToRefresh) && input.overlays === 0 && !input.splash,
   }
 }

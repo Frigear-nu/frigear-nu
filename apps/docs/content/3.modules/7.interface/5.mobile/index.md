@@ -136,7 +136,7 @@ Options go under the `mobile` key.
 | `nativeChrome` | `'ios' \| 'all' \| false` | `'ios'` | Where the navbar and tab bar are native: iOS, all platforms or never. |
 | `keepTabsAlive` | `boolean` | `true` | Each tab's own page stays as it was left between tab switches. See [Tab switching](#tab-switching). |
 | `tabTransitionDuration` | `number` | `180` | The crossfade between tabs with the native tab bar, in ms. `0` for none. |
-| `pullToRefresh` | `boolean` | `true` | Native pull to refresh on tab root pages. See [Pull to refresh](#pull-to-refresh). |
+| `pullToRefresh` | `boolean` | `true` | Native pull to refresh on every page. See [Pull to refresh](#pull-to-refresh). |
 | `native.statusBar` | `boolean` | `true` | The status bar text follows the colour mode. |
 | `native.keyboardAccessoryBar` | `boolean` | `true` | iOS: the Done bar above the keyboard. |
 | `native.switchHaptics` | `boolean` | `true` | A tick when a `role="switch"` is tapped. |
@@ -307,7 +307,7 @@ definePageMeta({
     navbar: false, // no navbar or header
     tab: 'bills', // select this tab
     back: true, // back button (default: on pages below a tab's root page)
-    pullToRefresh: true, // pull to refresh (default: on a tab's root page)
+    pullToRefresh: false, // no pull to refresh here (default: on every page)
   },
 })
 ```
@@ -421,7 +421,7 @@ it switches tabs without a crossfade.
 
 ### Pull to refresh
 
-With the native chrome, the user can pull a tab's root page down to refresh it, as in other iOS apps. A pull refreshes
+With the native chrome, the user can pull any page down to refresh it, as in other iOS apps. A pull refreshes
 every `useAsyncData` and `useFetch` on screen (`refreshNuxtData()`), and runs the `onMobileRefresh` handlers of the
 page and the `mobile:refresh` hook, all at once. The spinner stays until they have all finished, and ten seconds at
 most, so a request that hangs never leaves it up.
@@ -434,9 +434,9 @@ onMobileRefresh(() => store.reload()) // anything that is not useAsyncData or us
 </script>
 ```
 
-- **Where it is on.** On every tab's root page. A page turns it on or off with
-  `definePageMeta({ mobile: { pullToRefresh } })`, and `pullToRefresh: false` turns it off for the app. It is off
-  while a dialog, slideover or drawer is open.
+- **Where it is on.** On every page. A page opts out with `definePageMeta({ mobile: { pullToRefresh: false } })`
+  (a form, say, where a pull would lose input), and `pullToRefresh: false` turns it off for the app. It is off while a
+  dialog, slideover, drawer or the splash screen is up.
 - **Only the page on screen.** `onMobileRefresh` handlers of pages kept alive in other tabs do not run.
 - **Feedback.** iOS gives a haptic when the pull arms the refresh. On Android (`nativeChrome: 'all'`) the module adds a
   light one.

@@ -20,22 +20,22 @@ afterEach(() => {
 })
 
 describe('wantsPullToRefresh', () => {
-  it('is on for tab root pages when the app turns it on; page meta wins', () => {
-    expect(wantsPullToRefresh(true, undefined, true)).toBe(true)
-    expect(wantsPullToRefresh(true, undefined, false)).toBe(false)
-    expect(wantsPullToRefresh(false, undefined, true)).toBe(false)
-    expect(wantsPullToRefresh(undefined, undefined, true)).toBe(false)
-    expect(wantsPullToRefresh(true, false, true)).toBe(false)
-    expect(wantsPullToRefresh(false, true, false)).toBe(true)
+  it('is on for every page when the app turns it on; page meta wins', () => {
+    expect(wantsPullToRefresh(true, undefined)).toBe(true)
+    expect(wantsPullToRefresh(false, undefined)).toBe(false)
+    expect(wantsPullToRefresh(undefined, undefined)).toBe(false)
+    expect(wantsPullToRefresh(true, false)).toBe(false)
+    expect(wantsPullToRefresh(false, true)).toBe(true)
   })
 })
 
 describe('resolveChrome pullToRefresh', () => {
-  it('follows the tab root, page meta, overlays and the splash screen', () => {
+  it('is on for every page, off by page meta, overlays and the splash screen', () => {
     expect(chrome().pullToRefresh).toBe(true)
     expect(chrome({ path: '/bills' }).pullToRefresh).toBe(true)
-    expect(chrome({ path: '/bills/42' }).pullToRefresh).toBe(false)
-    expect(chrome({ path: '/bills/42', page: { pullToRefresh: true } }).pullToRefresh).toBe(true)
+    expect(chrome({ path: '/bills/42' }).pullToRefresh).toBe(true)
+    expect(chrome({ path: '/elsewhere' }).pullToRefresh).toBe(true)
+    expect(chrome({ path: '/bills/42', page: { pullToRefresh: false } }).pullToRefresh).toBe(false)
     expect(chrome({ page: { pullToRefresh: false } }).pullToRefresh).toBe(false)
     expect(chrome({ pullToRefresh: false }).pullToRefresh).toBe(false)
     expect(chrome({ overlays: 1 }).pullToRefresh).toBe(false)
@@ -137,13 +137,13 @@ describe('native navigation controller pull to refresh', () => {
   }
   const colors = { foreground: '#000000' }
 
-  it('turns pull to refresh on and off as the route changes, only when it changes', async () => {
+  it('turns pull to refresh on and off as the page changes, only when it changes', async () => {
     const { plugin, calls } = mockPlugin()
     const controller = createNativeNavigationController({ plugin, onSelectTab: vi.fn(), onBack: vi.fn(), onPullToRefresh: vi.fn() })
     await controller.apply(chrome(), colors)
-    await controller.apply(chrome({ path: '/bills' }), colors)
     await controller.apply(chrome({ path: '/bills/42' }), colors)
-    await controller.apply(chrome({ path: '/bills/43' }), colors)
+    await controller.apply(chrome({ path: '/bills/42/edit', page: { pullToRefresh: false } }), colors)
+    await controller.apply(chrome({ path: '/bills/42/edit', page: { pullToRefresh: false }, overlays: 1 }), colors)
     await controller.apply(chrome({ path: '/bills' }), colors)
     expect(calls).toEqual([
       ['setPullToRefresh', { enabled: true }],
