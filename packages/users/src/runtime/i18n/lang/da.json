@@ -148,7 +148,8 @@
     "offerLocale": {
       "title": "Dit sprog er {language}",
       "description": "Din konto er sat til {language}. Vil du se siden på det sprog?",
-      "switch": "Skift til {language}"
+      "switch": "Skift til {language}",
+      "keep": "Behold {language} indtil videre"
     }
   }
 }

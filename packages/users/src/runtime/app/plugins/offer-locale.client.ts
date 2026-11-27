@@ -8,6 +8,16 @@ type I18n = {
   loadLocaleMessages?: (locale: string) => Promise<void>
 }
 
+/** `code` named in `inLocale` ("Danish" for `da` in `en`), or undefined where `Intl.DisplayNames` cannot. */
+const languageName = (code: string, inLocale: string): string | undefined => {
+  try {
+    return new Intl.DisplayNames([inLocale], { type: 'language' }).of(code)
+  }
+  catch {
+    return undefined
+  }
+}
+
 // When a signed-in user's saved language (`users.locale`) is not the one the page is shown in (they came from another
 // site in another language, or switched here), a toast offers to switch to it. Dismissing or switching is remembered for
 // the browser session (`sessionStorage`), so the offer is made once. The check waits for the language to settle, so a
@@ -65,6 +75,9 @@ export default defineNuxtPlugin({
         // Runs from a timer, outside the Nuxt context `useModuleT` needs.
         const t = nuxtApp.runWithContext(() => useModuleT('users', { locale }))
         const language = locales.find(item => item.code === locale)?.name ?? locale
+        // The page's language, named in the offered one ("Danish", not "Dansk"), for the button that keeps it.
+        const page = i18n.locale.value
+        const pageLanguage = languageName(page, locale) ?? locales.find(item => item.code === page)?.name ?? page
         toast.add({
           'id': 'users:offer-locale',
           'title': t('offerLocale.title', 'Your language is {language}', { language }),
@@ -78,6 +91,11 @@ export default defineNuxtPlugin({
               remember(key)
               void i18n.setLocale(locale)
             },
+          }, {
+            // Closes the toast, which remembers the answer like any other close.
+            label: t('offerLocale.keep', 'Keep {language} for now', { language: pageLanguage }),
+            color: 'neutral',
+            variant: 'outline',
           }],
           // Closed by hand or timed out: not offered again this session.
           'onUpdate:open': (open: boolean) => {
