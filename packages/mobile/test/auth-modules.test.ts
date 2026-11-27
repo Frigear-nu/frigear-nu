@@ -65,6 +65,19 @@ describe('mobile with auth and authorization', () => {
     await nuxt.close()
   })
 
+  // The app has no server: the `/api/` requests of its modules go to the API, which modules leave their server parts for.
+  it('routes the app\'s `/api/` requests to the API and marks the app client only', async () => {
+    const { isClientOnlyApp } = await import('@frigear-nu/module-kit/utils')
+    const routeApi = (nuxt: Awaited<ReturnType<typeof load>>) => (nuxt.options.runtimeConfig.public as { authentication: { client: { routeApi: boolean } } }).authentication.client.routeApi
+    const nuxt = await load({ modules: [mobile] })
+    expect(routeApi(nuxt)).toBe(true)
+    expect(isClientOnlyApp(nuxt)).toBe(true)
+    await nuxt.close()
+    const off = await load({ modules: [mobile], authentication: { mode: 'client', client: { routeApi: false } } })
+    expect(routeApi(off)).toBe(false)
+    await off.close()
+  })
+
   it('installs Auth when only `authentication` is configured, not Authorization', async () => {
     const nuxt = await load({ modules: [mobile] })
     expect(installed(nuxt)).toContain('@frigear-nu/auth')

@@ -17,6 +17,7 @@ import {
   addOptionalImports,
   defineVirtualRegistry,
   inlineModuleRuntime,
+  markClientOnlyApp,
   registerLocales,
   registerModule,
   registerTailwindSource,
@@ -107,6 +108,9 @@ export default defineNuxtModule<ModuleOptions>({
     doctor: true,
   },
   moduleDependencies: (nuxt: Nuxt): Record<string, ModuleDependencyMeta> => {
+    // A static app without a server of its own: modules installed after this one leave out their server parts
+    // (`isClientOnlyApp`). Modules listed before it in `modules` see it from the list.
+    markClientOnlyApp(nuxt)
     const appId: string = appIdOf(nuxt) ?? FALLBACK_APP_ID
     const appName: string = mobileOptionsOf(nuxt)?.appName
       ?? (nuxt.options as { capacitor?: { config?: { appName?: string } } }).capacitor?.config?.appName
@@ -145,6 +149,8 @@ export default defineNuxtModule<ModuleOptions>({
               // Scalars only: array defaults would be appended to the app's own (defu). Read in Auth's setup.
               defaults: {
                 client: {
+                  // No server of its own: the `/api/` requests of the app's modules go to the API (`apiBase`).
+                  routeApi: true,
                   ...(scheme ? { native: { scheme } } : {}),
                   ...(lanHost ? { dev: { rewriteLoopback: lanHost } } : {}),
                 },
@@ -156,6 +162,7 @@ export default defineNuxtModule<ModuleOptions>({
   },
   setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
+    markClientOnlyApp(nuxt)
     const resolver = createResolver(import.meta.url)
     const logger = useLogger('mobile')
     inlineModuleRuntime(nuxt, resolver)

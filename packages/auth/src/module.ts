@@ -32,6 +32,7 @@ import {
   addOptionalImports,
   defineVirtualRegistry,
   readLocaleRouting,
+  isClientOnlyApp,
 } from '@frigear-nu/module-kit/utils'
 import type { ModuleRoute } from '@frigear-nu/module-kit/utils'
 import type { LocaleRouting } from '@frigear-nu/module-kit/server'
@@ -1160,6 +1161,8 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     scope: scopes.join(' '),
     apiBase: client.apiBase ?? '',
     apiOrigins: client.apiOrigins ?? [],
+    // Resource mode has a server of its own that answers `/api/`.
+    routeApi: !resource && client.routeApi === true,
     onUnauthorized: client.onUnauthorized ?? 'signOut',
     redirectUri: client.redirectUri ?? '',
     nativeRedirectUri,
@@ -1251,6 +1254,9 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     collect: () => ({ installed: plugins, customStorage, helper: resolver.resolve('./runtime/client/capacitor/adapters') }),
     contents: nativeLoaderTemplate,
   })
+
+  // The grant kinds, for the grant list editor (`#auth/grant-fields`) on the pages of modules in a client-only app.
+  if (!resource) setupGrants(nuxt, resolver)
 
   // nuxt-auth-utils is not installed, so `#auth-utils` is the stand-in with the same session types.
   nuxt.options.alias['#auth-utils'] = resolver.resolve('./runtime/client/auth-utils')
@@ -1345,7 +1351,8 @@ export declare const userinfo: boolean
 
   nuxt.hook('modules:done', async () => {
     // nuxt-auth-utils needs a server for its session endpoints, Users a database. Resource mode has a server and a
-    // database, but no cookie sessions: nuxt-auth-utils would sign people in next to the issuer.
+    // database, but no cookie sessions: nuxt-auth-utils would sign people in next to the issuer. In a client-only app
+    // (`isClientOnlyApp`, e.g. a mobile app) Users and the modules on it bring only their pages, for a remote API.
     if (resource) {
       if (['nuxt-auth-utils', 'auth-utils'].some(alias => hasNuxtModule(alias, nuxt))) {
         throw new Error(`[${MODULE_NAME}] \`nuxt-auth-utils\` is installed (by ${await installedBy(nuxt, 'nuxt-auth-utils')}), but resource mode has no cookie sessions: people sign in at the issuer. Remove it, or use \`authentication.mode: 'server'\`.`)
@@ -1357,6 +1364,7 @@ export declare const userinfo: boolean
         ['@frigear-nu/users', ['@frigear-nu/users'], 'it needs a database'],
       ] as const) {
         if (!aliases.some(alias => hasNuxtModule(alias, nuxt))) continue
+        if (name === '@frigear-nu/users' && isClientOnlyApp(nuxt)) continue
         throw new Error(`[${MODULE_NAME}] \`${name}\` is installed (by ${await installedBy(nuxt, name)}), but client mode has no server: ${reason}. Remove it, or use \`authentication.mode: 'server'\` (or \`'resource'\` for a server that accepts the issuer's tokens).`)
       }
     }

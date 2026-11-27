@@ -101,3 +101,83 @@ export function withSameOriginToken(base: Fetch, { origin, getAccessToken, skip 
     return base(input, { ...init, headers })
   }
 }
+
+export interface RoutedApiOptions {
+  /** The page's own URL (`location.href`): relative requests, and requests to its scheme and host, are the app's own. */
+  page: string
+  /** Where the app's `/api/` requests go instead (`runtime.apiBase`). */
+  apiBase: string
+  client: Pick<OAuthClient, 'getAccessToken'>
+  /** Origins that get the bearer token (`runtime.apiAttachTo`). */
+  attachTo: string[]
+  /** As `createAuthorizedApi`'s: the session is over. */
+  onUnauthorized: () => Promise<void> | void
+}
+
+/** A 401 carried through `createAuthorizedApi` as an error, so it refreshes once and retries. */
+class UnauthorizedResponse extends Error {
+  constructor(readonly response: Response) {
+    super('Unauthorized')
+  }
+}
+
+/** Whether `pathname` is the app's API: `/api` or below it. */
+const isApiPath = (pathname: string) => pathname === '/api' || pathname.startsWith('/api/')
+
+/**
+ * Client mode's `fetch` with `routeApi`: the app has no server of its own (a Capacitor app is served from
+ * `capacitor://localhost`), so its own `/api/` requests, the relative `$fetch` / `useFetch` of every module, go to
+ * `apiBase` instead, with the bearer token as `$api` sends it (`createAuthorizedApi`: only to `attachTo` origins, one
+ * forced refresh on a 401, then the response as it came). Compares scheme and host rather than `origin`, which is
+ * `"null"` for a custom scheme. Requests elsewhere, `Request` objects and an `apiBase` on the page's own host are left
+ * alone; a request that sets its own `authorization` header is routed without the token.
+ */
+export function withRoutedApi(base: Fetch, { page, apiBase, client, attachTo, onUnauthorized }: RoutedApiOptions): Fetch {
+  let own: URL
+  let target: URL
+  try {
+    own = new URL(page)
+    target = new URL(apiBase)
+  }
+  catch {
+    return base
+  }
+  const isOwn = (url: URL) => url.protocol === own.protocol && url.host === own.host
+  if (isOwn(target)) return base
+  const root = target.href.replace(/\/+$/, '')
+
+  const authorized = createAuthorizedApi({
+    client,
+    attachTo,
+    baseURL: root,
+    onUnauthorized,
+    request: async <T>(url: string, options: ApiRequestOptions) => {
+      const { init, headers } = options as { init?: RequestInit, headers?: HeadersInit }
+      const response = await base(url, { ...init, headers })
+      if (response.status === 401) throw new UnauthorizedResponse(response)
+      return response as T
+    },
+  })
+
+  return async (input, init) => {
+    if (typeof input !== 'string' && !(input instanceof URL)) return base(input, init)
+    let url: URL
+    try {
+      url = new URL(input, own)
+    }
+    catch {
+      return base(input, init)
+    }
+    if (!isOwn(url) || !isApiPath(url.pathname)) return base(input, init)
+    const routed = `${root}${url.pathname}${url.search}`
+    const headers = new Headers(init?.headers)
+    if (headers.has('authorization')) return base(routed, init)
+    try {
+      return await authorized<Response>(routed, { init, headers })
+    }
+    catch (error) {
+      if (error instanceof UnauthorizedResponse) return error.response
+      throw error
+    }
+  }
+}

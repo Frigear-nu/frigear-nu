@@ -7,7 +7,7 @@ import {
   defineNuxtModule,
   hasNuxtModule,
 } from '@nuxt/kit'
-import { addModuleRoutes, registerDatabaseTable, registerSearchIndex, registerLocales, registerTailwindSource, resolvePagePath, addOptionalMenuSource, addModulePages, inlineModuleRuntime } from '@frigear-nu/module-kit/utils'
+import { addModuleRoutes, registerDatabaseTable, registerSearchIndex, registerLocales, registerTailwindSource, resolvePagePath, addOptionalMenuSource, addModulePages, inlineModuleRuntime, isClientOnlyApp, serverModuleDependencies } from '@frigear-nu/module-kit/utils'
 import { registerAccess, setAuthUserStore } from '@frigear-nu/auth/utils'
 import { resolveAuthMode } from '@frigear-nu/auth/mode'
 import { setNotifyRecipientStore } from '@frigear-nu/notify/utils'
@@ -42,9 +42,7 @@ export default defineNuxtModule<ModuleOptions>({
   },
   // `@frigear-nu/mcp` is only installed when `settings.mcp` is on.
   moduleDependencies: nuxt => ({
-    '@nuxthub/core': {
-      version: '>=0.0.1',
-    },
+    ...serverModuleDependencies(nuxt, { '@nuxthub/core': { version: '>=0.0.1' } }),
     '@frigear-nu/module-kit': {
       version: '>=0.0.1',
     },
@@ -69,7 +67,7 @@ export default defineNuxtModule<ModuleOptions>({
       version: '>=0.0.0',
       optional: true,
     },
-    ...(nuxt.options.users?.settings?.mcp === true ? { '@frigear-nu/mcp': { version: '>=0.0.1' } } : {}),
+    ...(nuxt.options.users?.settings?.mcp === true ? serverModuleDependencies(nuxt, { '@frigear-nu/mcp': { version: '>=0.0.1' } }) : {}),
   }),
   async setup(options, nuxt) {
     const resolver = createResolver(import.meta.url)
@@ -80,6 +78,8 @@ export default defineNuxtModule<ModuleOptions>({
     // address and password. No cookie sessions and no sign-in links here, so the routes that change how someone signs
     // in (email, password, the email change links, resending a sign-in link) are not registered.
     const signInHere = resolveAuthMode(nuxt) !== 'resource'
+    // A client-only app (`isClientOnlyApp`, e.g. a mobile app) calls a remote API: no routes, store or Nitro plugins.
+    const server = !isClientOnlyApp(nuxt)
     if (!signInHere && settings.verifyEmailChange) {
       console.warn('[@frigear-nu/users] `settings.verifyEmailChange` does nothing with `authentication.mode: \'resource\'`: the email address changes at the issuer.')
     }
@@ -95,14 +95,16 @@ export default defineNuxtModule<ModuleOptions>({
     // `users.searchText`, recomputed by the `search:reindex` task.
     registerSearchIndex(nuxt, { name: 'users', handler: resolver.resolve('./runtime/server/search-index') })
 
-    // Lets `@frigear-nu/auth` read and write users: sign-in flows, and the user a bearer token belongs to.
-    setAuthUserStore(nuxt, resolver.resolve('./runtime/server/user-store'))
-    // Lets `notifyUser` of `@frigear-nu/notify` find a user's email address and phone number.
-    setNotifyRecipientStore(nuxt, resolver.resolve('./runtime/server/notify-recipients'))
+    if (server) {
+      // Lets `@frigear-nu/auth` read and write users: sign-in flows, and the user a bearer token belongs to.
+      setAuthUserStore(nuxt, resolver.resolve('./runtime/server/user-store'))
+      // Lets `notifyUser` of `@frigear-nu/notify` find a user's email address and phone number.
+      setNotifyRecipientStore(nuxt, resolver.resolve('./runtime/server/notify-recipients'))
 
-    // The emails this module sends, as templates @frigear-nu/email-templates renders when installed.
-    nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
-    addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+      // The emails this module sends, as templates @frigear-nu/email-templates renders when installed.
+      nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
+      addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    }
     inlineModuleRuntime(nuxt, resolver)
 
     // --- Self-service: the signed-in user changes their own profile, email and password --------------
@@ -146,7 +148,7 @@ export default defineNuxtModule<ModuleOptions>({
     }
     addModuleRoutes(resolver, selfRoutes, { base: '/api/users' })
 
-    if (settings.mcp === true) {
+    if (settings.mcp === true && server) {
       const { addMcpDefinitions } = await import('@frigear-nu/mcp/utils')
       addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
     }
@@ -166,12 +168,12 @@ export default defineNuxtModule<ModuleOptions>({
         }
       }
       // Applications that sign in here get `users.locale` as the OIDC `locale` claim.
-      if (hasNuxtModule('@frigear-nu/oauth-server', nuxt)) {
+      if (server && hasNuxtModule('@frigear-nu/oauth-server', nuxt)) {
         addNitroPlugin(resolver.resolve('./runtime/server/plugins/oauth-claims'))
       }
     })
     // Signed in with frigear.nu: its `locale` claim becomes the user's language here.
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/frigear-locale'))
+    if (server) addNitroPlugin(resolver.resolve('./runtime/server/plugins/frigear-locale'))
 
     // --- User administration (staff) ---------------------------------------------------------
     const withAdmin = !!settings.admin

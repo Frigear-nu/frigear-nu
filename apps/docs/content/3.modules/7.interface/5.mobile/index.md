@@ -183,6 +183,33 @@ With Auth in server mode the build fails. A Capacitor app cannot send a same-ori
 
 The guards only decide what the app shows. The API decides what is allowed.
 
+### Running modules in the app
+
+Feature modules such as [Dashboard](/modules/interface/dashboard), [Help Center](/modules/content/help-center),
+[Crew](/modules/volunteering/crew), [Shifts](/modules/volunteering/shifts) and [Account](/modules/identity/account) work in the app: install them as in a website, and their pages,
+widgets, menus and tabs show up. Dashboard adds a Home tab, Crew a Crew tab and Help Center a Help tab
+(`/help-center`).
+
+```ts [nuxt.config.ts]
+export default defineNuxtConfig({
+  modules: ['@nuxt/ui', '@frigear-nu/mobile', '@frigear-nu/authorization', '@frigear-nu/dashboard', '@frigear-nu/help-center'],
+  authentication: { mode: 'client', client: { clientId: 'mobile', scopes: ['openid', 'profile', 'email'] } },
+})
+```
+
+The app has no server, so two things change:
+
+- **Their API calls go to the website.** Mobile turns on Auth's
+  [`client.routeApi`](/modules/identity/auth/client-mode#options): the modules' `/api/...` requests go to
+  `apiBase` (the issuer unless set) with the access token. The API must accept `Authorization: Bearer` tokens on
+  `/api/**`, as a Frigear website does, and allow the app's origin in CORS (`capacitor://localhost` on iOS,
+  `https://localhost` on Android). Set `authentication.client.routeApi: false` to call your API only through `$api`.
+- **They leave out their server parts.** With Mobile in `modules` the app is
+  [client only](/modules/platform/module-kit#client-only-apps): no NuxtHub, database, server routes, Nitro plugins or
+  scheduled tasks. Each module checks this itself. Their permissions stay, for the guards.
+
+The website the app calls runs the same modules in full, and decides what each call may do.
+
 ### What the user may do
 
 The app has no server of its own, so `useAuthorization()` from [Authorization](/modules/identity/authorization/client)

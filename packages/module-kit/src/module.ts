@@ -6,6 +6,12 @@ export * from './runtime/utils/index'
 // Module options TypeScript interface definition
 export interface ModuleOptions {
   _modules?: string[]
+  /**
+   * The app is client only: a static build with no server of its own that calls a remote API (see `isClientOnlyApp`).
+   * Modules then leave out their server routes, Nitro plugins, database tables and server policies. Unset: on when the
+   * app lists `@frigear-nu/mobile` in `modules`.
+   */
+  clientOnly?: boolean
 }
 
 export default defineNuxtModule<ModuleOptions>({

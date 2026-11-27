@@ -47,6 +47,13 @@ export interface ClientModuleOptions {
    */
   apiOrigins?: string[]
   /**
+   * Send the app's own relative `/api/` requests (`$fetch`, `useFetch`, `useLazyFetch`: the pages of every module) to
+   * `apiBase` (else the issuer), with the bearer token as `$api` sends it: only to `apiOrigins`, one refresh on a 401.
+   * For an app without a server of its own whose modules call `/api/...`, such as a Capacitor app; `@frigear-nu/mobile`
+   * turns it on. Client mode only. Default `false`.
+   */
+  routeApi?: boolean
+  /**
    * What a 401 that a forced refresh did not fix does: `signOut` (default) clears the local session and sends the
    * visitor to the login page; `none` only throws.
    */
@@ -124,6 +131,8 @@ export interface AuthClientPublicConfig {
   /** Empty: the issuer. */
   apiBase: string
   apiOrigins: string[]
+  /** Relative `/api/` requests go to `apiBase` (`routeApi`). */
+  routeApi: boolean
   onUnauthorized: 'signOut' | 'none'
   redirectUri: string
   nativeRedirectUri: string

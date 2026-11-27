@@ -1,4 +1,4 @@
-import { addServerHandler, addTemplate, createResolver, getNitroVersion, useLogger } from '@nuxt/kit'
+import { addServerHandler, addTemplate, createResolver, getNitroVersion, tryUseNuxt, useLogger } from '@nuxt/kit'
 import { createHash } from 'node:crypto'
 import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -8,6 +8,7 @@ import type { Nuxt } from '@nuxt/schema'
 import type { NitroConfig } from 'nitropack/types'
 import type { ColumnBuilderBase } from 'drizzle-orm'
 import { listRegularTableExportNames, parseRegularTableExport } from './regular-table'
+import { isClientOnlyApp } from './client-only'
 
 export type DbExtenderFn = (props: { dialect: string, paths: string[] }) => void | Promise<void>
 export type TableExtenderFn = (props: { name: string, dialect: string, paths: string[] }) => void | Promise<void>
@@ -472,6 +473,9 @@ export const addModuleRoutes = (
   routes: ModuleRoute[],
   options: { base: string },
 ): void => {
+  // A client-only app has no server to mount them on (see `isClientOnlyApp`).
+  const nuxt = tryUseNuxt()
+  if (nuxt && isClientOnlyApp(nuxt)) return
   for (const { method, path, file } of routes) {
     addServerHandler({
       route: moduleRoutePath(path, options.base),
