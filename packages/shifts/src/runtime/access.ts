@@ -38,6 +38,13 @@ export const shiftsAccess = defineAccess('shifts', {
       implicit: true,
       sessionOnly: true,
     },
+    // Checking anyone in on any shift by their QR pass (`POST /api/shifts/check-in`), without leading the team: the people at
+    // the gate or the bar of a whole festival. Leads check in on their own teams through `shifts:lead` instead.
+    checkin: {
+      label: 'Check people in on any shift',
+      description: 'Check anyone in on any shift by scanning their QR pass, on every team and operation, without leading the team.',
+      grantTo: ['admin'],
+    },
     // Messages people by email and SMS; leads send to their own team through `shifts:lead` instead.
     broadcast: {
       label: 'Message shift teams',

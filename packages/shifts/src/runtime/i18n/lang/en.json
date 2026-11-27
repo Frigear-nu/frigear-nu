@@ -425,6 +425,8 @@
       "attendDescription": "Check in on your own shifts by scanning a station's code or by your location.",
       "broadcast": "Message shift teams",
       "broadcastDescription": "Send an email (and an SMS, on purpose) to the members of an operation's teams or the people on a shift.",
+      "checkin": "Check people in on any shift",
+      "checkinDescription": "Check anyone in on any shift by scanning their QR pass, on every team and operation, without leading the team.",
       "feed": "Subscribe to your shifts in a calendar",
       "feedDescription": "Create and revoke the secret calendar feed (iCal) of your own shifts.",
       "lead": "Lead shifts",

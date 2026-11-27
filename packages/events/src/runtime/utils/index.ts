@@ -1,7 +1,7 @@
 // Pure helpers, safe to import from the Vue app as well as Nitro code.
 import { translate } from '@frigear-nu/ui/translated'
 import { formatMoney as formatPrice } from '@frigear-nu/ui/money'
-import type { MembershipRequirement } from '../types'
+import type { MembershipRequirement } from '../../types'
 
 export { translate }
 export * from './links'
@@ -32,7 +32,7 @@ export type {
   TicketTypeDto,
   Translated,
   UpcomingEventsDto,
-} from '../types'
+} from '../../types'
 
 /** The currency tickets and add-ons are sold in unless they say otherwise (the column default). */
 export const DEFAULT_CURRENCY = 'DKK'

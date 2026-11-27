@@ -15,7 +15,7 @@ operation comes from Operations' participation hooks, which crew answers.
   taken over), refused where the schedule does not allow them; the guards run for both people; accept (completes at
   once, or waits for a lead's approval), reject and withdraw; conditional writes so two accepts carry out one.
 - A check-in code per assignment, shown as a QR pass from `checkInOpensMinutes` before the shift until its end; leads
-  scan it or mark attendance.
+  scan it or mark attendance, and holders of `shifts:checkin` scan anyone's on any shift (`POST /api/shifts/check-in`).
 - Reminders: a `shifts:send-reminders` Nitro task emails people before a shift (a day and two hours by default, once per
   offset; SMS only with `reminders.sms`). The cron is mirrored into Cloudflare's triggers.
 - A secret iCal feed of my shifts (`webcal://`), minted and revoked from a session.
@@ -28,7 +28,7 @@ operation comes from Operations' participation hooks, which crew answers.
   `event: undefined`), `shifts:broadcast:sent`, `shifts:perk:earned`, `shifts:perk:revoked` and `shifts:digest:sent`; listens to `teams:member:removed` and
   `teams:member:role-changed`.
 - Permissions `shifts:read`, `shifts:swap`, `shifts:attend`, `shifts:lead`, `perks:read`, `perks:claim` (implicit, with
-  policies), `shifts:feed` (implicit, session only), `shifts:broadcast`, `shifts:manage` and `shifts:pii`; the `shifts`
+  policies), `shifts:feed` (implicit, session only), `shifts:broadcast`, `shifts:checkin`, `shifts:manage` and `shifts:pii`; the `shifts`
   and `perks` scopes.
 - Pages `/shifts`, `/shifts/:assignmentId`, `/shifts/swaps`, `/shifts/lead/:teamId` and `/shifts/check-in/:teamId`, and a Shifts tab on the
   operation page.

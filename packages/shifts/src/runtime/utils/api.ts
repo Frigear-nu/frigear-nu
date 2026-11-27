@@ -49,6 +49,8 @@ export const shiftsApi = {
   approveSwap: (swapId: string) => `${BASE}/swaps/${enc(swapId)}/approve`,
   /** `POST` (a lead of the team, or staff) to reject a swap waiting for approval: it is open again. */
   rejectSwap: (swapId: string) => `${BASE}/swaps/${enc(swapId)}/reject`,
+  /** `POST` `{ code }` to check a person in with their QR pass on any shift (`shifts:checkin`, or a lead of the code's team). */
+  checkIn: `${BASE}/check-in`,
   teams: {
     /** `POST` `{ code }` to check a person in with their QR pass (a lead of the team, or staff). */
     checkIn: (teamId: string) => `${BASE}/teams/${enc(teamId)}/check-in`,

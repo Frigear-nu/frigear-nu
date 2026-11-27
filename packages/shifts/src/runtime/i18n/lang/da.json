@@ -425,6 +425,8 @@
       "attendDescription": "Tjek ind på dine egne vagter ved at scanne en stations kode eller med din placering.",
       "broadcast": "Skriv til vagtholdene",
       "broadcastDescription": "Send en mail (og en sms, med vilje) til medlemmerne af et events hold eller folkene på en vagt.",
+      "checkin": "Tjek folk ind på alle vagter",
+      "checkinDescription": "Tjek hvem som helst ind på enhver vagt ved at scanne deres QR-pas, på alle hold og events, uden at lede holdet.",
       "feed": "Abonnér på dine vagter i en kalender",
       "feedDescription": "Opret og træk det hemmelige kalenderabonnement (iCal) med dine egne vagter tilbage.",
       "lead": "Led vagter",

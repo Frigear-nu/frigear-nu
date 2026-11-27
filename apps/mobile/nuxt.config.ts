@@ -97,15 +97,17 @@ export default defineNuxtConfig({
   mobile: {
     appId,
     appName,
-    // Home (dashboard), Crew (crew and shifts), Help (help center) and Account. The modules add the first three; the
-    // orders put them in place. Shifts adds a tab of its own, left out here: its pages open from the Crew tab.
+    // Home (dashboard), Crew (crew and shifts), Wallet (Frigear ID, tickets and the scanner), Help (help center) and
+    // Account. The modules add Home, Crew and Help; the orders put them in place. Shifts adds a tab of its own, left out
+    // here: its pages open from the Crew tab.
     tabs: [
       { id: 'home', order: 0 },
       // A shift (`/shifts/:id`, opened from Home's next shift) belongs to the Crew tab.
       { id: 'crew', order: 1, match: ['/dashboard/crew', '/dashboard/crew/**', '/shifts/**'] },
       { id: 'shifts', enabled: false },
-      { id: 'help-center', order: 2 },
-      { id: 'account', to: '/account', label: 'Account', labelKey: 'app.tabs.account', icon: 'i-lucide-circle-user-round', sfSymbol: 'person.crop.circle', sfSymbolActive: 'person.crop.circle.fill', requiresAuth: true, order: 3 },
+      { id: 'wallet', to: '/wallet', label: 'Wallet', labelKey: 'app.tabs.wallet', icon: 'i-lucide-wallet', sfSymbol: 'wallet.pass', sfSymbolActive: 'wallet.pass.fill', requiresAuth: true, order: 2 },
+      { id: 'help-center', order: 3 },
+      { id: 'account', to: '/account', label: 'Account', labelKey: 'app.tabs.account', icon: 'i-lucide-circle-user-round', sfSymbol: 'person.crop.circle', sfSymbolActive: 'person.crop.circle.fill', requiresAuth: true, order: 4 },
     ],
     // Pages the app has no page for (events, checkout, admin, sign-up, ...) open on the website (the issuer) in the
     // in-app browser, which shares the website session of the sign-in.

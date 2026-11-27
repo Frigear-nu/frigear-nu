@@ -268,6 +268,10 @@ export default defineNuxtConfig({
     // The app's own permissions; roles grant them in `authorization.roles`.
     permissions: [
       { name: 'documents:crew', label: 'Read crew documents', labelKey: 'permissions.documentsCrew', description: 'See the crew documents on the account page.', group: 'documents' },
+      // Frigear ID (server/api/account/id-code*): show your own (every signed-in user), and scan someone else's (crew and
+      // up, `authorization.roles`). Both are OAuth scopes by these names (the mobile app asks for them).
+      { name: 'frigear-id:read', label: 'Show your Frigear ID', labelKey: 'permissions.frigearIdRead', description: 'Show your own Frigear ID code.', group: 'frigear-id', implicit: true },
+      { name: 'frigear-id:verify', label: 'Scan Frigear IDs', labelKey: 'permissions.frigearIdVerify', description: 'Scan and verify someone\'s Frigear ID: their name, photo, roles, membership and crew teams.', group: 'frigear-id', sensitive: true },
     ],
     settings: {
       // Emailed links (password reset, sign-in, verification) point at the known public URL (NUXT_PUBLIC_SITE_URL
@@ -343,8 +347,9 @@ export default defineNuxtConfig({
         inherit: ['eventmanager'],
       },
       eventmanager: { label: 'Event manager', labelKey: 'roles.eventmanager', grant: ['events:manage', 'events:refund', 'events:pii'], inherit: ['barmanager'] },
-      barmanager: { label: 'Bar manager', labelKey: 'roles.barmanager', inherit: ['crew'] },
-      crew: { label: 'Crew', labelKey: 'roles.crew', grant: ['documents:crew'], inherit: ['member'] },
+      // Bar managers and up scan anyone's shift pass on any shift (`POST /api/shifts/check-in`).
+      barmanager: { label: 'Bar manager', labelKey: 'roles.barmanager', grant: ['shifts:checkin'], inherit: ['crew'] },
+      crew: { label: 'Crew', labelKey: 'roles.crew', grant: ['documents:crew', 'frigear-id:verify'], inherit: ['member'] },
       member: { label: 'Member', labelKey: 'roles.member', inherit: ['user'] },
       supplier: { label: 'Supplier', labelKey: 'roles.supplier', inherit: ['user'] },
       partner: { label: 'Partner', labelKey: 'roles.partner', inherit: ['user'] },

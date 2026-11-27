@@ -244,14 +244,16 @@ export async function shiftsAssignmentByCode(code: string): Promise<ShiftAssignm
 }
 
 /**
- * Checks a person in with the code of their QR pass, for a team (a lead of it, or staff). An unknown code, or a code of
- * another team's shift, is a 404 (a lead learns nothing about other teams). A cancelled assignment is a 409
- * `assignment_cancelled`; outside the check-in window a 409 `outside_window`. Scanning twice is fine: the second scan
- * reports `alreadyCheckedIn` with the first scan's time. Fires `shifts:attendance:marked` once.
+ * Checks a person in with the code of their QR pass. With `teamId` (a team's scanner: a lead of it, or staff), a code of
+ * another team's shift is a 404 like an unknown one (a lead learns nothing about other teams); without it the caller has
+ * decided access already (`POST /api/shifts/check-in`). `entry` is the code's assignment when the caller resolved it
+ * already. A cancelled assignment is a 409 `assignment_cancelled`; outside the check-in window a 409 `outside_window`.
+ * Scanning twice is fine: the second scan reports `alreadyCheckedIn` with the first scan's time. Fires
+ * `shifts:attendance:marked` once.
  */
-export async function shiftsCheckIn(event: H3Event, teamId: string, code: string, by: number, pii: boolean): Promise<ShiftCheckInDto> {
-  const entry = await shiftsAssignmentByCode(code)
-  if (!entry || entry.shift.teamId !== teamId) throw notFound('Unknown check-in code.')
+export async function shiftsCheckIn(event: H3Event, code: string, by: number, pii: boolean, options: { teamId?: string, entry?: ShiftAssignmentEntry } = {}): Promise<ShiftCheckInDto> {
+  const entry = options.entry ?? await shiftsAssignmentByCode(code)
+  if (!entry || (options.teamId !== undefined && entry.shift.teamId !== options.teamId)) throw notFound('Unknown check-in code.')
   const { assignment, shift, schedule } = entry
   if (assignment.status === 'cancelled') throw apiError(409, 'assignment_cancelled', 'This assignment was cancelled.')
   // The person must still hold their role on the team: one who left (or whose membership stopped granting) cannot check in.

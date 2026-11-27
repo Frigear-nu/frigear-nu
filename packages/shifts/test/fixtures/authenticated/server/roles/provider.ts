@@ -8,12 +8,14 @@ import type { AuthRoleProvider } from '@frigear-nu/auth/utils'
 //   @mgr.test    -> `shiftmanager` (shifts:manage only: no shifts:pii)
 //   @bar.test    -> `supervisor` (a mapping rule makes them a lead on a team without a membership row)
 //   @wild.test   -> `wild` (shifts:* only, which never covers shifts:pii)
+//   @check.test  -> `checker` (shifts:checkin only: checks anyone in on any shift)
 const ROLES: Record<string, string[]> = {
   '@staff.test': ['admin'],
   '@coord.test': ['coordinator'],
   '@mgr.test': ['shiftmanager'],
   '@bar.test': ['supervisor'],
   '@wild.test': ['wild'],
+  '@check.test': ['checker'],
 }
 
 const provider: AuthRoleProvider = {

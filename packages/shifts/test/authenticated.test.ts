@@ -817,6 +817,53 @@ describe('shifts (authenticated, database-backed)', async () => {
       expect((await json(ann.cookie, 'POST', shiftsApi.noShow(late.assignment.id))).status).toBe(403)
     })
 
+    it('checks in on any shift without picking a team: shifts:checkin anywhere, leads on their own teams', async () => {
+      const setup = await newSetup()
+      const other = await createTeam(setup.op.id)
+      const [ann, bob, lead, otherLead, plain] = await Promise.all([user('Aann'), user('Abob'), user('Alead'), user('Aother'), user('Aplain')])
+      const gate = await user('Agate', 'check.test')
+      await addMember(setup.team.id, ann)
+      await addMember(setup.team.id, bob)
+      await addMember(setup.team.id, lead, 'lead')
+      await addMember(other.id, otherLead, 'lead')
+      const shiftId = setup.shifts[0]!.id
+      const [first, second] = [await assigned(shiftId, ann), await assigned(shiftId, bob)]
+      await patchShift(shiftId, { startsAt: iso(HOUR / 2), endsAt: iso(4 * HOUR) })
+      const annCode = (await ok(await json(ann.cookie, 'GET', shiftsApi.me.pass(first.assignment.id)))).code as string
+      const bobCode = (await ok(await json(bob.cookie, 'GET', shiftsApi.me.pass(second.assignment.id)))).code as string
+
+      // Unknown codes and codes of a team the caller does not lead are the same 404, for a lead and a plain user alike.
+      await expectApiError(json(gate.cookie, 'POST', shiftsApi.checkIn, { code: 'f'.repeat(64) }), 404)
+      await expectApiError(json(otherLead.cookie, 'POST', shiftsApi.checkIn, { code: annCode }), 404)
+      await expectApiError(json(plain.cookie, 'POST', shiftsApi.checkIn, { code: annCode }), 404)
+      await expectApiError(json(ann.cookie, 'POST', shiftsApi.checkIn, { code: bobCode }), 404)
+      // Signed out: 401.
+      expect((await json(undefined, 'POST', shiftsApi.checkIn, { code: annCode })).status).toBe(401)
+
+      // A holder of `shifts:checkin` checks in on a team they do not lead, through a token that carries only that scope.
+      const gateToken = await createToken(gate.cookie, ['shifts:checkin'])
+      const scanned = await ok(await apiClient({ bearer: gateToken }).fetch('POST', shiftsApi.checkIn, { code: annCode }))
+      expect(scanned).toMatchObject({ ok: true, alreadyCheckedIn: false, assignment: { id: first.assignment.id, status: 'attended', checkedInBy: gate.id }, shift: { id: shiftId } })
+      // No `shifts:pii`: no contact details.
+      expect(scanned.assignment.person.email).toBeUndefined()
+      expect((await ok(await json(gate.cookie, 'POST', shiftsApi.checkIn, { code: annCode }))).alreadyCheckedIn).toBe(true)
+      // A plain user's token without `shifts:checkin` or `shifts:lead`: 403 before the code is looked at.
+      const plainToken = await createToken(plain.cookie, ['shifts'])
+      await expectApiError(apiClient({ bearer: plainToken }).fetch('POST', shiftsApi.checkIn, { code: bobCode }), 403, 'insufficient_scope')
+
+      // A lead of the team checks in through the same route.
+      const byLead = await ok(await json(lead.cookie, 'POST', shiftsApi.checkIn, { code: bobCode }))
+      expect(byLead).toMatchObject({ ok: true, alreadyCheckedIn: false, assignment: { id: second.assignment.id, checkedInBy: lead.id } })
+      expect((await getHooks()).filter(hook => hook.name === 'attendance:marked' && [first.assignment.id, second.assignment.id].includes(hook.assignmentId!))).toHaveLength(2)
+
+      // The window still applies.
+      const late = await assigned(setup.shifts[1]!.id, ann)
+      await patchShift(setup.shifts[1]!.id, { startsAt: iso(HOUR / 2), endsAt: iso(HOUR) })
+      const { code: lateCode } = await ok(await json(ann.cookie, 'GET', shiftsApi.me.pass(late.assignment.id)))
+      await patchShift(setup.shifts[1]!.id, { startsAt: iso(3 * HOUR), endsAt: iso(4 * HOUR) })
+      await expectApiError(json(gate.cookie, 'POST', shiftsApi.checkIn, { code: lateCode }), 409, 'outside_window')
+    })
+
     it('refuses a check-in outside the window', async () => {
       const setup = await newSetup()
       const [ann, lead] = await Promise.all([user('Wann'), user('Wlead')])

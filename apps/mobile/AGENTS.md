@@ -18,14 +18,26 @@ app/pages/index.vue             signed out: public home (events, contact form, s
 app/components/home/            the public home's sections
 app/components/Mobile/SplashScreen.vue   the splash screen (full logo)
 app/components/AccountSignOut.vue        sign-out on the Account overview (modules/account-sign-out.ts adds it)
+app/pages/wallet/               the Wallet tab: index (Frigear ID, tickets, Scan button), tickets/[id] (the QR for the
+                                door), scan (Frigear ID / ticket / shift check-in, one page with a mode switch)
+app/components/wallet/          the Wallet's parts: FrigearIdCard, WalletTickets, TicketRow, ScanCamera, ScanResult
+app/composables/useScan*.ts     the scan modes the user may use (`can()`), and the website call and verdict of each
+shared/types/frigear-id.ts      a copy of the website's Frigear ID API types (apps/website/shared/types): keep in step
 app/plugins/splash.client.ts    holds the splash screen while the sign-in state is unknown
 i18n/locales/{da,en}.json       the app's own strings (Danish default, English under /en, as the website)
 assets/                         icon and splash sources; `pnpm mobile:assets` writes the native icons and splash
 ios/, android/                  native projects (`pnpm mobile:native`), committed
 ```
 
-- Tabs: Home (`@frigear-nu/dashboard`), Crew (`@frigear-nu/crew`), Help (`@frigear-nu/help-center`) and Account (this
-  app). Shifts' own tab is left out (`{ id: 'shifts', enabled: false }`); its pages open from Home and Crew.
+- Tabs: Home (`@frigear-nu/dashboard`), Crew (`@frigear-nu/crew`), Wallet, Help (`@frigear-nu/help-center`) and Account
+  (Wallet and Account are this app's). Shifts' own tab is left out (`{ id: 'shifts', enabled: false }`); its pages open
+  from Home and Crew.
+- Wallet: the user's Frigear ID (`GET /api/account/id-code`, a QR code renewed every `expiresIn` seconds) and tickets
+  (`GET /api/events/me/tickets`). `@frigear-nu/events` is a dependency for its `eventsApi` and types only, not a module:
+  it is not client-only aware yet (hard `@nuxthub/core`, Stripe, payments and MCP dependencies). The Scan button and
+  the scanner's modes follow `can()`: Frigear ID (`frigear-id:verify`, crew), ticket (`events:manage`) and shift
+  (`shifts:checkin`). On a device the camera is the native scanner of `@capacitor/barcode-scanner` (one code per
+  tap, Swift Package Manager support); in a browser it is shifts' `ShiftQrScanner` (`vue-qrcode-reader`).
 - Guards: `'/**': { authenticated: true }` with `/` public. Guests go to `/` (`authorization.redirectTo`), which signs
   them in and sends them back. Guards only decide what the app shows: the website's API decides what is allowed.
 - Scopes: the access token carries only the permissions of its scopes, so `identity.ts` asks for what the tabs use. A
