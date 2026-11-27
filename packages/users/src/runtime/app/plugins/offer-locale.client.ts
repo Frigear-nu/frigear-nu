@@ -5,13 +5,15 @@ type I18n = {
   locale: { value: string }
   locales: { value: Array<string | { code: string, name?: string }> }
   setLocale: (locale: string) => Promise<void>
+  loadLocaleMessages?: (locale: string) => Promise<void>
 }
 
 // When a signed-in user's saved language (`users.locale`) is not the one the page is shown in (they came from another
 // site in another language, or switched here), a toast offers to switch to it. Dismissing or switching is remembered for
 // the browser session (`sessionStorage`), so the offer is made once. The check waits for the language to settle, so a
-// switch already under way (a login applying its language) does not trigger it. Only with `@nuxtjs/i18n` (`dependsOn`
-// its plugin, as in `remember-locale.client`) and `@nuxt/ui`.
+// switch already under way (a login applying its language) does not trigger it. The toast is written in the language it
+// offers, not the page's: whoever it is for may not read the language the page is in. Only with `@nuxtjs/i18n`
+// (`dependsOn` its plugin, as in `remember-locale.client`) and `@nuxt/ui`.
 export default defineNuxtPlugin({
   name: 'users:offer-locale',
   dependsOn: ['i18n:plugin'],
@@ -22,7 +24,6 @@ export default defineNuxtPlugin({
     nuxtApp.hook('app:mounted', () => {
       const { loggedIn, user } = useUserSession()
       const toast = useToast()
-      const t = useModuleT('users')
       // Offers made on this page load, also when storage is unavailable.
       const offered = new Set<string>()
       const answered = (key: string) => {
@@ -42,7 +43,7 @@ export default defineNuxtPlugin({
         }
       }
 
-      const offer = () => {
+      const offer = async () => {
         const current = user.value as { id?: unknown, locale?: unknown } | null
         if (!loggedIn.value || !current) return
         const locales = i18n.locales.value.map(locale => typeof locale === 'string' ? { code: locale } : locale)
@@ -51,6 +52,18 @@ export default defineNuxtPlugin({
         const key = userLocaleOfferKey(current.id, locale)
         if (offered.has(key) || answered(key)) return
         offered.add(key)
+        // Locale files load lazily, so the offered language's text is usually not here yet. Without it the toast falls
+        // back to English.
+        try {
+          await i18n.loadLocaleMessages?.(locale)
+        }
+        catch {
+          // falls back to English
+        }
+        // Switched while the messages loaded: nothing to offer.
+        if (i18n.locale.value === locale) return
+        // Runs from a timer, outside the Nuxt context `useModuleT` needs.
+        const t = nuxtApp.runWithContext(() => useModuleT('users', { locale }))
         const language = locales.find(item => item.code === locale)?.name ?? locale
         toast.add({
           'id': 'users:offer-locale',
@@ -76,7 +89,7 @@ export default defineNuxtPlugin({
       let timer: ReturnType<typeof setTimeout> | undefined
       watch([loggedIn, () => (user.value as { locale?: unknown } | null)?.locale, () => i18n.locale.value], () => {
         clearTimeout(timer)
-        timer = setTimeout(offer, 1000)
+        timer = setTimeout(() => void offer(), 1000)
       }, { immediate: true })
     })
   },
