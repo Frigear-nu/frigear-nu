@@ -97,8 +97,8 @@ export interface MobilePageMeta {
   /** Navbar buttons on this page, e.g. a settings gear. Reactive ones: `useMobileNavbarActions()`. */
   actions?: MobileNavbarAction[]
   /**
-   * Native pull to refresh on this page (with the native chrome). Default: the app's `pullToRefresh` option on a tab's
-   * root page, off below it.
+   * Native pull to refresh on this page (with the native chrome). `false` turns it off here. Default: the app's
+   * `pullToRefresh` option.
    */
   pullToRefresh?: boolean
 }
@@ -168,9 +168,9 @@ export interface ModuleOptions {
    */
   pageTransitionDuration?: number
   /**
-   * Native pull to refresh on tab root pages (with the native chrome): it refreshes the page's `useAsyncData` /
-   * `useFetch` data and runs `onMobileRefresh()` handlers and the `mobile:refresh` hook. A page sets its own with
-   * `definePageMeta({ mobile: { pullToRefresh } })`. Default `true`.
+   * Native pull to refresh on every page (with the native chrome): it refreshes the page's `useAsyncData` /
+   * `useFetch` data and runs `onMobileRefresh()` handlers and the `mobile:refresh` hook. A page opts out with
+   * `definePageMeta({ mobile: { pullToRefresh: false } })`. Default `true`.
    */
   pullToRefresh?: boolean
   native?: {
