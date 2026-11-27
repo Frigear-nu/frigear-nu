@@ -1355,6 +1355,10 @@ export declare const userinfo: boolean
   addPlugin(resolver.resolve('./runtime/client/app/plugins/api'))
 
   nuxt.hook('modules:done', async () => {
+    // With i18n, the app is shown in the user's saved language (the `locale` claim).
+    if (hasNuxtModule('@nuxtjs/i18n', nuxt)) {
+      addPlugin({ src: resolver.resolve('./runtime/client/app/plugins/locale.client'), mode: 'client' })
+    }
     // nuxt-auth-utils needs a server for its session endpoints, Users a database. Resource mode has a server and a
     // database, but no cookie sessions: nuxt-auth-utils would sign people in next to the issuer. In a client-only app
     // (`isClientOnlyApp`, e.g. a mobile app) Users and the modules on it bring only their pages, for a remote API.

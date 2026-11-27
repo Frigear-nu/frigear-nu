@@ -163,7 +163,8 @@ export default defineNuxtModule<ModuleOptions>({
       if (hasNuxtModule('@nuxtjs/i18n', nuxt)) {
         addPlugin({ src: resolver.resolve('./runtime/app/plugins/remember-locale.client'), mode: 'client' })
         // A signed-in user whose saved language is not the page's gets a toast offering to switch (once per session).
-        if (hasNuxtModule('@nuxt/ui', nuxt)) {
+        // Not in client mode, where `@frigear-nu/auth` shows the app in the saved language itself.
+        if (hasNuxtModule('@nuxt/ui', nuxt) && resolveAuthMode(nuxt) !== 'client') {
           addPlugin({ src: resolver.resolve('./runtime/app/plugins/offer-locale.client'), mode: 'client' })
         }
       }

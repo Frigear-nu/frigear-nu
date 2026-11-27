@@ -1,6 +1,6 @@
 /**
- * A path of a website page in the app's language: the website uses the same locales (`prefix_except_default`), so
- * `/events/x` becomes `/en/events/x` in English. For pages the app does not have, so `localePath` cannot build them.
+ * A path of a website page in the app's language: the website uses the same locales with a prefix for all but Danish
+ * (`prefix_except_default`, the app has none), so `/events/x` becomes `/en/events/x` in English.
  */
 export function useHostPath() {
   const { locale, defaultLocale } = useI18n()

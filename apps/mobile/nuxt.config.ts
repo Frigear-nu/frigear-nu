@@ -39,7 +39,6 @@ export default defineNuxtConfig({
   routeRules: {
     '/**': { authenticated: true },
     '/': { authenticated: false },
-    '/en': { authenticated: false },
   },
 
   compatibilityDate: '2026-06-30',
@@ -52,10 +51,12 @@ export default defineNuxtConfig({
 
   // @frigear-nu/auth, installed by mobile, which fills in the native redirect scheme (from appId) and routes the
   // modules' `/api/` requests to the website. The issuer and API come from NUXT_PUBLIC_AUTHENTICATION_CLIENT_ISSUER /
-  // _API_BASE in `.env`; they are baked in at build time. Signed out, the public home is the sign-in page.
+  // _API_BASE in `.env`; they are baked in at build time. Signed out, the public home is the sign-in page. `userinfo`
+  // reads the user from the website after a sign-in and a profile save, so a language saved on the profile page switches
+  // the app at once (the id_token's claims only change at its next refresh).
   authentication: {
     mode: 'client',
-    client: { clientId, scopes, callbackPath, redirect: { login: '/' } },
+    client: { clientId, scopes, callbackPath, userinfo: true, redirect: { login: '/' } },
     settings: { pages: { login: false } },
   },
 
@@ -74,9 +75,10 @@ export default defineNuxtConfig({
     },
   },
 
-  // As the website: Danish by default, English under /en.
+  // Danish by default; signed in, the app is in the language saved on the account (@frigear-nu/auth). No locale prefix:
+  // the app's paths are not URLs anyone sees, and a prefix would be lost on every tab or link to an unprefixed path.
   i18n: {
-    strategy: 'prefix_except_default',
+    strategy: 'no_prefix',
     detectBrowserLanguage: false,
     defaultLocale: 'da',
     locales: [

@@ -28,6 +28,12 @@ describe('mapClaimsToUser', () => {
       .toEqual({ id: '42', sub: '42', name: 'Ada', email: 'ada@example.test', avatar: 'https://img.test/a.png' })
   })
 
+  it('maps the saved language (`locale`)', () => {
+    expect(mapClaimsToUser({ ...base, locale: 'en' })).toEqual({ id: '42', sub: '42', locale: 'en' })
+    expect(mapClaimsToUser({ ...base, locale: '' })).toEqual({ id: '42', sub: '42' })
+    expect(mapClaimsToUser({ ...base, locale: 7 })).toEqual({ id: '42', sub: '42' })
+  })
+
   it('never reads a role claim', () => {
     expect(mapClaimsToUser({ ...base, role: 'admin' })).toEqual({ id: '42', sub: '42' })
     expect(mapClaimsToUser({ ...base, role: ['admin'] })).toEqual({ id: '42', sub: '42' })
