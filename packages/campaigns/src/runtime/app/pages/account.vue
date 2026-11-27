@@ -130,7 +130,7 @@ async function change(list: CampaignMyListDto, channel: CampaignChannel, value: 
           <template #empty>
             <UEmpty
               variant="naked"
-              icon="i-lucide-newspaper"
+              icon="i-lucide-list"
               :title="t('empty', 'No lists yet')"
               :description="t('emptyDescription', 'Lists you can sign up for will show up here.')"
             />

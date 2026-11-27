@@ -419,7 +419,7 @@ const deliveryColumns = computed<TableColumn<CampaignDeliveryDto>[]>(() => [
                 color="neutral"
                 variant="subtle"
                 size="sm"
-                icon="i-lucide-newspaper"
+                icon="i-lucide-list"
                 :label="list.name"
               />
             </template>

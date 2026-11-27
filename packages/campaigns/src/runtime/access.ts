@@ -38,7 +38,7 @@ export const campaignsAccess = defineAccess('campaigns', {
     subscriptions: {
       label: 'Your subscriptions',
       description: 'See and change which lists you are subscribed to.',
-      icon: 'i-lucide-newspaper',
+      icon: 'i-lucide-list',
       permissions: ['campaigns:subscriptions'],
     },
   },

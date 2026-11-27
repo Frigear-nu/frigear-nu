@@ -21,7 +21,7 @@ const tabs = computed<PageTabItem[]>(() => {
   const lists = links.adminLists()
   return [
     ...(campaigns ? [{ label: t('heading.campaigns', 'Campaigns'), icon: 'i-lucide-send', to: campaigns, exact: true }] : []),
-    ...(lists ? [{ label: t('heading.lists', 'Lists'), icon: 'i-lucide-newspaper', to: lists, exact: true }] : []),
+    ...(lists ? [{ label: t('heading.lists', 'Lists'), icon: 'i-lucide-list', to: lists, exact: true }] : []),
   ]
 })
 </script>

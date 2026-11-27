@@ -32,7 +32,7 @@ export default defineMenuSource(() => {
       labelKey: 'campaigns.menu.account.label',
       description: 'Choose the lists you are subscribed to.',
       descriptionKey: 'campaigns.menu.account.description',
-      icon: 'i-lucide-newspaper',
+      icon: 'i-lucide-list',
       to: config.pages.account,
       order: 26,
     }))

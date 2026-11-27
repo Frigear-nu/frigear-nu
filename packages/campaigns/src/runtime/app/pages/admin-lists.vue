@@ -105,7 +105,7 @@ const columns = computed<TableColumn<CampaignListDto>[]>(() => [
         <template #empty>
           <UEmpty
             variant="naked"
-            icon="i-lucide-newspaper"
+            icon="i-lucide-list"
             :title="t('admin.empty', 'No lists yet')"
             :description="t('admin.emptyDescription', 'Create a list, then add its signup to a page.')"
             :actions="[{ label: t('admin.create', 'Create list'), icon: 'i-lucide-plus', onClick: create }]"
