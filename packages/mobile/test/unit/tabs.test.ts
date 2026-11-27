@@ -42,6 +42,22 @@ describe('normalizeTabs', () => {
     expect(tabs[0]!.requiresAuth).toBe(false)
   })
 
+  it('lets the app place or leave out a module\'s tab by id', () => {
+    // The app's `mobile.tabs` come first, the modules' tabs after them.
+    const { tabs, errors, warnings } = normalizeTabs([
+      { id: 'bills', order: 1 },
+      { id: 'home', enabled: false },
+      { id: 'missing', order: 2 },
+      home,
+      bills,
+      { ...home, id: 'first', to: '/first', order: 0 },
+    ])
+    expect(errors).toEqual([])
+    expect(tabs.map(tab => tab.id)).toEqual(['first', 'bills'])
+    expect(tabs[1]).not.toHaveProperty('enabled')
+    expect(warnings.join('\n')).toMatch(/"missing" changes a tab that no module added/)
+  })
+
   it('reports invalid tabs as errors', () => {
     const { errors } = normalizeTabs([
       { id: 'bad id!', to: '/', label: 'x', icon: 'i' },

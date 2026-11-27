@@ -1,4 +1,4 @@
-import type { MobileTab, MobileTabDefinition } from '../../types'
+import type { MobileTab, MobileTabDefinition, MobileTabOverride } from '../../types'
 
 // Pure tab logic shared by the build (validation, `#mobile/tabs`) and the app (selected tab, titles).
 
@@ -31,12 +31,13 @@ export interface NormalizedTabs {
 
 /**
  * Validates and orders tab definitions: unique, well-formed ids, a `to` path, an icon. Later definitions with the same
- * id replace earlier ones in place (a host overrides a module's tab). Sorted by `order`, then registration.
+ * id replace earlier ones field by field, in place (a host overrides a module's tab). A tab that ends up `enabled: false` is
+ * left out. Sorted by `order`, then registration.
  */
-export function normalizeTabs(definitions: MobileTabDefinition[], options: { nativeIcons?: boolean } = {}): NormalizedTabs {
+export function normalizeTabs(definitions: (MobileTabDefinition | MobileTabOverride)[], options: { nativeIcons?: boolean } = {}): NormalizedTabs {
   const errors: string[] = []
   const warnings: string[] = []
-  const byId = new Map<string, { definition: MobileTabDefinition, index: number }>()
+  const byId = new Map<string, { definition: MobileTabOverride, index: number }>()
 
   definitions.forEach((definition, index) => {
     if (!definition || typeof definition !== 'object') {
@@ -53,7 +54,13 @@ export function normalizeTabs(definitions: MobileTabDefinition[], options: { nat
 
   const tabs: (MobileTab & { index: number })[] = []
   for (const { definition, index } of byId.values()) {
-    const { match, requiresAuth, ...rest } = definition
+    if (definition.enabled === false) continue
+    // Only an override (`{ id: 'crew', order: 1 }`) of a tab no module added, e.g. the module is not installed.
+    if (definition.to === undefined && definition.label === undefined && definition.icon === undefined) {
+      warnings.push(`Tab "${definition.id}" changes a tab that no module added: it is left out.`)
+      continue
+    }
+    const { match, requiresAuth, enabled: _enabled, ...rest } = definition as MobileTabDefinition
     if (typeof definition.to !== 'string' || !definition.to.startsWith('/')) {
       errors.push(`Tab "${definition.id}" needs a \`to\` path starting with "/".`)
       continue

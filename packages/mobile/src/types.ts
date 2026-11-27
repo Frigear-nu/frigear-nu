@@ -35,10 +35,19 @@ export interface MobileTabDefinition {
   largeTitle?: boolean
   /** Lower first; tabs without `order` follow in registration order. */
   order?: number
+  /** `false` leaves the tab out, e.g. a module's tab the app does not want: `{ id: 'shifts', enabled: false }`. */
+  enabled?: boolean
 }
 
+/**
+ * Fields of a tab a module adds, set by the app in `mobile.tabs`: the ones the module leaves out, such as its place
+ * (`{ id: 'crew', order: 1 }`) or whether it shows (`{ id: 'shifts', enabled: false }`). The module's own fields follow
+ * the app's and replace them.
+ */
+export type MobileTabOverride = Partial<MobileTabDefinition> & { id: string }
+
 /** A tab after normalization: `match` resolved, `requiresAuth` decided. */
-export interface MobileTab extends Omit<MobileTabDefinition, 'match' | 'requiresAuth'> {
+export interface MobileTab extends Omit<MobileTabDefinition, 'match' | 'requiresAuth' | 'enabled'> {
   match: string[]
   requiresAuth: boolean
 }
@@ -121,8 +130,12 @@ export interface ModuleOptions {
   appId?: string
   /** Display name: `capacitor.config.appName` and the fallback page title. */
   appName?: string
-  /** The tabs. Modules add theirs with `extendMobileTabs()` from `@frigear-nu/mobile/utils`. */
-  tabs?: MobileTabDefinition[]
+  /**
+   * The tabs. Modules add theirs with `extendMobileTabs()` from `@frigear-nu/mobile/utils`; an entry here with the id
+   * of a module's tab sets the fields the module leaves out (`{ id: 'crew', order: 1 }`), or leaves the tab out
+   * (`{ id: 'shifts', enabled: false }`).
+   */
+  tabs?: (MobileTabDefinition | MobileTabOverride)[]
   /**
    * Whether the shell follows the sign-in state of `@frigear-nu/auth` in client mode (tabs with `requiresAuth` only
    * show signed in). Default: on when Auth runs in client mode.
@@ -189,6 +202,22 @@ export interface ModuleOptions {
   }
   /** Warnings on dev / build start about the native projects and missing plugins. Default `true`. */
   doctor?: boolean
+  /**
+   * A website that has the pages the app does not: navigation to a path with no page in the app, and taps on links to
+   * that website or to other sites, open in the in-app browser (`@capacitor/browser`; a new tab in a browser). `true`:
+   * the issuer of `@frigear-nu/auth` in client mode, whose session the in-app browser shares; a string: the website's
+   * URL. Off by default.
+   */
+  host?: boolean | string | MobileHostOptions
+}
+
+export interface MobileHostOptions {
+  /** The website's URL. Default: the issuer of `@frigear-nu/auth` in client mode. */
+  url?: string
+  /** Navigation to a path the app has no page for opens that path on the website. Default `true`. */
+  routes?: boolean
+  /** Taps on links to the website or to other sites open in the in-app browser. Default `true`. */
+  links?: boolean
 }
 
 /** `runtimeConfig.public.mobile`. */
@@ -206,6 +235,8 @@ export interface MobilePublicConfig {
   splashScreen: MobileSplashConfig
   /** Set on `MOBILE_LAN` builds only. */
   lanHost: string
+  /** `mobile.host`: `url` is empty for the issuer of Auth in client mode. */
+  host: { enabled: boolean, url: string, routes: boolean, links: boolean }
 }
 
 /** `runtimeConfig.public.mobile.splashScreen`: the timing can be changed per environment. */

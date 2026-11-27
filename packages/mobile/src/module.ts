@@ -39,6 +39,7 @@ import { NATIVE_PLUGINS, type NativePluginName } from './runtime/shared/native'
 import { findTabsWithoutPage, normalizeTabs } from './runtime/shared/tabs'
 import { runDoctor } from './runtime/cli/doctor'
 import { resolveSplashScreen } from './runtime/shared/splash'
+import { resolveHostOption } from './runtime/shared/host'
 
 export type * from './types'
 
@@ -224,6 +225,8 @@ export default defineNuxtModule<ModuleOptions>({
     const deepLinkSchemes = deepLinks.schemes
     const { splash, errors: splashErrors } = resolveSplashScreen(options.splashScreen)
     if (splashErrors.length) throw new Error(`[${MODULE_NAME}] Invalid splash screen:\n- ${splashErrors.join('\n- ')}`)
+    const { host, errors: hostErrors } = resolveHostOption(options.host)
+    if (hostErrors.length) throw new Error(`[${MODULE_NAME}] Invalid host:\n- ${hostErrors.join('\n- ')}`)
     const publicDefaults: MobilePublicConfig = {
       appId,
       appName,
@@ -249,6 +252,7 @@ export default defineNuxtModule<ModuleOptions>({
         native: splash.native,
       },
       lanHost: lanHost ?? '',
+      host,
     }
     const publicConfig = nuxt.options.runtimeConfig.public as { mobile?: Partial<MobilePublicConfig> }
     publicConfig.mobile = defu(publicConfig.mobile, publicDefaults) as MobilePublicConfig
@@ -345,6 +349,7 @@ declare module '#mobile/tabs' {
       { name: 'useNative', from: resolver.resolve('./runtime/app/composables/useNative') },
       { name: 'onTabEnter', from: resolver.resolve('./runtime/app/composables/onTabEnter') },
       { name: 'useMobileSplash', from: resolver.resolve('./runtime/app/composables/useMobileSplash') },
+      { name: 'useMobileHost', from: resolver.resolve('./runtime/app/composables/useMobileHost') },
     ])
     for (const name of ['MobileTabBar', 'MobileHeader', 'MobileFab']) {
       addComponent({ name, filePath: resolver.resolve(`./runtime/app/components/${name}.vue`) })
@@ -370,6 +375,15 @@ declare module '#mobile/tabs' {
     addPlugin({ src: resolver.resolve('./runtime/app/plugins/mobile.client'), mode: 'client' })
     if (options.nativeChrome !== false && plugins.nativeNavigation) {
       addPlugin({ src: resolver.resolve('./runtime/app/plugins/native-navigation.client'), mode: 'client' })
+    }
+    // `mobile.host`: what the app has no page for opens on the website. Without a URL of its own it needs Auth's issuer.
+    if (host.enabled) {
+      addPlugin({ src: resolver.resolve('./runtime/app/plugins/host.client'), mode: 'client' })
+      if (!host.url) {
+        nuxt.hook('modules:done', () => {
+          if (!clientAuth && !prepare) logger.warn('`mobile.host: true` opens pages on the issuer of `@frigear-nu/auth` in client mode, which the app does not configure: set `mobile.host` to the website\'s URL.')
+        })
+      }
     }
     if (plugins.app) {
       if (deepLinkSchemes.length || deepLinks.hosts.length) {
@@ -404,6 +418,7 @@ declare module '#mobile/tabs' {
           keyboardAccessoryBar: options.native?.keyboardAccessoryBar !== false,
           splashScreen: splash.native,
           oauth: clientAuth,
+          host: host.enabled,
         }),
       }
     }
