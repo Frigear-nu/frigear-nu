@@ -1,4 +1,5 @@
-import type { AuthStoredUser } from '../../types'
+import type { H3Event } from 'h3'
+import type { AuthStoredUser, AuthUserCreate } from '../../types'
 
 export type FrigearProfile = {
   email: string
@@ -25,15 +26,25 @@ export type FrigearProfile = {
  * under another email is never taken over: 409 `frigear_id_conflict`. A matched user that was never verified loses
  * the credentials set before (`clearUnverifiedAuthCredentials`) and is marked verified.
  */
-export async function syncFrigearUser(profile: FrigearProfile, options: { forceId: boolean }): Promise<AuthStoredUser> {
-  const user = await findOrCreateFrigearUser(profile, options)
+export async function syncFrigearUser(profile: FrigearProfile, options: { forceId: boolean, event?: H3Event }): Promise<AuthStoredUser> {
+  let created = false
+  const user = await findOrCreateFrigearUser(profile, options, () => {
+    created = true
+  })
   // frigear.nu publishes effective roles (`admin` and everything it inherits); store only those that grant the rest.
   if (profile.roles) await setAuthUserRoles(user.id, withoutInheritedRoles(profile.roles), { source: 'sso' })
+  // A new account: `auth:user:created`, once its roles are stored.
+  if (created) await notifyAuthUserCreated({ event: options.event, user, source: 'frigear' })
   return user
 }
 
-async function findOrCreateFrigearUser(profile: FrigearProfile, options: { forceId: boolean }): Promise<AuthStoredUser> {
+async function findOrCreateFrigearUser(profile: FrigearProfile, options: { forceId: boolean }, onCreated: () => void): Promise<AuthStoredUser> {
   const users = useAuthUserStore()
+  const create = async (values: AuthUserCreate) => {
+    const user = await users.create(values)
+    onCreated()
+    return user
+  }
   // Stored lowercased; lookups are case-insensitive, so accounts stored mixed-case still match.
   const email = profile.email.trim().toLowerCase()
   const verified = profile.emailVerified === true
@@ -81,11 +92,11 @@ async function findOrCreateFrigearUser(profile: FrigearProfile, options: { force
         data: { code: 'frigear_id_conflict' },
       })
     }
-    return users.create({ id, name: fields.name, email, avatar: fields.avatar, emailVerifiedAt: verified ? now : undefined })
+    return create({ id, name: fields.name, email, avatar: fields.avatar, emailVerifiedAt: verified ? now : undefined })
   }
 
   const user = await users.findByEmail(email)
-  if (!user) return users.create({ name: fields.name, email, avatar: fields.avatar, emailVerifiedAt: verified ? now : undefined })
+  if (!user) return create({ name: fields.name, email, avatar: fields.avatar, emailVerifiedAt: verified ? now : undefined })
   if (!verified) throw refuseUnverified()
 
   return await users.update(user.id, { lastLoginAt: now, ...await verifyExisting(user) }) ?? user

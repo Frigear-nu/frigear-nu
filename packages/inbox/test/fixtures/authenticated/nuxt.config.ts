@@ -64,7 +64,10 @@ export default defineNuxtConfig({
     settings: { rateLimit: 0, pages: { form: true } },
   },
   inbox: {
-    email: { webhookSecret: 'test-email-secret' },
+    // `reply.test` is an inbox domain: replies from an account on it carry a reply address (`help+ibt_...@reply.test`).
+    // Every built-in driver is installed; Resend and Gmail have no secrets here, so their webhooks answer 501. The Gmail
+    // and IMAP tasks are registered without a schedule.
+    email: { webhookSecret: 'test-email-secret', domains: ['reply.test'], inbound: { webhook: true, cloudflare: true, resend: true, gmail: { cron: false }, imap: { cron: false } } },
     meta: { appSecret: 'test-app-secret', verifyToken: 'test-verify-token' },
     // `ENV_TOKEN` is declared empty and set by `NUXT_INBOX_SECRETS_ENV_TOKEN` in the test's environment.
     // `FAKE_WEBHOOK` is the fake channel's `inboundSecret`, the token its webhook checks.
@@ -78,5 +81,9 @@ export default defineNuxtConfig({
     settings: {
       pages: { admin: true, adminThread: true, adminSettings: true },
     },
+  },
+  // A driver that reports a Message-ID per email (`server/notify-email-driver.ts`), as `cloudflare-binding` does.
+  notify: {
+    email: { driver: here('./server/notify-email-driver') },
   },
 })

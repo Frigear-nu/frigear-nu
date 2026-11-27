@@ -17,6 +17,8 @@ import {
   addOptionalMenuSource,
   inlineModuleRuntime,
   addModuleRoutes,
+  isClientOnlyApp,
+  serverModuleDependencies,
 } from '@frigear-nu/module-kit/utils'
 import { addPolicies, extendGrants, registerAccess } from '@frigear-nu/auth/utils'
 import { operationsAccess } from './runtime/access'
@@ -67,8 +69,8 @@ export default defineNuxtModule<ModuleOptions>({
   defaults: {
     settings: { pages: {} },
   },
-  moduleDependencies: {
-    '@nuxthub/core': { version: '>=0.10' },
+  moduleDependencies: nuxt => ({
+    ...serverModuleDependencies(nuxt, { '@nuxthub/core': { version: '>=0.10' } }),
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
@@ -82,7 +84,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/events': { version: '>=0.0.1', optional: true },
     // The location picker and the venue layout editor, their schemas and the underlay images (NuxtHub Blob).
     '@frigear-nu/maps': { version: '>=0.0.0' },
-  },
+  }),
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
@@ -142,8 +144,9 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'put', path: ':id/venue-layout/placement', file: 'admin/venue-placement.put' },
     ], { base: '/api/admin/operations' })
 
-    addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
+    // A client-only app (`isClientOnlyApp`, e.g. a mobile app) calls a remote API: no server utils.
+    if (!isClientOnlyApp(nuxt)) addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     // The `operation` grant kind (`@frigear-nu/auth`): the users who take part in the operation, answered by the
     // `operations:participation:resolve` and `operations:participants:resolve` hooks.
     extendGrants(nuxt, {

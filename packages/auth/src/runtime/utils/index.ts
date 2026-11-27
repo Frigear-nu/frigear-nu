@@ -38,6 +38,8 @@ export type { GuardPagesOptions, PolicyFileRegistration, RegisterAccessOptions, 
 export { extendGrants, registeredGrantKinds } from './grants-build'
 export type { GrantFieldMeta, GrantKindRegistration } from './grants'
 export { defineAccess, defineRoles } from './access'
+export { AUTH_REGISTER_EXTRAS_MAX_BYTES, AUTH_REGISTER_EXTRAS_MAX_KEYS, AUTH_WIDGET_AREAS } from './register-extras'
+export type { AuthRegisterWidgetProps } from './register-extras'
 export type { Access, AccessInput, AccessPermission, AccessPermissionName, AccessRole, AccessScope, HostRole, Permission, PermissionGrant, RoleName } from './access'
 export { compileAccess, routeRulePermissions } from './access-compile'
 export type { CompileAccessInput, CompiledAccess, RoleRegistration } from './access-compile'

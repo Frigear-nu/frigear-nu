@@ -15,6 +15,8 @@ A Capacitor app shell for Nuxt. It turns a Nuxt app into an iOS / Android app wi
   `useMobileSplash()`
 - `useNative()`: haptics, action sheets, confirms and sharing with web fallbacks
 - deep links (custom schemes, universal links) routed into the app, the Android back button
+- data that shows at once after a restart: `useCachedFetch` responses (`@frigear-nu/ui`) kept per user in the app's
+  Cache directory (`@capacitor/filesystem`, `persistentCache`), refreshed in the background
 - sign-in through [`@frigear-nu/auth`](../auth) in client mode (installed for you when `authentication` is configured);
   the app picks its guards with [`@frigear-nu/authorization`](../authorization): nothing is protected by default
 - the `frigear-mobile` CLI: adds the iOS / Android projects and registers the URL schemes in them; `doctor` checks them
@@ -29,7 +31,7 @@ pnpm add @frigear-nu/mobile @nuxt/ui @capacitor/core @capacitor/app @capacitor/i
 pnpm add -D @capacitor/cli
 # optional, for the features that use them:
 pnpm add @capgo/capacitor-native-navigation @capacitor/haptics @capacitor/action-sheet @capacitor/dialog \
-  @capacitor/share @capacitor/status-bar @capacitor/keyboard @capacitor/splash-screen
+  @capacitor/share @capacitor/status-bar @capacitor/keyboard @capacitor/splash-screen @capacitor/filesystem
 # with sign-in:
 pnpm add @capacitor/browser @aparajita/capacitor-secure-storage
 ```

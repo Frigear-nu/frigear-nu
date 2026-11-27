@@ -17,6 +17,8 @@ export interface HomeTab {
 
 export interface ResolvedHomeTab {
   dashboard: string
+  /** The items the tab shows, by id; `undefined` for every item. */
+  items?: string[]
   path: string
   tab: HomeTab
 }
@@ -30,8 +32,10 @@ export function resolveHomeTab(option: DashboardHomeTabOptions | false | undefin
   const dashboard = option?.dashboard || HOME_TAB_DEFAULTS.dashboard
   const raw = option?.path || HOME_TAB_DEFAULTS.path
   const path = raw.startsWith('/') ? raw : `/${raw}`
+  const items = option?.items ? [...new Set(option.items.filter(id => typeof id === 'string' && id))] : undefined
   return {
     dashboard,
+    ...(items ? { items } : {}),
     path,
     tab: {
       id: 'home',

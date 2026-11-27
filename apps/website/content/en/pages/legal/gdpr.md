@@ -69,7 +69,7 @@ Information about GDPR.
   We use your information for the following purposes:
 
   - For membership administration
-  - For newsletters (if you have given consent)
+  - For lists and newsletters (if you have given consent)
   - For planning and invitations to events
   - For collecting membership fees
   - For compliance with legal obligations

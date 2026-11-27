@@ -21,9 +21,12 @@ import {
   addPageRedirects,
   isPathUnder,
   resolveDashboardHubPath,
+  isClientOnlyApp,
+  serverModuleDependencies,
 } from '@frigear-nu/module-kit/utils'
 import { addPolicies, guardPages, registerAccess } from '@frigear-nu/auth/utils'
 import { crewAccess } from './runtime/access'
+import { crewMobileTab } from './mobile-tab'
 import { CREW_DEFAULT_PAGES, CREW_HOME_TAB, CREW_HOME_TABS, crewHomeTab, resolveCrewHomePath } from './runtime/utils/links'
 import { extendDashboard } from '@frigear-nu/dashboard/utils'
 import { CREW_DASHBOARD, crewDashboardItems } from './runtime/dashboard'
@@ -65,8 +68,8 @@ export default defineNuxtModule<ModuleOptions>({
   defaults: {
     settings: { pages: {} },
   },
-  moduleDependencies: {
-    '@nuxthub/core': { version: '>=0.10' },
+  moduleDependencies: nuxt => ({
+    ...serverModuleDependencies(nuxt, { '@nuxthub/core': { version: '>=0.10' } }),
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
     // The crew are users: the member list, the phone number and the emails read the `users` table.
@@ -89,7 +92,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/mobile': { version: '>=0.0.0', optional: true },
     // Renders the `crew-status-*` emails from the templates this module ships.
     '@frigear-nu/email-templates': { version: '>=0.0.1', optional: true },
-  },
+  }),
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
@@ -167,15 +170,18 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'delete', path: 'invites/:id', file: 'admin/invite.delete' },
     ], { base: '/api/admin/crew' })
 
-    addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
-    // Answers `operations:participation:resolve` and `operations:participants:resolve`: who takes part in an operation.
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/participation'))
-    // Registers an application when the operation's crew form is submitted (`forms:submitted`).
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/forms'))
+    // A client-only app (`isClientOnlyApp`, e.g. a mobile app) calls a remote API: no server utils, plugins or emails.
+    if (!isClientOnlyApp(nuxt)) {
+      addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+      // Answers `operations:participation:resolve` and `operations:participants:resolve`: who takes part in an operation.
+      addNitroPlugin(resolver.resolve('./runtime/server/plugins/participation'))
+      // Registers an application when the operation's crew form is submitted (`forms:submitted`).
+      addNitroPlugin(resolver.resolve('./runtime/server/plugins/forms'))
 
-    // The `crew-status-*` emails, as templates `@frigear-nu/email-templates` renders when installed.
-    nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
+      // The `crew-status-*` emails, as templates `@frigear-nu/email-templates` renders when installed.
+      nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
+    }
 
     // --- App runtime ----------------------------------------------------------------------
     addImports([
@@ -240,19 +246,11 @@ export default defineNuxtModule<ModuleOptions>({
       permission: crewAccess.permissions.manage,
     })
 
-    // A "Crew" tab in the mobile tab bar, on the status page.
-    if (statusPath && hasNuxtModule('@frigear-nu/mobile')) {
+    // A "Crew" tab in the mobile tab bar: the crew home in the hub, with its tabs (My crew, My shifts, ...), else My crew.
+    const mobileTab = hasNuxtModule('@frigear-nu/mobile') ? crewMobileTab({ home: homePath, status: statusPath, inDashboard }) : undefined
+    if (mobileTab) {
       const { extendMobileTabs } = await import('@frigear-nu/mobile/utils')
-      extendMobileTabs(nuxt, {
-        id: 'crew',
-        to: statusPath,
-        label: 'Crew',
-        labelKey: 'crew.mobile.tab',
-        icon: 'i-lucide-hand-heart',
-        sfSymbol: 'person.3',
-        sfSymbolActive: 'person.3.fill',
-        requiresAuth: true,
-      })
+      extendMobileTabs(nuxt, mobileTab)
     }
 
     // The `crew.status` topic of notify's `notifyUser`, which the status message (`crew-send.ts`) goes through.

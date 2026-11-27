@@ -26,6 +26,9 @@ import type {
   UserInfo,
 } from './types'
 
+/** How long a started sign-in can be completed by default: 3 hours, above the 2 hours of an emailed verification link. */
+export const DEFAULT_PENDING_TTL_SECONDS = 3 * 60 * 60
+
 interface Pending {
   state: string
   verifier: string
@@ -86,7 +89,7 @@ export function createOAuthClient(options: OAuthClientOptions): OAuthClient {
   const lock = options.lock ?? createDefaultLock()
   const userAgent = options.userAgent ?? redirectUserAgent()
   const skewMs = (options.refreshSkewSeconds ?? 30) * 1000
-  const pendingTtlMs = (options.pendingTtlSeconds ?? 3600) * 1000
+  const pendingTtlMs = (options.pendingTtlSeconds ?? DEFAULT_PENDING_TTL_SECONDS) * 1000
   const lockName = `auth:${issuer}:${clientId}:refresh`
   const pendingLockName = `auth:${issuer}:${clientId}:pending`
   const sameIssuer = (value: string) => rewriteUrl(normalizeIssuer(value))

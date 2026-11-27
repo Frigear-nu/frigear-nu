@@ -8,6 +8,7 @@ export interface ListenerHandle {
 export interface AppPluginLike {
   addListener(event: 'appUrlOpen', listener: (event: { url: string }) => void): Promise<ListenerHandle>
   addListener(event: 'backButton', listener: (event: { canGoBack: boolean }) => void): Promise<ListenerHandle>
+  addListener(event: 'pause', listener: () => void): Promise<ListenerHandle>
   getLaunchUrl(): Promise<{ url: string } | undefined>
   minimizeApp(): Promise<void>
 }
@@ -40,6 +41,17 @@ export interface StatusBarPluginLike {
 
 export interface KeyboardPluginLike {
   setAccessoryBarVisible(options: { isVisible: boolean }): Promise<void>
+}
+
+export interface BrowserPluginLike {
+  open(options: { url: string, presentationStyle?: 'fullscreen' | 'popover' }): Promise<void>
+}
+
+export interface FilesystemPluginLike {
+  readFile(options: { path: string, directory: string, encoding: 'utf8' }): Promise<{ data: string | Blob }>
+  writeFile(options: { path: string, data: string, directory: string, encoding: 'utf8', recursive?: boolean }): Promise<unknown>
+  deleteFile(options: { path: string, directory: string }): Promise<void>
+  readdir(options: { path: string, directory: string }): Promise<{ files: Array<{ name: string } | string> }>
 }
 
 export interface SplashScreenPluginLike {
@@ -103,13 +115,18 @@ export interface NativeNavigationPluginLike {
   beginTransition?(options: { direction?: NativeNavigationTransitionDirection, duration?: number }): Promise<{ id: string }>
   /** Animates the snapshot away: a crossfade for `tab`. */
   finishTransition?(options: { id?: string, direction?: NativeNavigationTransitionDirection, duration?: number }): Promise<unknown>
+  /** Turns native pull to refresh on or off (missing in plugin versions before 8.11). */
+  setPullToRefresh?(options: { enabled: boolean, tintColor?: string }): Promise<unknown>
+  /** Hides the pull to refresh spinner. */
+  endPullToRefresh?(): Promise<unknown>
+  addListener(event: 'pullToRefresh', listener: () => void): Promise<ListenerHandle>
   addListener(event: 'tabSelect', listener: (event: { id: string }) => void): Promise<ListenerHandle>
   addListener(event: 'navbarBack', listener: (event: unknown) => void): Promise<ListenerHandle>
   addListener(event: 'navbarItemTap', listener: (event: { id: string, placement?: 'left' | 'right' }) => void): Promise<ListenerHandle>
 }
 
 export type NativePluginName
-  = | 'app' | 'haptics' | 'actionSheet' | 'dialog' | 'share' | 'statusBar' | 'keyboard' | 'nativeNavigation' | 'splashScreen'
+  = | 'app' | 'haptics' | 'actionSheet' | 'dialog' | 'share' | 'statusBar' | 'keyboard' | 'nativeNavigation' | 'splashScreen' | 'browser' | 'filesystem'
 
 export interface NativePlugins {
   app: AppPluginLike
@@ -121,6 +138,8 @@ export interface NativePlugins {
   keyboard: KeyboardPluginLike
   nativeNavigation: NativeNavigationPluginLike
   splashScreen: SplashScreenPluginLike
+  browser: BrowserPluginLike
+  filesystem: FilesystemPluginLike
 }
 
 /** Package and export of each native plugin. */
@@ -134,6 +153,8 @@ export const NATIVE_PLUGINS: Record<NativePluginName, { pkg: string, name: strin
   keyboard: { pkg: '@capacitor/keyboard', name: 'Keyboard', feature: 'the keyboard accessory bar (native.keyboardAccessoryBar)' },
   nativeNavigation: { pkg: '@capgo/capacitor-native-navigation', name: 'NativeNavigation', feature: 'the native navbar and tab bar (nativeChrome)' },
   splashScreen: { pkg: '@capacitor/splash-screen', name: 'SplashScreen', feature: 'the native launch screen, handed over to the splash screen (splashScreen.native)' },
+  browser: { pkg: '@capacitor/browser', name: 'Browser', feature: 'pages opened on the website in the in-app browser (host)' },
+  filesystem: { pkg: '@capacitor/filesystem', name: 'Filesystem', feature: 'data shown at once after a restart (persistentCache)' },
 }
 
 /** Capacitor's platform, synchronously (the native bridge defines `window.Capacitor` before the app runs). */

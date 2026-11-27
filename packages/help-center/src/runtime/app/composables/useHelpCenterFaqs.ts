@@ -4,7 +4,8 @@ import { type FaqBodyPartsMap, type FaqMarkdownParser, type FaqMarkdownStringifi
 import type { FaqCardProps, HelpArticleDto, HelpFaqDto } from '../../../types'
 import { parseMarkdown, stringifyMarkdown } from '#help-center/mdc'
 import { useHelpCenterFallbackLocale, useHelpCenterLocale } from './useHelpCenterLocale'
-import { computed, toValue, useAsyncData, useAuth, useId, useRequestFetch, useUserSession } from '#imports'
+import { HELP_CENTER_TTL } from './useHelpCenterData'
+import { computed, toValue, useAuth, useCachedAsyncData, useId, useRequestFetch, useUserSession } from '#imports'
 
 export type UseHelpCenterFaqsOptions = {
   /** Ask for what anonymous visitors read only (`?public=1`): no sign-in, and the response may be cached. */
@@ -25,10 +26,11 @@ const slugList = (value: string | string[] | null | undefined): string[] =>
  *
  *     const { faqs, articles, status } = await useHelpCenterFaqs(['volunteering', 'summer-festival'])
  *
- * The fetch key includes the signed-in user, so what a restricted category showed to one user is never reused for
- * another after a sign-in or sign-out. A client that is signed in without a session user (a bearer token, the mobile
- * app) gets a key of its own per call and shares nothing. With `public: true` the key has no user, and the request is
- * cacheable.
+ * Remembered with `useCachedAsyncData` (`@frigear-nu/ui`): coming back shows the last response at once and asks again
+ * after five minutes, and in the mobile app it shows at once after a restart. The fetch key includes the signed-in
+ * user, so what a restricted category showed to one user is never reused for another after a sign-in or sign-out. A
+ * client that is signed in without a session user (a bearer token) gets a key of its own per call and shares nothing.
+ * With `public: true` the key has no user, and the request is cacheable.
  */
 export function useHelpCenterFaqs(categories?: MaybeRefOrGetter<string | string[] | null | undefined>, options: UseHelpCenterFaqsOptions = {}) {
   const session = useUserSession()
@@ -46,7 +48,7 @@ export function useHelpCenterFaqs(categories?: MaybeRefOrGetter<string | string[
 
   // The texts of `cards` categories are split into the parts of their cards here, with the response, so the cards render
   // at once on the server and the client (`parseMarkdown` is async). Without MDC in the app there are no parts.
-  const asyncData = useAsyncData<{ faqs: HelpFaqDto[], parts: FaqBodyPartsMap }>(
+  const asyncData = useCachedAsyncData<{ faqs: HelpFaqDto[], parts: FaqBodyPartsMap }>(
     () => `help-center:faqs:${who.value}:${slugs.value.join(',')}:${enabled.value ? 'on' : 'off'}`,
     async () => {
       if (!enabled.value) return { faqs: [], parts: {} }
@@ -58,7 +60,7 @@ export function useHelpCenterFaqs(categories?: MaybeRefOrGetter<string | string[
       })
       return { faqs, parts: await faqBodyPartsOf(faqs, parseMarkdown as FaqMarkdownParser | undefined, stringifyMarkdown as FaqMarkdownStringifier | undefined) }
     },
-    { lazy: options.lazy, default: () => ({ faqs: [], parts: {} }), watch: [slugs, enabled, who] },
+    { lazy: options.lazy, ttl: HELP_CENTER_TTL, watch: [slugs, enabled, who] },
   )
 
   const result = {
@@ -71,6 +73,8 @@ export function useHelpCenterFaqs(categories?: MaybeRefOrGetter<string | string[
     status: asyncData.status,
     error: asyncData.error,
     refresh: asyncData.refresh,
+    /** `true` only while there is nothing to show yet (not during a background refresh). */
+    loading: asyncData.loading,
   }
   // Awaitable like `useAsyncData` (it waits for the first response) and destructurable without `await`.
   return Object.assign(asyncData.then(() => result), result)

@@ -17,7 +17,7 @@ export type FrigearLoginResult = { user: AuthStoredUser, session: Record<string,
  * token endpoint response; with `keepTokens` its tokens are kept (`storeOAuthTokens`).
  */
 export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, userinfo: Record<string, unknown>, response: object = {}) {
-  const result = await resolveFrigearLogin(sso, userinfo, response)
+  const result = await resolveFrigearLogin(sso, userinfo, response, { event })
   // An unverified address that belongs to an account here: back to the login page, which explains it.
   if ('error' in result) return authLoginErrorRedirect(event, result.error)
   await startAuthSession(event, result.user, result.session)
@@ -29,7 +29,7 @@ export async function handleFrigearLogin(event: H3Event, sso: FrigearSsoConfig, 
  * local user and keeps the tokens (`keepTokens`). Answers the user and the session data to start the session with,
  * or `{ error: 'oauth-unverified' }`. The browser handoff (`frigear-handoff.ts`) starts the session later, in the window.
  */
-export async function resolveFrigearLogin(sso: FrigearSsoConfig, userinfo: Record<string, unknown>, response: object = {}, options: { nonce?: string } = {}): Promise<FrigearLoginResult> {
+export async function resolveFrigearLogin(sso: FrigearSsoConfig, userinfo: Record<string, unknown>, response: object = {}, options: { nonce?: string, event?: H3Event } = {}): Promise<FrigearLoginResult> {
   const tokens = response as Record<string, unknown>
   // The verified id token decides who the user is (`sub`); userinfo only fills in the profile, and only when it is
   // about the same user. Without an id token nothing binds the login to this client, so it is refused.
@@ -67,7 +67,7 @@ export async function resolveFrigearLogin(sso: FrigearSsoConfig, userinfo: Recor
       picture: typeof picture === 'string' ? picture : undefined,
       emailVerified: claims.email_verified === true,
       roles,
-    }, { forceId: sso.forceId })
+    }, { forceId: sso.forceId, event: options.event })
   }
   catch (error) {
     // An unverified address that belongs to an account here: back to the login page, which explains it.

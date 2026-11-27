@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { shiftsApi } from '../../utils/api'
 import type { MyShiftDto } from '../../../types'
-import { computed, surfaceClass, useLazyFetch, useModuleT, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
+import { computed, surfaceClass, useCachedFetch, useModuleT, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
 
 defineOptions({ name: 'ShiftsNextItem' })
+
+// `homeTab`: drawn on the mobile Home tab (`@frigear-nu/dashboard`), where no shift means nothing at all, not an empty card.
+const props = defineProps<{ homeTab?: boolean }>()
 
 // The `shifts.next` item of the `crew.home` dashboard: my next shift (or the one running now), with a link to its page,
 // where the QR pass shows from `checkInOpensMinutes` before it starts. `GET /api/shifts/me` lists the shifts that have
@@ -13,14 +16,17 @@ const tr = useShiftsTranslate()
 const format = useShiftsFormat()
 const links = useShiftsLinks()
 
-const { data, status, error } = useLazyFetch<MyShiftDto[]>(shiftsApi.me.shifts, {
+// The last response shows at once (also after a restart of the mobile app); every mount asks again in the background.
+const { data, error, loading, refresh } = useCachedFetch<MyShiftDto[]>(shiftsApi.me.shifts, {
   key: 'shifts:dashboard:next',
+  ttl: 0,
+  lazy: true,
   query: { from: new Date().toISOString() },
-  default: () => [],
   onResponseError: () => {},
 })
-const loading = computed(() => status.value === 'pending' && !data.value?.length)
-const next = computed(() => (data.value ?? []).find(item => item.assignment.status === 'assigned' || item.assignment.status === 'attended'))
+// A remembered response may hold shifts that have ended since: never shown as the next one.
+const next = computed(() => (data.value ?? []).find(item => (item.assignment.status === 'assigned' || item.assignment.status === 'attended')
+  && Date.parse(item.shift.endsAt) > Date.now()))
 const running = computed(() => !!next.value && Date.parse(next.value.shift.startsAt) <= Date.now())
 </script>
 
@@ -38,6 +44,7 @@ const running = computed(() => !!next.value && Date.parse(next.value.shift.start
   >
     {{ t('dashboard.nextFailed', 'Could not load your shifts.') }}
   </div>
+  <template v-else-if="!next && props.homeTab" />
   <EmptyCard
     v-else-if="!next"
     icon="i-lucide-calendar-clock"
@@ -50,6 +57,11 @@ const running = computed(() => !!next.value && Date.parse(next.value.shift.start
     v-else
     :class="[surfaceClass, 'flex h-full flex-col gap-3 p-4']"
   >
+    <!-- Offline or a failed refresh: the last data stays, with a quiet note. -->
+    <StaleDataNotice
+      :error="error"
+      :refresh="refresh"
+    />
     <div class="flex flex-col gap-1">
       <div class="flex flex-wrap items-center gap-2">
         <span class="text-highlighted text-lg font-semibold">{{ format.range(next.shift.startsAt, next.shift.endsAt) }}</span>

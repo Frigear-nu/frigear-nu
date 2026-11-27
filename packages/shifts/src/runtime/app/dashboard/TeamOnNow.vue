@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { shiftsApi } from '../../utils/api'
 import type { ShiftsMyNowDto } from '../../../types'
-import { computed, onBeforeUnmount, surfaceClass, useLazyFetch, useModuleT, useShiftsTranslate } from '#imports'
+import { computed, onBeforeUnmount, surfaceClass, useCachedFetch, useModuleT, useShiftsTranslate } from '#imports'
 
 defineOptions({ name: 'ShiftsOnNowItem' })
 
@@ -10,9 +10,13 @@ defineOptions({ name: 'ShiftsOnNowItem' })
 const t = useModuleT('shifts')
 const tr = useShiftsTranslate()
 
-const { data, status, error, refresh } = useLazyFetch<ShiftsMyNowDto>(shiftsApi.me.now, {
+// Coming back shows the last response while asking again. Live data: never written to the device (`persist: false`),
+// so a cold start of the mobile app never shows who was on shift days ago.
+const { data, error, loading, refresh } = useCachedFetch<ShiftsMyNowDto>(shiftsApi.me.now, {
   key: 'shifts:dashboard:on-now',
-  default: () => ({ at: '', teams: [] }),
+  ttl: 0,
+  persist: false,
+  lazy: true,
   onResponseError: () => {},
 })
 if (import.meta.client) {
@@ -20,7 +24,6 @@ if (import.meta.client) {
   onBeforeUnmount(() => clearInterval(timer))
 }
 
-const loading = computed(() => status.value === 'pending' && !data.value?.teams.length)
 const teams = computed(() => data.value?.teams ?? [])
 const nameOf = (person: { name: string | null, userId: number }) => person.name ?? `#${person.userId}`
 </script>
@@ -49,6 +52,13 @@ const nameOf = (person: { name: string | null, userId: number }) => person.name 
     v-else
     :class="[surfaceClass, 'divide-default h-full divide-y px-4 text-sm [&>li]:py-3']"
   >
+    <!-- Offline or a failed refresh: the last data stays, with a quiet note. -->
+    <li v-if="error">
+      <StaleDataNotice
+        :error="error"
+        :refresh="refresh"
+      />
+    </li>
     <li
       v-for="team in teams"
       :key="team.teamId"

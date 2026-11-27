@@ -29,6 +29,8 @@ vi.stubGlobal('clearUnverifiedAuthCredentials', clearUnverifiedAuthCredentials)
 vi.stubGlobal('createError', (input: { statusCode: number, statusMessage: string }) => Object.assign(new Error(input.statusMessage), input))
 
 vi.stubGlobal('cachedFunction', (fn: unknown) => fn)
+const notifyAuthUserCreated = vi.fn(async () => {})
+vi.stubGlobal('notifyAuthUserCreated', notifyAuthUserCreated)
 
 const { syncFrigearUser } = await import('../src/runtime/server/utils/frigear-user')
 const { parseRoleMap } = await import('../src/runtime/server/utils/frigear-sso')
@@ -38,6 +40,7 @@ beforeEach(() => {
   store.changeId.mockClear()
   clearUnverifiedAuthCredentials.mockClear()
   setAuthUserRoles.mockClear()
+  notifyAuthUserCreated.mockClear()
 })
 
 describe('parseRoleClaim', () => {
@@ -130,6 +133,14 @@ describe('syncFrigearUser email verification', () => {
   it('creates a user for a free address, verified only when frigear.nu says so', async () => {
     expect((await syncFrigearUser(profile, { forceId: false })).emailVerifiedAt).toBeUndefined()
     expect((await syncFrigearUser({ email: 'bob@example.com', emailVerified: true }, { forceId: false })).emailVerifiedAt).toBeInstanceOf(Date)
+  })
+
+  it('fires auth:user:created for a new account only', async () => {
+    const event = { path: '/auth/frigear' } as never
+    const user = await syncFrigearUser({ ...profile, emailVerified: true }, { forceId: false, event })
+    expect(notifyAuthUserCreated).toHaveBeenCalledExactlyOnceWith({ event, user, source: 'frigear' })
+    await syncFrigearUser({ ...profile, emailVerified: true }, { forceId: false, event })
+    expect(notifyAuthUserCreated).toHaveBeenCalledTimes(1)
   })
 
   it('clears what was set on an unverified account before marking it verified', async () => {

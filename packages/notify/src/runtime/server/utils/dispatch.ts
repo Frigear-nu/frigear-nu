@@ -3,6 +3,8 @@ import simpleDriver from '#notify/simple-driver'
 import pushDriver from '#notify/push-driver'
 import type {
   EmailNotification,
+  EmailSendResult,
+  NotifyEmailDispatchOptions,
   NotifyEmailContext,
   PushDispatchResult,
   PushNotification,
@@ -13,14 +15,22 @@ import type {
  * Dispatches an email notification through the driver configured on the `@frigear-nu/notify`
  * module (`notify.email.driver`, see `#notify/email-driver`). Auto-imported wherever this module
  * is installed, so consumers (e.g. `@frigear-nu/users`) only ever build an `EmailNotification`
- * and call this - driver selection stays entirely with the app/consuming layer.
+ * and call this - driver selection stays entirely with the app/consuming layer. `options.driver` sends this one email
+ * through another built-in driver (configured from the same `NUXT_NOTIFY_EMAIL_*` settings), e.g. the inbox's replies
+ * through `cloudflare-binding`. Resolves to what the driver reports (`messageId`), or `undefined`.
  */
-export async function dispatchEmailNotification(notification: EmailNotification) {
+export async function dispatchEmailNotification(notification: EmailNotification, options: NotifyEmailDispatchOptions = {}): Promise<EmailSendResult | undefined> {
   // Listeners (e.g. `@frigear-nu/email-templates`) may render `notification.template` here; with
   // none, the notification is sent exactly as it was built.
   const context: NotifyEmailContext = { notification }
   await useNitroApp().hooks.callHook('notify:email', context)
-  return import('#notify/email-driver').then(({ default: emailDriver }) => emailDriver(context.notification))
+  if (options.driver) {
+    const { isBuiltInEmailDriver, sendWithBuiltInEmailDriver } = await import('../../drivers/email/index')
+    if (!isBuiltInEmailDriver(options.driver)) throw new Error(`[notify] Unknown email driver "${options.driver}" for this send.`)
+    return (await sendWithBuiltInEmailDriver(context.notification, options.driver)) ?? undefined
+  }
+  const { default: emailDriver } = await import('#notify/email-driver')
+  return (await emailDriver(context.notification)) ?? undefined
 }
 
 /**

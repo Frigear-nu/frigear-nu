@@ -1,17 +1,26 @@
 import { defineNuxtPlugin, navigateTo, nextTick, useColorMode, useRouter, useRuntimeConfig, watch } from '#imports'
 import { createNativeNavigationController } from '../../shared/native-navigation'
-import { navigateWhenReady, type PageReadyContext } from '../../shared/page-ready'
+import { navigateWhenReady, nextPageLoaded, type PageReadyContext } from '../../shared/page-ready'
+import { createRouteTransitionGuards, createRouteTransitions } from '../../shared/route-transitions'
+import { findActiveTab, isTabRoot } from '../../shared/tabs'
+import type { MobilePageMeta } from '../../../types'
 import { useCapacitor } from '../composables/useCapacitor'
 import { useMobileChrome } from '../composables/useMobileChrome'
 import { useMobileTabs } from '../composables/useMobileTabs'
 import { useMobileBack } from '../utils/back'
 import { runNavbarAction } from '../utils/navbar-actions'
+import { refreshMobilePage } from '../utils/refresh'
+import { useSplashVisible } from '../utils/state'
 
 /**
  * On iOS (and Android with `nativeChrome: 'all'`) the native navbar and tab bar of `@capgo/capacitor-native-navigation`
  * replace `MobileHeader` / `MobileTabBar`. Routing stays in Nuxt: a native tap navigates, and the bars follow the
  * route, the sign-in state, open overlays and the colour mode (the bars follow the system appearance otherwise). A tap on
- * a navbar action runs the page's `onSelect` / `to`.
+ * a navbar action runs the page's `onSelect` / `to`. A pull to refresh refreshes the page's data (`refreshMobilePage`).
+ *
+ * Every other in-app navigation runs under a native transition: a snapshot of the old page stays up until the new page
+ * has rendered with its data and the bars have changed, then slides away (push, pop) or fades (another tab). Without
+ * it the navbar changed before the page did, and the page jumped as the navbar's height changed.
  */
 export default defineNuxtPlugin({
   name: 'mobile:native-navigation',
@@ -33,16 +42,22 @@ export default defineNuxtPlugin({
       // The route watchers (chrome state, scroll restore) run, then the browser paints.
       settle: () => nextTick().then(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve()))),
     }
+    const config = useRuntimeConfig().public.mobile
+    const transitions = createRouteTransitions({ plugin, duration: config.pageTransitionDuration, fadeDuration: config.tabTransitionDuration })
     const controller = createNativeNavigationController({
       plugin,
       label,
-      tabTransitionDuration: useRuntimeConfig().public.mobile.tabTransitionDuration,
+      tabTransitionDuration: config.tabTransitionDuration,
+      beforeTabTransition: () => transitions.settled(),
       // Resolves once the new page has rendered with its data, so the crossfade never shows a half-built tab.
       onSelectTab: tab => navigateWhenReady(page, () => nuxtApp.runWithContext(() => navigateTo(tab.to))),
       onBack: async () => {
         await nuxtApp.runWithContext(() => back())
       },
       onAction: action => runNavbarAction(action, to => router.push(to)),
+      onPullToRefresh: () => refreshMobilePage(nuxtApp),
+      // iOS arms the refresh with a haptic of its own.
+      onPullToRefreshStart: capacitor.isIos ? undefined : () => capacitor.load('haptics').then(haptics => haptics?.impact({ style: 'LIGHT' })),
     })
     try {
       await controller.start()
@@ -52,7 +67,27 @@ export default defineNuxtPlugin({
       return
     }
 
-    watch([state, () => colorMode.value], ([chrome, mode]) => {
+    if (config.pageTransitionDuration > 0) {
+      const splash = useSplashVisible()
+      const guards = createRouteTransitionGuards({
+        transitions,
+        side: (route) => {
+          const tab = findActiveTab(state.value.tabs, route.path, (route.meta.mobile as MobilePageMeta | undefined)?.tab)
+          return { path: route.path, tab: tab?.id, tabRoot: isTabRoot(tab, route.path) }
+        },
+        historyPosition: () => (window.history.state as { position?: unknown } | null)?.position,
+        skip: () => splash.value || controller.switchingTab,
+        fade: config.tabTransitionDuration > 0,
+        nextPageLoaded: () => nextPageLoaded(page),
+        // The chrome state follows the route: its bar updates (and the inset CSS variables they set) are queued by now.
+        settle: () => controller.idle().then(page.settle),
+      })
+      router.beforeEach((to, from) => guards.before(to, from))
+      router.afterEach((to, from, failure) => void guards.after(to, from, failure))
+    }
+
+    // The labels are watched too: they change when i18n becomes ready or the locale switches, with the same tabs.
+    watch([state, () => colorMode.value, () => state.value.tabs.map(label)], ([chrome, mode]) => {
       controller.apply(chrome, { foreground: mode === 'dark' ? '#FFFFFF' : '#0F172A' })
         .catch(error => console.error('[@frigear-nu/mobile] Native navigation:', error))
     }, { immediate: true, deep: true })

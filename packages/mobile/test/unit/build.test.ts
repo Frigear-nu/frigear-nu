@@ -53,6 +53,8 @@ describe('usedPlugins', () => {
     expect(names({ nativeChrome: true, statusBar: true, keyboardAccessoryBar: true, oauth: true }))
       .toEqual(expect.arrayContaining(['@capacitor/status-bar', '@capacitor/keyboard', '@capgo/capacitor-native-navigation', '@capacitor/browser!', '@aparajita/capacitor-secure-storage']))
     expect(names({ nativeChrome: false, statusBar: false, keyboardAccessoryBar: false, splashScreen: true, oauth: false })).toContain('@capacitor/splash-screen')
+    expect(names({ nativeChrome: false, statusBar: false, keyboardAccessoryBar: false, oauth: false, host: true })).toContain('@capacitor/browser!')
+    expect(names({ nativeChrome: false, statusBar: false, keyboardAccessoryBar: false, oauth: true, host: true }).filter(name => name.startsWith('@capacitor/browser'))).toHaveLength(1)
   })
 })
 

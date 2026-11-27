@@ -32,6 +32,7 @@ import {
   addOptionalImports,
   defineVirtualRegistry,
   readLocaleRouting,
+  isClientOnlyApp,
 } from '@frigear-nu/module-kit/utils'
 import type { ModuleRoute } from '@frigear-nu/module-kit/utils'
 import type { LocaleRouting } from '@frigear-nu/module-kit/server'
@@ -66,6 +67,7 @@ import { extendGrants, registeredGrantKinds } from './runtime/utils/grants-build
 import type { GrantFieldMeta, GrantKindRegistration } from './runtime/utils/grants'
 import type { AuthEmailContext } from './runtime/server/utils/auth-email'
 import type { AuthCredentialsChangedContext } from './runtime/server/utils/credentials'
+import type { AuthUserCreatedContext } from './runtime/server/utils/user-created'
 import type { FrigearLoginContext } from './runtime/server/utils/frigear-login'
 import type { AuthAppConfig, AuthClientPublicConfig } from './runtime/client/types'
 import { resolveAuthMode } from './runtime/mode'
@@ -83,10 +85,12 @@ import {
   nativeLoaderTypes,
   parseStorageOption,
   resolveNativeRedirectUri,
+  resolvePendingTtlSeconds,
   SECRET_ENV_NAMES,
   TAURI_PLUGIN_KEYS,
 } from './client-build'
 import type { NativePluginKey } from './client-build'
+import { applyDevSessionCookie } from './session-cookie'
 
 export type {
   AuthAppConfig,
@@ -112,6 +116,7 @@ export type {
 } from './types'
 export type { AuthCredentialsChangedContext, AuthCredentialsChangeReason } from './runtime/server/utils/credentials'
 export type { FrigearLoginContext } from './runtime/server/utils/frigear-login'
+export type { AuthUserCreatedContext, AuthUserCreatedSource } from './runtime/server/utils/user-created'
 
 // Only same-site paths are followed after sign in (`isSafeRedirect`, as on the server).
 function resolveAfterLogin(path: string | undefined) {
@@ -215,6 +220,12 @@ declare module 'nitropack' {
      * opened here.
      */
     'auth:credentials:changed': (ctx: AuthCredentialsChangedContext) => void | Promise<void>
+    /**
+     * An account was just created (`notifyAuthUserCreated`): by the registration form, an emailed sign-up link, a first
+     * OAuth, frigear.nu or passkey sign-in, or by staff (`ctx.source`). `ctx.extras` is what the registration form's
+     * widgets (`auth.register`) sent, keyed by module name. A listener that throws is logged; sign-up goes on.
+     */
+    'auth:user:created': (ctx: AuthUserCreatedContext) => void | Promise<void>
     /**
      * Someone signed in with frigear.nu (both the redirect login and the browser handoff): the local user is synced,
      * the session not started yet. `ctx.claims` are the verified id token's claims filled in by userinfo about the same
@@ -458,13 +469,15 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   // `resolveAuthSession` refuses a session whose `signedInAt` (stamped by `startAuthSession`) is older, since Nuxt's
   // `useSession` reseals with a fresh ttl on every write. The host's own `runtimeConfig.session.maxAge` wins;
   // nuxt-auth-utils merges its defaults over what is set here.
-  const withSession = nuxt.options.runtimeConfig as { session?: { maxAge?: number, password?: string } }
+  const withSession = nuxt.options.runtimeConfig as { session?: { maxAge?: number, password?: string, cookie?: { secure?: boolean } } }
   const sessionConfig = withSession.session ??= {}
   sessionConfig.maxAge ??= settings.session?.maxAge === false ? 0 : (settings.session?.maxAge ?? DEFAULT_SESSION_MAX_AGE)
   // nuxt-auth-utils 0.6 seals sessions with `appSecret` and no longer declares `session.password`. Kept OAuth tokens
   // still try it before the key derived from `NUXT_APP_SECRET` (rows sealed with it stay readable), and Nuxt only lets
   // `NUXT_SESSION_PASSWORD` override a key declared at build time.
   sessionConfig.password ??= ''
+  // Plain http under `nuxt dev`: no `Secure` cookie, which Safari drops on localhost (`applyDevSessionCookie`).
+  applyDevSessionCookie(sessionConfig, nuxt.options.dev)
 
   const magicLinkSettings = typeof settings.magicLink === 'object' ? settings.magicLink : {}
   nuxt.options.runtimeConfig.authentication = {
@@ -883,6 +896,7 @@ export {}
     'authorization:roles': (ctx: import('${resolver.resolve('./runtime/types')}').AuthorizationRolesContext) => void | Promise<void>
     'auth:email': (ctx: import('${resolver.resolve('./runtime/server/utils/auth-email')}').AuthEmailContext) => void | Promise<void>
     'auth:credentials:changed': (ctx: import('${resolver.resolve('./runtime/server/utils/credentials')}').AuthCredentialsChangedContext) => void | Promise<void>
+    'auth:user:created': (ctx: import('${resolver.resolve('./runtime/server/utils/user-created')}').AuthUserCreatedContext) => void | Promise<void>
     'auth:frigear:login': (ctx: import('${resolver.resolve('./runtime/server/utils/frigear-login')}').FrigearLoginContext) => void | Promise<void>
   }
 }
@@ -1151,7 +1165,10 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     scope: scopes.join(' '),
     apiBase: client.apiBase ?? '',
     apiOrigins: client.apiOrigins ?? [],
+    // Resource mode has a server of its own that answers `/api/`.
+    routeApi: !resource && client.routeApi === true,
     onUnauthorized: client.onUnauthorized ?? 'signOut',
+    pendingTtlSeconds: resolvePendingTtlSeconds(client.pendingTtlSeconds),
     redirectUri: client.redirectUri ?? '',
     nativeRedirectUri,
     desktopFlow: client.native?.desktopFlow ?? 'auto',
@@ -1242,6 +1259,9 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     collect: () => ({ installed: plugins, customStorage, helper: resolver.resolve('./runtime/client/capacitor/adapters') }),
     contents: nativeLoaderTemplate,
   })
+
+  // The grant kinds, for the grant list editor (`#auth/grant-fields`) on the pages of modules in a client-only app.
+  if (!resource) setupGrants(nuxt, resolver)
 
   // nuxt-auth-utils is not installed, so `#auth-utils` is the stand-in with the same session types.
   nuxt.options.alias['#auth-utils'] = resolver.resolve('./runtime/client/auth-utils')
@@ -1336,7 +1356,8 @@ export declare const userinfo: boolean
 
   nuxt.hook('modules:done', async () => {
     // nuxt-auth-utils needs a server for its session endpoints, Users a database. Resource mode has a server and a
-    // database, but no cookie sessions: nuxt-auth-utils would sign people in next to the issuer.
+    // database, but no cookie sessions: nuxt-auth-utils would sign people in next to the issuer. In a client-only app
+    // (`isClientOnlyApp`, e.g. a mobile app) Users and the modules on it bring only their pages, for a remote API.
     if (resource) {
       if (['nuxt-auth-utils', 'auth-utils'].some(alias => hasNuxtModule(alias, nuxt))) {
         throw new Error(`[${MODULE_NAME}] \`nuxt-auth-utils\` is installed (by ${await installedBy(nuxt, 'nuxt-auth-utils')}), but resource mode has no cookie sessions: people sign in at the issuer. Remove it, or use \`authentication.mode: 'server'\`.`)
@@ -1348,6 +1369,7 @@ export declare const userinfo: boolean
         ['@frigear-nu/users', ['@frigear-nu/users'], 'it needs a database'],
       ] as const) {
         if (!aliases.some(alias => hasNuxtModule(alias, nuxt))) continue
+        if (name === '@frigear-nu/users' && isClientOnlyApp(nuxt)) continue
         throw new Error(`[${MODULE_NAME}] \`${name}\` is installed (by ${await installedBy(nuxt, name)}), but client mode has no server: ${reason}. Remove it, or use \`authentication.mode: 'server'\` (or \`'resource'\` for a server that accepts the issuer's tokens).`)
       }
     }

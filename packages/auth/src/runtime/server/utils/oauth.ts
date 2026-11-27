@@ -119,6 +119,7 @@ export async function handleOAuthUser(event: H3Event, provider: string, profile:
     avatar: avatarOf(profile),
     emailVerifiedAt: now,
   })
+  if (!existing) await notifyAuthUserCreated({ event, user, source: 'oauth', provider })
   const updated = await users.update(user.id, { lastLoginAt: now, ...(!user.emailVerifiedAt && { emailVerifiedAt: now }) })
   if (options.tokens) await storeOAuthTokens(user.id, provider, parseOAuthTokenResponse(options.tokens, requestedScopes(provider)))
 

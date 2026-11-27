@@ -24,6 +24,8 @@ import {
   addPageRedirects,
   joinPagePath,
   resolveDashboardHubPath,
+  isClientOnlyApp,
+  serverModuleDependencies,
 } from '@frigear-nu/module-kit/utils'
 import { addPolicies, guardPages, localizedRoutePatterns, registerAccess } from '@frigear-nu/auth/utils'
 import { helpCenterAccess } from './runtime/access'
@@ -67,8 +69,8 @@ export default defineNuxtModule<ModuleOptions>({
   defaults: {
     settings: { pages: {} },
   },
-  moduleDependencies: {
-    '@nuxthub/core': { version: '>=0.10' },
+  moduleDependencies: nuxt => ({
+    ...serverModuleDependencies(nuxt, { '@nuxthub/core': { version: '>=0.10' } }),
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
     // The people of the progress lists and the recipients of a sent article are users, reached by email and phone.
@@ -87,7 +89,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/mobile': { version: '>=0.0.1', optional: true },
     // The built-in contact button of the FAQ cards opens a form of forms.
     '@frigear-nu/forms': { version: '>=0.0.1', optional: true },
-  },
+  }),
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
@@ -214,7 +216,8 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'get', path: 'users', file: 'admin/users.get' },
     ], { base: '/api/admin/help-center' })
 
-    addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    // A client-only app (`isClientOnlyApp`, e.g. a mobile app) calls a remote API: no server utils.
+    if (!isClientOnlyApp(nuxt)) addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
 
     // `@nuxt/content` is optional: the server reaches it through one virtual module, with a stand-in that throws when it

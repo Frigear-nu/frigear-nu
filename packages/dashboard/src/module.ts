@@ -163,7 +163,7 @@ export default defineNuxtModule<ModuleOptions>({
     // Mobile: a Home tab and its page. Without mobile a web app places `<Dashboard>` itself.
     const home = resolveHomeTab(options.homeTab, { mobile: hasNuxtModule('@frigear-nu/mobile', nuxt) })
     const publicConfig = nuxt.options.runtimeConfig.public as { dashboard?: Partial<DashboardPublicConfig> }
-    publicConfig.dashboard = { home: home?.dashboard ?? '', pages: {}, homeDashboard: '', ...publicConfig.dashboard }
+    publicConfig.dashboard = { home: home?.dashboard ?? '', homeItems: home?.items ?? [], pages: {}, homeDashboard: '', ...publicConfig.dashboard }
     if (home) {
       addModulePages(MODULE_NAME, resolver, [{ name: 'dashboard-home', path: home.path, file: './runtime/app/pages/home.vue' }])
       const { extendMobileTabs } = await import('@frigear-nu/mobile/utils')

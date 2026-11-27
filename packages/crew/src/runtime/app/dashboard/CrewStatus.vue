@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { crewApi } from '../../utils/api'
-import { CREW_STATUS_LABELS } from '../../utils/status'
+import { CREW_ME_KEY, CREW_STATUS_LABELS } from '../../utils/status'
 import type { CrewStatus, MyCrewDto } from '../../../types'
-import { computed, surfaceClass, useCrewLinks, useCrewTranslate, useLazyFetch, useModuleT } from '#imports'
+import { computed, surfaceClass, useCachedFetch, useCrewLinks, useCrewTranslate, useModuleT } from '#imports'
 
 defineOptions({ name: 'CrewStatusItem' })
 
@@ -12,12 +12,14 @@ const t = useModuleT('crew')
 const tr = useCrewTranslate()
 const links = useCrewLinks()
 
-const { data, status, error } = useLazyFetch<MyCrewDto[]>(crewApi.me.crew, {
-  key: 'crew:dashboard:status',
-  default: () => [],
+// Shared with the My crew tab: the last response shows at once (also after a restart of the mobile app) while every
+// mount asks again in the background (`ttl: 0`).
+const { data, error, loading, refresh } = useCachedFetch<MyCrewDto[]>(crewApi.me.crew, {
+  key: CREW_ME_KEY,
+  ttl: 0,
+  lazy: true,
   onResponseError: () => {},
 })
-const loading = computed(() => status.value === 'pending' && !data.value?.length)
 
 // What is still going on first; people who withdrew or were rejected only show when nothing else does.
 const entries = computed(() => {
@@ -54,6 +56,12 @@ const color = (value: CrewStatus) => ({ approved: 'success', applied: 'info', wa
     v-else
     :class="[surfaceClass, 'flex h-full flex-col']"
   >
+    <!-- Offline or a failed refresh: the last data stays, with a quiet note. -->
+    <StaleDataNotice
+      :error="error"
+      :refresh="refresh"
+      class="px-4 pt-2.5"
+    />
     <ul class="divide-default flex-1 divide-y px-4 text-sm [&>li]:py-2.5">
       <li
         v-for="entry in entries"

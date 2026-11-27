@@ -45,6 +45,7 @@ const requireAuth = vi.fn(async (_event: unknown, _options?: { sessionOnly?: boo
   return { kind: 'session', user: session.user }
 })
 vi.stubGlobal('requireAuth', requireAuth)
+vi.stubGlobal('notifyAuthUserCreated', vi.fn(async () => {}))
 vi.stubGlobal('useAuthUserStore', () => ({
   findByEmail: async (email: string) => (await db.query.users.findFirst({ where: (t, { eq }) => eq(t.email, email) })) ?? null,
   findById: async (id: number) => (await db.query.users.findFirst({ where: (t, { eq }) => eq(t.id, id) })) ?? null,

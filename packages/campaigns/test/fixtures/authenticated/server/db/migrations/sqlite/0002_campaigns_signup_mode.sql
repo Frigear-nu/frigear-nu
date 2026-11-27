@@ -1,0 +1,1 @@
+ALTER TABLE `campaign_lists` ADD `signupMode` text DEFAULT 'off' NOT NULL;

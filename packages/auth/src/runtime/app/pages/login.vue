@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { computed, navigateTo, ref, useAfterLogin, useAuthPages, useFrigearHandoff, useLogin, useMagicLink, useModuleT, usePasskeys, useRoute, useRouter, useRuntimeConfig } from '#imports'
+import { computed, navigateTo, ref, resolveComponent, useAfterLogin, useAuthPages, useFrigearHandoff, useLogin, useMagicLink, useModuleT, usePasskeys, useRoute, useRouter, useRuntimeConfig } from '#imports'
+import { AUTH_WIDGET_AREAS } from '../../utils/register-extras'
 import { isAppPage } from '../utils/after-login'
 
 defineOptions({ name: 'UsersLoginPage' })
 
 const t = useModuleT('auth')
 const route = useRoute()
+// Other modules can show something below the form in the `auth.login` widget area (`@frigear-nu/widget`, optional).
+const WidgetArea = resolveComponent('WidgetArea')
+const widgetArea = typeof WidgetArea === 'string' ? undefined : WidgetArea
 const { login, pending, error, passwordLoginEnabled, passkeyLoginEnabled, oauthProviders } = useLogin()
 const magicLink = useMagicLink()
 const magicLinkSent = ref(false)
@@ -280,5 +284,11 @@ async function onPasskeyLogin() {
         />
       </template>
     </UAuthForm>
+    <component
+      :is="widgetArea"
+      v-if="widgetArea"
+      :name="AUTH_WIDGET_AREAS.login"
+      grid-class="mt-4 flex flex-col gap-3"
+    />
   </AuthCard>
 </template>

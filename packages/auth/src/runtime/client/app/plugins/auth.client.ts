@@ -7,7 +7,7 @@ import { createSessionMapper, setSessionMapper } from '../utils/session'
 import type { SessionMapperOptions } from '../utils/session'
 import { OAuthSessionError } from '../../core/errors'
 import { useAuthApiOf } from '../utils/api'
-import { withSameOriginToken } from '../../utils/api'
+import { withRoutedApi, withSameOriginToken } from '../../utils/api'
 import { handleUnauthorized } from '../utils/unauthorized'
 import { getAuthClientRuntime, useAuthClientConfig } from '../utils/runtime'
 import { useAuthClientState } from '../utils/state'
@@ -42,6 +42,17 @@ export default defineNuxtPlugin({
         origin: runtime.ownOrigin,
         getAccessToken: () => client.getAccessToken(),
         skip: url => url.origin === issuerOrigin,
+      })
+    }
+    // `routeApi`: no server of its own, so the app's `/api/` requests (`$fetch`, `useFetch`, the pages of other modules)
+    // go to `apiBase` with the token, as `$api` sends it.
+    else if (config.routeApi) {
+      globalThis.fetch = withRoutedApi(globalThis.fetch.bind(globalThis), {
+        page: window.location.href,
+        apiBase: runtime.apiBase,
+        client,
+        attachTo: runtime.apiAttachTo,
+        onUnauthorized: () => handleUnauthorized(nuxtApp, client, config),
       })
     }
     // A refused token was already handled (`onUnauthorized`); anything else is logged.

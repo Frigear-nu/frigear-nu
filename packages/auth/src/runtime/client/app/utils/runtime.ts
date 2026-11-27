@@ -161,6 +161,8 @@ async function createRuntime(config: AuthClientPublicConfig, onSigningIn?: (valu
     userAgent,
     rewriteUrl,
     requireIdToken: true,
+    // Older public configs (a host's own `runtimeConfig`) may lack it: the core's default then.
+    pendingTtlSeconds: config.pendingTtlSeconds || undefined,
   })
   return {
     client,

@@ -107,7 +107,11 @@ export type ModuleOptions = {
        * Shifts tab opens the page). `false` turns both off.
        */
       shifts?: string | boolean
-      /** One of my shifts: the lead on duty, the QR pass and the swap; must contain an `:assignmentId` param. On by default (`/shifts/:assignmentId`). */
+      /**
+       * One of my shifts: the lead on duty, the QR pass and the swap; must contain an `:assignmentId` param. On by default:
+       * below the crew home when `shifts` became its tab (`/dashboard/crew/shifts/:assignmentId`, the old
+       * `/shifts/:assignmentId` redirecting there), else `/shifts/:assignmentId`.
+       */
       shift?: string | boolean
       /** The swap marketplace: the Swaps tab of the crew home, and a page at `/shifts/swaps` on the same terms as `shifts`. */
       swaps?: string | boolean

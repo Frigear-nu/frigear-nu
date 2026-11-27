@@ -45,13 +45,13 @@ beforeEach(() => {
 describe('handleFrigearLogin', () => {
   it('signs in with a verified id token, filling in the profile from userinfo about the same user', async () => {
     await handleFrigearLogin(event, sso, { sub: '7', email: 'ada@example.com', name: 'Ada' }, { id_token: 'id' })
-    expect(syncFrigearUser).toHaveBeenCalledWith(expect.objectContaining({ email: 'ada@example.com', name: 'Ada', emailVerified: true }), { forceId: false })
+    expect(syncFrigearUser).toHaveBeenCalledWith(expect.objectContaining({ email: 'ada@example.com', name: 'Ada', emailVerified: true }), { forceId: false, event: expect.anything() })
     expect(replaceUserSession).toHaveBeenCalledOnce()
   })
 
   it('uses the id token claims alone when there is no userinfo', async () => {
     await handleFrigearLogin(event, sso, {}, { id_token: 'id' })
-    expect(syncFrigearUser).toHaveBeenCalledWith(expect.objectContaining({ email: 'ada@example.com' }), { forceId: false })
+    expect(syncFrigearUser).toHaveBeenCalledWith(expect.objectContaining({ email: 'ada@example.com' }), { forceId: false, event: expect.anything() })
   })
 
   it('refuses a token response without an id token', async () => {

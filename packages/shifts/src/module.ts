@@ -18,13 +18,16 @@ import {
   inlineModuleRuntime,
   addModuleRoutes,
   isPathUnder,
+  joinPagePath,
   resolveDashboardHubPath,
+  isClientOnlyApp,
+  serverModuleDependencies,
 } from '@frigear-nu/module-kit/utils'
 import { defineMapLayer, extendMaps } from '@frigear-nu/maps/utils'
 import { OPERATIONS_VENUE_SURFACE } from '@frigear-nu/operations/utils'
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { perksAccess, shiftsAccess } from './runtime/access'
-import { SHIFTS_DEFAULT_PAGES, SHIFTS_HOME_TAB, shiftsMinePath, shiftsSwapsPath } from './runtime/utils/links'
+import { SHIFTS_DEFAULT_PAGES, SHIFTS_HOME_TAB, SHIFTS_HUB_SHIFT_SEGMENT, shiftsMinePath, shiftsSwapsPath } from './runtime/utils/links'
 import { resolveCrewHomePath } from '@frigear-nu/crew/utils'
 import type { ModuleOptions as CrewModuleOptions } from '@frigear-nu/crew/utils'
 import { isValidTimeZone } from '@frigear-nu/module-kit/time'
@@ -34,6 +37,7 @@ import { extendNotificationTopics } from '@frigear-nu/notify/utils'
 import { shiftsNotificationTopics } from './runtime/notifications'
 import { normalizeAutomationBatch } from './runtime/utils/checkin'
 import { assertShiftsStationKey } from './runtime/utils/station-key'
+import { extendCrewHomeTabs } from './home-tabs'
 import type {
   ModuleOptions,
   PublicModuleOptions,
@@ -109,8 +113,8 @@ export default defineNuxtModule<ModuleOptions>({
     settings: { pages: {} },
     checkInOpensMinutes: 60,
   },
-  moduleDependencies: {
-    '@nuxthub/core': { version: '>=0.10' },
+  moduleDependencies: nuxt => ({
+    ...serverModuleDependencies(nuxt, { '@nuxthub/core': { version: '>=0.10' } }),
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
     // People on shifts are users: names, emails and phone numbers come from the `users` table.
@@ -133,7 +137,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@frigear-nu/email-templates': { version: '>=0.0.1', optional: true },
     // The `shifts.on-duty` live layer on the venue layouts of operations (installed with operations already).
     '@frigear-nu/maps': { version: '>=0.0.0' },
-  },
+  }),
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
@@ -163,7 +167,11 @@ export default defineNuxtModule<ModuleOptions>({
     const shiftsSetting = settings.pages?.shifts ?? true
     const swapsSetting = settings.pages?.swaps ?? true
     const shiftsPath = tabsOnly && typeof shiftsSetting !== 'string' ? undefined : resolvePagePath(shiftsSetting, SHIFTS_DEFAULT_PAGES.shifts)
-    const shiftPath = resolvePagePath(settings.pages?.shift ?? true, SHIFTS_DEFAULT_PAGES.shift)
+    // One shift goes with My shifts: under the crew home in the hub (`/dashboard/crew/shifts/:assignmentId`, in the hub's
+    // layout, guard and menu), its old path redirecting there; else at `/shifts/:assignmentId`.
+    const shiftSetting = settings.pages?.shift ?? true
+    const shiftInHub = tabsOnly && !!crewHome && shiftSetting === true
+    const shiftPath = resolvePagePath(shiftSetting, shiftInHub ? joinPagePath(crewHome!, SHIFTS_HUB_SHIFT_SEGMENT) : SHIFTS_DEFAULT_PAGES.shift)
     const swapsPath = tabsOnly && typeof swapsSetting !== 'string' ? undefined : resolvePagePath(swapsSetting, SHIFTS_DEFAULT_PAGES.swaps)
     const checkInPath = resolvePagePath(settings.pages?.checkIn ?? true, SHIFTS_DEFAULT_PAGES.checkIn)
     const leadPath = resolvePagePath(settings.pages?.lead ?? true, SHIFTS_DEFAULT_PAGES.lead)
@@ -266,55 +274,59 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'get', path: ':shiftId/candidates', file: 'admin/candidates.get' },
     ], { base: '/api/admin/shifts' })
 
-    addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
-    // Cancels future assignments when people leave a team or lose the role a shift needs.
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/teams'))
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/station-key'))
+    // A client-only app (`isClientOnlyApp`, e.g. a mobile app) calls a remote API: no server utils, plugins, emails or
+    // scheduled tasks.
+    if (!isClientOnlyApp(nuxt)) {
+      addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+      // Cancels future assignments when people leave a team or lose the role a shift needs.
+      addNitroPlugin(resolver.resolve('./runtime/server/plugins/teams'))
+      addNitroPlugin(resolver.resolve('./runtime/server/plugins/station-key'))
 
-    // The `shifts-swap-*`, `shifts-reminder` and `shifts-broadcast` emails, as templates `@frigear-nu/email-templates` renders when installed.
-    nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
+      // The `shifts-swap-*`, `shifts-reminder` and `shifts-broadcast` emails, as templates `@frigear-nu/email-templates` renders when installed.
+      nuxt.hook('notify:email:templates', sources => sources.push({ dir: resolver.resolve('./runtime/emails') }))
 
-    // --- Scheduled tasks ------------------------------------------------------------------
-    // `shifts:send-reminders` on `reminders.cron` (every ten minutes unless set) and `shifts:close-shifts` on
-    // `automation.cron` (every five minutes unless set); `false` registers a task without a schedule, to run it yourself.
-    // Like auth's housekeeping task they merge into `scheduledTasks`.
-    const tasks = [
-      {
-        name: 'shifts:send-reminders',
-        handler: './runtime/server/tasks/send-reminders',
-        description: 'Email (and optionally text) people before their shifts start.',
-        cron: options.reminders?.cron === undefined ? '*/10 * * * *' : options.reminders.cron,
-      },
-      {
-        name: 'shifts:close-shifts',
-        handler: './runtime/server/tasks/close-shifts',
-        description: 'Give out the perks of ended shifts, mark auto no-shows and send the leads their digest.',
-        cron: options.automation?.cron === undefined ? '*/5 * * * *' : options.automation.cron,
-      },
-    ]
-    nuxt.hook('nitro:config', (nitroConfig) => {
-      nitroConfig.experimental ||= {}
-      nitroConfig.experimental.tasks = true
-      nitroConfig.tasks ||= {}
-      nitroConfig.scheduledTasks ||= {}
-      for (const task of tasks) {
-        nitroConfig.tasks[task.name] = { handler: resolver.resolve(task.handler), description: task.description }
-        if (!task.cron) continue
-        const existing = nitroConfig.scheduledTasks[task.cron]
-        nitroConfig.scheduledTasks[task.cron] = [...(Array.isArray(existing) ? existing : existing ? [existing] : []), task.name]
-      }
-    })
-    // nitropack 2 bundles `scheduledTasks` into the worker but never writes the cron expressions to wrangler.json, so
-    // Cloudflare would never trigger them: mirror our crons into `triggers.crons` (a deduped union, so it works next to
-    // a host that mirrors all of its own, as `apps/website` does).
-    const crons = tasks.map(task => task.cron).filter((cron): cron is string => !!cron)
-    if (crons.length) {
-      nuxt.hook('nitro:init', (nitro) => {
-        if (!nitro.options.preset.startsWith('cloudflare')) return
-        const wrangler = ((nitro.options.cloudflare ||= {}).wrangler ||= {})
-        wrangler.triggers = { ...wrangler.triggers, crons: [...new Set([...(wrangler.triggers?.crons ?? []), ...crons])] }
+      // --- Scheduled tasks ------------------------------------------------------------------
+      // `shifts:send-reminders` on `reminders.cron` (every ten minutes unless set) and `shifts:close-shifts` on
+      // `automation.cron` (every five minutes unless set); `false` registers a task without a schedule, to run it yourself.
+      // Like auth's housekeeping task they merge into `scheduledTasks`.
+      const tasks = [
+        {
+          name: 'shifts:send-reminders',
+          handler: './runtime/server/tasks/send-reminders',
+          description: 'Email (and optionally text) people before their shifts start.',
+          cron: options.reminders?.cron === undefined ? '*/10 * * * *' : options.reminders.cron,
+        },
+        {
+          name: 'shifts:close-shifts',
+          handler: './runtime/server/tasks/close-shifts',
+          description: 'Give out the perks of ended shifts, mark auto no-shows and send the leads their digest.',
+          cron: options.automation?.cron === undefined ? '*/5 * * * *' : options.automation.cron,
+        },
+      ]
+      nuxt.hook('nitro:config', (nitroConfig) => {
+        nitroConfig.experimental ||= {}
+        nitroConfig.experimental.tasks = true
+        nitroConfig.tasks ||= {}
+        nitroConfig.scheduledTasks ||= {}
+        for (const task of tasks) {
+          nitroConfig.tasks[task.name] = { handler: resolver.resolve(task.handler), description: task.description }
+          if (!task.cron) continue
+          const existing = nitroConfig.scheduledTasks[task.cron]
+          nitroConfig.scheduledTasks[task.cron] = [...(Array.isArray(existing) ? existing : existing ? [existing] : []), task.name]
+        }
       })
+      // nitropack 2 bundles `scheduledTasks` into the worker but never writes the cron expressions to wrangler.json, so
+      // Cloudflare would never trigger them: mirror our crons into `triggers.crons` (a deduped union, so it works next to
+      // a host that mirrors all of its own, as `apps/website` does).
+      const crons = tasks.map(task => task.cron).filter((cron): cron is string => !!cron)
+      if (crons.length) {
+        nuxt.hook('nitro:init', (nitro) => {
+          if (!nitro.options.preset.startsWith('cloudflare')) return
+          const wrangler = ((nitro.options.cloudflare ||= {}).wrangler ||= {})
+          wrangler.triggers = { ...wrangler.triggers, crons: [...new Set([...(wrangler.triggers?.crons ?? []), ...crons])] }
+        })
+      }
     }
 
     // --- App runtime ----------------------------------------------------------------------
@@ -337,6 +349,8 @@ export default defineNuxtModule<ModuleOptions>({
       // Before the detail page: `/shifts/station/:stationId` has two segments after `/shifts`.
       { name: 'shifts-station', path: stationPath, file: './runtime/app/pages/station.vue' },
       { name: 'shifts-shift', path: shiftPath, file: './runtime/app/pages/shift.vue' },
+      // The detail page moved into the hub: its old path (links in sent emails, bookmarks) sends on to it.
+      { name: 'shifts-shift-legacy', path: shiftInHub ? SHIFTS_DEFAULT_PAGES.shift : undefined, file: './runtime/app/pages/shift-redirect.vue' },
     ])
 
     // The `shifts.on-duty` live layer of `@frigear-nu/maps`: a point per shift location on the venue layout of an
@@ -369,10 +383,10 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     // My shifts and Swaps on the crew home (`crew.dashboard`), after crew's Overview (0) and My crew (10). Each is there
-    // unless its page option is `false`.
-    if (crewHome && hasNuxtModule('@frigear-nu/widget')) {
-      const { extendTabs } = await import('@frigear-nu/widget/utils')
-      extendTabs(nuxt, 'crew.dashboard', [
+    // unless its page option is `false`. Also when `@frigear-nu/widget` is installed only later, as a dependency of Crew
+    // or Dashboard (`extendCrewHomeTabs`).
+    if (crewHome) {
+      await extendCrewHomeTabs(nuxt, [
         ...(shiftsSetting === false ? [] : [{ id: SHIFTS_HOME_TAB.shifts, component: resolver.resolve('./runtime/app/tabs/HomeShifts.vue'), order: 20, label: 'My shifts', labelKey: 'shifts.home.tabs.shifts', icon: 'i-lucide-calendar-clock', permission: shiftsAccess.permissions.read }]),
         ...(swapsSetting === false ? [] : [{ id: SHIFTS_HOME_TAB.swaps, component: resolver.resolve('./runtime/app/tabs/HomeSwaps.vue'), order: 30, label: 'Swaps', labelKey: 'shifts.home.tabs.swaps', icon: 'i-lucide-arrow-left-right', permission: shiftsAccess.permissions.swap }]),
       ])

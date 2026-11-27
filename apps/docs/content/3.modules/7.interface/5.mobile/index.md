@@ -56,7 +56,7 @@ pnpm add @frigear-nu/mobile @nuxt/ui @capacitor/core @capacitor/app @capacitor/i
 pnpm add -D @capacitor/cli
 # optional, for the features that use them:
 pnpm add @capgo/capacitor-native-navigation @capacitor/haptics @capacitor/action-sheet @capacitor/dialog \
-  @capacitor/share @capacitor/status-bar @capacitor/keyboard @capacitor/splash-screen
+  @capacitor/share @capacitor/status-bar @capacitor/keyboard @capacitor/splash-screen @capacitor/filesystem
 # with sign-in, and guards:
 pnpm add @frigear-nu/authorization @capacitor/browser @capacitor/preferences @aparajita/capacitor-secure-storage
 ```
@@ -136,6 +136,8 @@ Options go under the `mobile` key.
 | `nativeChrome` | `'ios' \| 'all' \| false` | `'ios'` | Where the navbar and tab bar are native: iOS, all platforms or never. |
 | `keepTabsAlive` | `boolean` | `true` | Each tab's own page stays as it was left between tab switches. See [Tab switching](#tab-switching). |
 | `tabTransitionDuration` | `number` | `180` | The crossfade between tabs with the native tab bar, in ms. `0` for none. |
+| `pageTransitionDuration` | `number` | `300` | The native push and pop between pages with the native chrome, in ms. `0` for none. See [Page transitions](#page-transitions). |
+| `pullToRefresh` | `boolean` | `true` | Native pull to refresh on every page. See [Pull to refresh](#pull-to-refresh). |
 | `native.statusBar` | `boolean` | `true` | The status bar text follows the colour mode. |
 | `native.keyboardAccessoryBar` | `boolean` | `true` | iOS: the Done bar above the keyboard. |
 | `native.switchHaptics` | `boolean` | `true` | A tick when a `role="switch"` is tapped. |
@@ -149,6 +151,8 @@ Options go under the `mobile` key.
 | `dev.lanHost` | `boolean \| string` | `true` | For `MOBILE_LAN` builds: detect the LAN address, or fix it with a string. |
 | `ios.allowLocalNetworking` | `boolean` | `true` | Sets `NSAllowsLocalNetworking` in Info.plist, for plain http to the LAN. |
 | `doctor` | `boolean` | `true` | Warns about native projects and missing plugins when dev or build starts. |
+| `host` | `boolean \| string \| { url?, routes?, links? }` | `false` | A website that has the pages the app does not. See [Pages on the website](#pages-on-the-website). |
+| `persistentCache` | `boolean \| { maxAge?, timeout? }` | `true` | Cached data shows at once after a restart. See [Data after a restart](#data-after-a-restart). |
 
 **`appId`.** In lowercase, with `_` turned into `-`, it becomes the OAuth redirect and deep-link scheme. Without one,
 the build warns and uses `com.example.app`.
@@ -182,6 +186,33 @@ With Auth in server mode the build fails. A Capacitor app cannot send a same-ori
 - **Tabs** default to `requiresAuth: false`. A tab with `requiresAuth: true` is hidden while signed out.
 
 The guards only decide what the app shows. The API decides what is allowed.
+
+### Running modules in the app
+
+Feature modules such as [Dashboard](/modules/interface/dashboard), [Help Center](/modules/content/help-center),
+[Crew](/modules/volunteering/crew), [Shifts](/modules/volunteering/shifts) and [Account](/modules/identity/account) work in the app: install them as in a website, and their pages,
+widgets, menus and tabs show up. Dashboard adds a Home tab, Crew a Crew tab and Help Center a Help tab
+(`/help-center`).
+
+```ts [nuxt.config.ts]
+export default defineNuxtConfig({
+  modules: ['@nuxt/ui', '@frigear-nu/mobile', '@frigear-nu/authorization', '@frigear-nu/dashboard', '@frigear-nu/help-center'],
+  authentication: { mode: 'client', client: { clientId: 'mobile', scopes: ['openid', 'profile', 'email'] } },
+})
+```
+
+The app has no server, so two things change:
+
+- **Their API calls go to the website.** Mobile turns on Auth's
+  [`client.routeApi`](/modules/identity/auth/client-mode#options): the modules' `/api/...` requests go to
+  `apiBase` (the issuer unless set) with the access token. The API must accept `Authorization: Bearer` tokens on
+  `/api/**`, as a Frigear website does, and allow the app's origin in CORS (`capacitor://localhost` on iOS,
+  `https://localhost` on Android). Set `authentication.client.routeApi: false` to call your API only through `$api`.
+- **They leave out their server parts.** With Mobile in `modules` the app is
+  [client only](/modules/platform/module-kit#client-only-apps): no NuxtHub, database, server routes, Nitro plugins or
+  scheduled tasks. Each module checks this itself. Their permissions stay, for the guards.
+
+The website the app calls runs the same modules in full, and decides what each call may do.
 
 ### What the user may do
 
@@ -231,6 +262,7 @@ interface MobileTabDefinition {
   match?: string | string[] // default: `to` and `to/**` ('/' matches only itself)
   largeTitle?: boolean // default true
   order?: number // lower first; tabs without it follow in registration order
+  enabled?: boolean // false leaves the tab out
 }
 ```
 
@@ -245,6 +277,20 @@ extendMobileTabs(nuxt, { id: 'events', to: '/events', label: 'Events', icon: 'i-
 `@frigear-nu/mobile/utils` also exports `defineMobileTab`, `normalizeTabs`, `findActiveTab` and `matchesPath`. With
 [Menu](/modules/interface/menu), the items of the `mobile.tabs` menu are added as tabs and replace tabs with the same
 id. Tab fields such as `sfSymbol` go in the item's `meta`.
+
+In `mobile.tabs` the app can also name a module's tab by its id with only the fields the module leaves out: its place
+(`{ id: 'crew', order: 1 }`), or `{ id: 'shifts', enabled: false }` to leave it out. The module's own fields follow the
+app's entry and replace the same fields. An entry for a tab no module added is left out with a warning.
+
+```ts [nuxt.config.ts]
+mobile: {
+  tabs: [
+    { id: 'home', order: 0 },
+    { id: 'crew', order: 1 },
+    { id: 'shifts', enabled: false },
+  ],
+}
+```
 
 The build fails on an invalid id, or a tab without `to`, `label` or `icon`. It warns about more than five tabs, two
 tabs with the same `to`, a `to` that is not a page and, with native chrome, a tab without an `sfSymbol`.
@@ -263,6 +309,7 @@ definePageMeta({
     navbar: false, // no navbar or header
     tab: 'bills', // select this tab
     back: true, // back button (default: on pages below a tab's root page)
+    pullToRefresh: false, // no pull to refresh here (default: on every page)
   },
 })
 ```
@@ -318,7 +365,9 @@ The composables and components below are auto-imported.
 | `useMobileNavbarActions(actions)` | Navbar buttons of the calling page, from a ref or a getter. See [Navbar actions](#navbar-actions). |
 | `useNative()` | See [Native features](#native-features). |
 | `onTabEnter(fn)` | Runs `fn` when the user comes back to a page kept alive. See [Tab switching](#tab-switching). |
+| `onMobileRefresh(fn)` | Runs `fn` when the user pulls to refresh the calling page. See [Pull to refresh](#pull-to-refresh). |
 | `useMobileToaster()` | Props for `<UApp :toaster>`. |
+| `useMobileHost()` | `enabled`, `base`, `url(path)` and `open(path or URL)`: the website of [`host`](#pages-on-the-website). |
 | `useMobileSplash()` | `visible`, `hold()`, `waitFor(promise)` and `hide()`: see [Splash screen](/modules/interface/mobile/splash-screen#keep-it-up). |
 | `MobileHeader` | The web header, with the page's navbar actions and `leading` and `trailing` slots. |
 | `MobileTabBar` | The web tab bar. |
@@ -372,6 +421,112 @@ The crossfade uses the plugin's `beginTransition`, which the starters' version (
 it switches tabs without a crossfade.
 ::
 
+### Page transitions
+
+With the native chrome, opening and leaving a page works like a native navigation stack. The page you leave stays on
+screen as a snapshot while the new page renders with its data and the navbar changes, and then the new page slides in
+(or the old one slides out). Without it the navbar changed a frame before the page, and the page jumped as the navbar
+went from a large title to a small one.
+
+- **Push** to a page below the current one in the same tab, or a sibling page.
+- **Pop** on back (the navbar back button, Android back, any history back) and up to a parent path or the tab's root.
+- **Crossfade** to another tab, or from or to a page outside the tabs, with the length of `tabTransitionDuration`.
+  Native tab bar taps crossfade as described in [Tab switching](#tab-switching).
+
+As with tabs, the transition waits for every async `setup` of the new page, up to one second, so await a page's first
+request to reveal it with its data. A snapshot never stays up longer than three seconds. `pageTransitionDuration: 0`
+turns page transitions off.
+
+::note
+The plugin fades the incoming page in while it slides, so a darker band shows at its leading edge during the slide.
+That is the plugin's animation, not the page.
+::
+
+### Pull to refresh
+
+With the native chrome, the user can pull any page down to refresh it, as in other iOS apps. A pull refreshes
+every `useAsyncData` and `useFetch` on screen (`refreshNuxtData()`), and runs the `onMobileRefresh` handlers of the
+page and the `mobile:refresh` hook, all at once. The spinner stays until they have all finished, and ten seconds at
+most, so a request that hangs never leaves it up.
+
+```vue
+<script setup lang="ts">
+const { data: bills } = await useApi<Bill[]>('/api/bills') // refreshed on its own
+const store = useDraftsStore()
+onMobileRefresh(() => store.reload()) // anything that is not useAsyncData or useFetch
+</script>
+```
+
+- **Where it is on.** On every page. A page opts out with `definePageMeta({ mobile: { pullToRefresh: false } })`
+  (a form, say, where a pull would lose input), and `pullToRefresh: false` turns it off for the app. It is off while a
+  dialog, slideover, drawer or the splash screen is up.
+- **Only the page on screen.** `onMobileRefresh` handlers of pages kept alive in other tabs do not run.
+- **Feedback.** iOS gives a haptic when the pull arms the refresh. On Android (`nativeChrome: 'all'`) the module adds a
+  light one.
+- **No browser fallback.** In a browser, and on Android without `nativeChrome: 'all'`, there is no pull to refresh.
+
+::note
+Pull to refresh needs `@capgo/capacitor-native-navigation` 8.11 or newer. An app built with an older version keeps
+working without it.
+::
+
+### Pages on the website
+
+An app built from modules has some of a website's pages, not all: an event page and its checkout, the admin, sign-up.
+With `host`, what the app has no page for opens on that website in the in-app browser (`@capacitor/browser`; a new
+tab in a desktop browser):
+
+```ts [nuxt.config.ts]
+mobile: {
+  host: true, // the issuer of Auth in client mode; or the website's URL
+}
+```
+
+- **Navigation to a path without a page** opens that path on the website, with its locale prefix, query and hash, and
+  the app stays where it was. This covers links that modules build to website-only pages, `navigateTo()`, and deep
+  links (`mobile:deep-link`) to such a path. A cold start on such a path opens the website and shows `/`.
+- **Taps on links** to the website or to another `http(s)` site open in the in-app browser. A link to a page of the app
+  stays in the app; `mailto:`, `tel:` and other schemes are left to the platform.
+- `useMobileHost().open('/events/summer')` opens a page yourself; `url(path)` gives its address.
+
+`true` uses `authentication.client.issuer`, whose website session the in-app browser shares after sign-in, so the
+pages open signed in. A `localhost` URL is rewritten as Auth rewrites the issuer (`MOBILE_LAN`, live reload on a
+phone). `{ routes: false }` or `{ links: false }` turns either half off. `@capacitor/browser` is needed on a device;
+the doctor lists it.
+
+### Data after a restart
+
+On a device, the responses of [`useCachedFetch` and `useCachedAsyncData`](/modules/interface/ui/composables#loading-data-that-survives-navigation)
+are also written to the app's Cache directory with `@capacitor/filesystem`. When the app starts again, they are read
+back before the first page sets up. The pages then render with them at once and ask the server again in the
+background. This works for every module page built on these composables, such as help-center articles, crew status
+and shift widgets.
+
+- **Stale on start.** A response read back from the disk is shown, but the first mount of its key always asks the
+  server, whatever its `ttl`. Responses older than `maxAge` (default seven days) are deleted instead of shown.
+- **Per user.** The files belong to the signed-in user. Signing out, or signing in as someone else, deletes them, and
+  so does a start with a different user. Nothing of one user is shown to another.
+- **No waiting for the network.** The module sets `runtimeConfig.public.cachedFetch.instant`, so an awaited cached
+  composable renders what it has at once instead of waiting for the refetch (the website keeps waiting). When the
+  refetch fails, for example offline, the module pages keep the data and show a muted "Could not refresh" line
+  (`StaleDataNotice`). Set `cachedFetch: { instant: false }` under `runtimeConfig.public` to wait as on the website.
+- **Never in the way.** Startup waits `timeout` ms at most (default `500`) for the disk. Anything read later fills only
+  the keys that nothing fetched yet. A storage error turns the cache off for that run. Pending writes go to the disk
+  when the app moves to the background.
+- **What is kept.** One JSON file per cache key in `frigear-cache/`, in the Cache directory, which the OS may empty
+  when space runs low. A composable keeps a response off the disk with `persist: false`.
+
+`@capacitor/filesystem` and `@frigear-nu/ui` must be installed (the doctor lists the plugin). `persistentCache: false`
+keeps the cache in memory only. In a browser, nothing is written.
+
+```ts
+export default defineNuxtConfig({
+  mobile: {
+    persistentCache: { maxAge: 2 * 24 * 60 * 60 * 1000, timeout: 300 },
+  },
+})
+```
+
 ### Native features
 
 `useNative()` wraps Capacitor plugins and falls back in a browser:
@@ -391,6 +546,7 @@ Your app answers these runtime [hooks](/guide/concepts/glossary) with `useNuxtAp
 | --- | --- | --- |
 | `mobile:deep-link` | `{ url, path, preventDefault }` | A custom scheme or universal link opened the app. OAuth callbacks never reach it. |
 | `mobile:back-button` | `{ canGoBack, preventDefault }` | The Android back button was pressed, before the module acts. |
+| `mobile:refresh` | none | The user pulled to refresh. The spinner waits for your handler. See [Pull to refresh](#pull-to-refresh). |
 
 **`mobile:deep-link`.** Change `path` to route elsewhere, or call `preventDefault()` to handle the link yourself. Deep
 links need `@capacitor/app` and a scheme in `deepLinks.schemes` or a host in `deepLinks.hosts`. The `native` command

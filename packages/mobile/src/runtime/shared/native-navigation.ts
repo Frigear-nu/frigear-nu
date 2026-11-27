@@ -1,5 +1,6 @@
 import type { MobileTab } from '../../types'
 import type { ChromeAction, ChromeState } from './chrome'
+import { createPullToRefresh } from './pull-to-refresh'
 import type {
   ListenerHandle,
   NativeNavigationBarButtonLike,
@@ -21,6 +22,17 @@ export interface NativeNavigationControllerOptions {
   label?: (tab: MobileTab) => string
   /** Length of the crossfade between two tabs, in ms. `0` switches without one. Default 180. */
   tabTransitionDuration?: number
+  /**
+   * The user pulled to refresh (on pages whose chrome state has `pullToRefresh`). The spinner stays until it resolves,
+   * `pullToRefreshTimeout` ms at most. Without it pull to refresh stays off.
+   */
+  onPullToRefresh?: () => unknown
+  /** Feedback when a pull starts, e.g. a haptic (iOS gives one of its own). */
+  onPullToRefreshStart?: () => unknown
+  /** Resolves when no other native transition runs (page transitions); a tab crossfade begins only then. */
+  beforeTabTransition?: () => Promise<unknown>
+  /** Longest wait for `onPullToRefresh`, in ms. Default 10000. */
+  pullToRefreshTimeout?: number
 }
 
 export interface NativeNavigationController {
@@ -30,6 +42,8 @@ export interface NativeNavigationController {
   apply: (state: ChromeState, colors: { foreground: string }) => Promise<void>
   /** Resolves once every queued bar update has run. */
   idle: () => Promise<void>
+  /** Whether a native tab tap is being handled (it runs its own crossfade). */
+  readonly switchingTab: boolean
   stop: () => Promise<void>
 }
 
@@ -83,6 +97,8 @@ export function toNativeNavbar(state: ChromeState, colors: { foreground: string 
  *
  * A tap on another tab runs under a snapshot of the WebView (`beginTransition`): `onSelectTab` resolves once the new
  * page is ready, the bars are updated, then the snapshot crossfades away. The page and the bars change in one step.
+ *
+ * Pull to refresh follows the chrome state's `pullToRefresh`; a pull runs `onPullToRefresh`, then hides the spinner.
  */
 export function createNativeNavigationController(options: NativeNavigationControllerOptions): NativeNavigationController {
   const { plugin } = options
@@ -101,6 +117,16 @@ export function createNativeNavigationController(options: NativeNavigationContro
   let lastTabsKey: string | undefined
   let queue: Promise<void> = Promise.resolve()
   const duration = options.tabTransitionDuration ?? 180
+  /** Pull to refresh as last sent: the plugin starts with it off. */
+  let lastPullToRefresh = false
+  const pullToRefresh = options.onPullToRefresh && typeof plugin.setPullToRefresh === 'function'
+    ? createPullToRefresh({
+        refresh: options.onPullToRefresh,
+        onStart: options.onPullToRefreshStart,
+        end: () => plugin.endPullToRefresh?.(),
+        timeout: options.pullToRefreshTimeout,
+      })
+    : undefined
 
   const run = (task: () => Promise<void>) => {
     queue = queue.then(task, task)
@@ -143,6 +169,11 @@ export function createNativeNavigationController(options: NativeNavigationContro
       softHidden = false
     }
     if (!visible) lastTabsKey = undefined
+    if (pullToRefresh && state.pullToRefresh !== lastPullToRefresh) {
+      // A native side without it (an older app build) rejects: pull to refresh stays off, the bars are not affected.
+      await plugin.setPullToRefresh!({ enabled: state.pullToRefresh }).catch(() => {})
+      lastPullToRefresh = state.pullToRefresh
+    }
   })
 
   /** Navigates to `tab`, under a crossfade when the plugin has transitions and the tab changes. */
@@ -151,6 +182,7 @@ export function createNativeNavigationController(options: NativeNavigationContro
     let transition: { id: string } | undefined
     if (switching) {
       try {
+        await options.beforeTabTransition?.()
         transition = await plugin.beginTransition!({ direction: 'tab', duration })
       }
       catch {
@@ -199,6 +231,7 @@ export function createNativeNavigationController(options: NativeNavigationContro
         const tab = tabs.find(candidate => candidate.id === id)
         if (tab) void requestTab(tab)
       }))
+      if (pullToRefresh) listeners.push(await plugin.addListener('pullToRefresh', () => void pullToRefresh.pull()))
       listeners.push(await plugin.addListener('navbarBack', () => void options.onBack()))
       listeners.push(await plugin.addListener('navbarItemTap', ({ id }) => {
         // The bar shows the actions last sent, which are the latest state's once the queue has run.
@@ -216,6 +249,10 @@ export function createNativeNavigationController(options: NativeNavigationContro
     },
 
     idle: () => queue.catch(() => {}),
+
+    get switchingTab() {
+      return switching
+    },
 
     async stop() {
       await Promise.all(listeners.splice(0).map(listener => listener.remove()))

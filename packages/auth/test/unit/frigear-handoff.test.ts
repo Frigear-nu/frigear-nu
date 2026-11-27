@@ -210,7 +210,7 @@ describe('the browser callback', () => {
       code_verifier: verifier,
       client_id: 'desktop',
     })
-    expect(resolveFrigearLogin).toHaveBeenCalledWith(sso, {}, tokenResponse, { nonce: attempt.nonce })
+    expect(resolveFrigearLogin).toHaveBeenCalledWith(sso, {}, tokenResponse, { nonce: attempt.nonce, event })
     expect(await findFrigearHandoff(attempt.id, attempt.secret)).toMatchObject({ status: 'complete', userId: 7 })
   })
 

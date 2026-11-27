@@ -6,7 +6,7 @@ import { useDashboard } from '../composables/useDashboard'
 /**
  * A named dashboard in the default grid: every item the viewer may see on this platform, in their order. With
  * `editable` (default) the viewer can move, hide and show items and reset the layout. Each item receives its static
- * `props`, then every entry of `context` as a prop.
+ * `props`, then every entry of `context` as a prop. `items` shows only the items with those ids, in that order.
  *
  * The edit mode is `v-model:editing`. With `:edit-button="false"` the page draws its own button to start it (the hub puts
  * it in its heading), reading `canEdit` from the component's ref to know when there is anything to customise.
@@ -17,7 +17,9 @@ const props = withDefaults(defineProps<{
   editable?: boolean
   /** Draws the button that starts editing, a small icon above the grid. Default `true`. */
   editButton?: boolean
-}>(), { editable: true, editButton: true })
+  /** Only the items with these ids, in this order. Default: every item. */
+  items?: string[]
+}>(), { editable: true, editButton: true, items: undefined })
 
 const editing = defineModel<boolean>('editing', { default: false })
 
@@ -31,7 +33,7 @@ defineExpose({ canEdit, start })
 
 const t = useModuleT('dashboard')
 const confirm = useConfirmDialog()
-const { items, hidden, status, error, persisted, saving, move, hide, show, reset, refresh } = await useDashboard(props.name, () => props.context)
+const { items, hidden, status, error, persisted, saving, move, hide, show, reset, refresh } = await useDashboard(props.name, () => props.context, { only: () => props.items })
 
 watchEffect(() => {
   canEdit.value = props.editable && (items.value.length > 0 || hidden.value.length > 0)
@@ -102,7 +104,7 @@ async function resetLayout() {
       data-dashboard-pending
     >
       <div
-        v-for="index in 4"
+        v-for="index in (props.items?.length || 4)"
         :key="index"
         :class="[surfaceClass, 'space-y-3 p-4']"
       >

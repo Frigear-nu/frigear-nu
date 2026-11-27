@@ -314,7 +314,7 @@ export async function handleFrigearHandoffCallback(event: H3Event, sso: FrigearS
   if (!row) return frigearHandoffPage(event, sso, false)
   try {
     const { tokens, userinfo } = await exchangeFrigearHandoffCode(sso, row, code)
-    const result = await resolveFrigearLogin(sso, userinfo, tokens, { nonce: row.nonce })
+    const result = await resolveFrigearLogin(sso, userinfo, tokens, { nonce: row.nonce, event })
     if ('error' in result) {
       await finishFrigearHandoff(row.id, { error: result.error })
       return frigearHandoffPage(event, sso, false)

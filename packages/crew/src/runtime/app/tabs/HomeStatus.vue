@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { crewApi } from '../../utils/api'
-import { CREW_STATUS_LABELS } from '../../utils/status'
+import { CREW_ME_KEY, CREW_STATUS_LABELS } from '../../utils/status'
 import type { MyCrewDto } from '../../../types'
-import { computed, errorMessage, navigateTo, useAuthPages, useCrewLinks, useCrewTranslate, useFormat, useLazyFetch, useModuleT, useRoute, watch } from '#imports'
+import { computed, errorMessage, navigateTo, useAuthPages, useCachedFetch, useCrewLinks, useCrewTranslate, useFormat, useModuleT, useRoute, watch } from '#imports'
 
 defineOptions({ name: 'CrewHomeStatusTab' })
 
@@ -15,8 +15,10 @@ const format = useFormat()
 const links = useCrewLinks()
 const route = useRoute()
 
-const { data, status, error, refresh } = useLazyFetch<MyCrewDto[]>(crewApi.me.crew, { key: 'crew:me', default: () => [] })
-const loading = computed(() => status.value === 'pending' && !data.value.length)
+// Shared with the `crew.status` dashboard item. The last response shows at once (also after a restart of the mobile app)
+// while every mount asks again in the background (`ttl: 0`).
+const { data, error, loading, refresh } = useCachedFetch<MyCrewDto[]>(crewApi.me.crew, { key: CREW_ME_KEY, ttl: 0, lazy: true })
+const list = computed(() => data.value ?? [])
 // The pages around it are for signed-in people; a session that ran out goes to the sign-in page and comes back.
 watch(() => error.value?.statusCode, async (code) => {
   if (code === 401) await navigateTo({ path: useAuthPages().login, query: { redirect: route.fullPath } })
@@ -24,7 +26,7 @@ watch(() => error.value?.statusCode, async (code) => {
 
 // What is still going on first: applications and places, then the ones that ended.
 const ORDER: Record<MyCrewDto['crewStatus'], number> = { approved: 0, waitlisted: 1, applied: 2, rejected: 3, withdrawn: 4 }
-const entries = computed(() => [...data.value].sort((a, b) => ORDER[a.crewStatus] - ORDER[b.crewStatus]))
+const entries = computed(() => [...list.value].sort((a, b) => ORDER[a.crewStatus] - ORDER[b.crewStatus]))
 
 const label = (value: MyCrewDto['crewStatus']) => t(`admin.statuses.${value}`, CREW_STATUS_LABELS[value])
 const facts = (entry: MyCrewDto) => [
@@ -48,14 +50,14 @@ const facts = (entry: MyCrewDto) => [
     />
   </div>
   <UEmpty
-    v-else-if="error && !data.length"
+    v-else-if="error && !list.length"
     icon="i-lucide-circle-alert"
     :title="t('status.loadFailed', 'Your crew status could not be loaded')"
     :description="errorMessage(error, '')"
     :actions="[{ label: t('tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
   />
   <UEmpty
-    v-else-if="!data.length"
+    v-else-if="!list.length"
     icon="i-lucide-hand-heart"
     :title="t('status.empty', 'You have not applied yet')"
     :description="t('status.emptyDescription', 'When you apply to an operation, or join with an invite, it shows up here.')"
@@ -65,6 +67,11 @@ const facts = (entry: MyCrewDto) => [
     class="flex flex-col gap-4"
     data-crew-status
   >
+    <!-- Offline or a failed refresh: the last data stays, with a quiet note. -->
+    <StaleDataNotice
+      :error="error"
+      :refresh="refresh"
+    />
     <div class="grid gap-4 md:grid-cols-2">
       <SectionCard
         v-for="entry in entries"

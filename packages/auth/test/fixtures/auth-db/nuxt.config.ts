@@ -40,7 +40,8 @@ export default defineNuxtConfig({
   },
   authentication: {
     userStore: './server/utils/user-store',
-    settings: { password: false },
+    // Registration (no password reset, so no table of its own) for the `auth:user:created` test.
+    settings: { password: true, passwordReset: false },
     permissions: [
       { name: 'events:read', description: 'Read events', implicit: true },
       { name: 'events:write', description: 'Change events', implicit: true },

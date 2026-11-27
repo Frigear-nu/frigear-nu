@@ -3,7 +3,7 @@ import { shiftsApi } from '../../utils/api'
 import { SHIFT_ASSIGNMENT_STATUS_LABELS, SHIFT_SWAP_STATUS_LABELS } from '../../utils/status'
 import { dayKey } from '@frigear-nu/module-kit/time'
 import type { MyShiftDto, ShiftsLedTeamDto } from '../../../types'
-import { computed, errorMessage, navigateTo, ref, shallowRef, useAuthPages, useLazyFetch, useModuleT, useRoute, useShiftsActions, useShiftsFormat, useShiftsLinks, useShiftsTranslate, watch } from '#imports'
+import { computed, errorMessage, navigateTo, ref, shallowRef, useAuthPages, useCachedFetch, useModuleT, useRoute, useShiftsActions, useShiftsFormat, useShiftsLinks, useShiftsTranslate, watch } from '#imports'
 
 defineOptions({ name: 'ShiftsHomeShiftsTab' })
 
@@ -20,10 +20,12 @@ const links = useShiftsLinks()
 const actions = useShiftsActions()
 const route = useRoute()
 
-const { data, status, error, refresh } = useLazyFetch<MyShiftDto[]>(shiftsApi.me.shifts, { key: 'shifts:me', default: () => [] })
+// The last responses show at once (also after a restart of the mobile app); every mount asks again in the background.
+const { data: fetched, error, loading, refresh } = useCachedFetch<MyShiftDto[]>(shiftsApi.me.shifts, { key: 'shifts:me', ttl: 0, lazy: true })
+const data = computed(() => fetched.value ?? [])
 // The teams I lead get a link to their lead page.
-const { data: led } = useLazyFetch<ShiftsLedTeamDto[]>(shiftsApi.me.leads, { key: 'shifts:leads', default: () => [] })
-const loading = computed(() => status.value === 'pending' && !data.value.length)
+const { data: ledTeams } = useCachedFetch<ShiftsLedTeamDto[]>(shiftsApi.me.leads, { key: 'shifts:leads', ttl: 0, lazy: true })
+const led = computed(() => ledTeams.value ?? [])
 // The pages around it are for signed-in people; a session that ran out goes to the sign-in page and comes back.
 watch(() => error.value?.statusCode, async (code) => {
   if (code === 401) await navigateTo({ path: useAuthPages().login, query: { redirect: route.fullPath } })
@@ -104,106 +106,112 @@ const statusLabel = (item: MyShiftDto) => item.swap
       :description="t('mine.emptyDescription', 'When a coordinator puts you on a shift, it shows up here.')"
       :actions="[{ label: t('mine.openSwaps', 'Open swaps'), to: links.swaps(), icon: 'i-lucide-arrow-left-right', color: 'neutral', variant: 'outline' }]"
     />
-    <div
-      v-else
-      class="grid items-start gap-4 lg:grid-cols-[20rem_1fr]"
-      data-shifts-mine
-    >
-      <SectionCard
-        :title="t('mine.calendar', 'Calendar')"
-        icon="i-lucide-calendar"
+    <template v-else>
+      <!-- Offline or a failed refresh: the last data stays, with a quiet note. -->
+      <StaleDataNotice
+        :error="error"
+        :refresh="refresh"
+      />
+      <div
+        class="grid items-start gap-4 lg:grid-cols-[20rem_1fr]"
+        data-shifts-mine
       >
-        <template
-          v-if="picked"
-          #actions
-        >
-          <UButton
-            color="neutral"
-            variant="ghost"
-            size="xs"
-            icon="i-lucide-x"
-            :label="t('mine.showAll', 'Show all days')"
-            @click="picked = undefined"
-          />
-        </template>
-        <UCalendar
-          v-model="picked"
-          :week-starts-on="1"
-          class="w-full"
-        >
-          <template #day="{ day }">
-            <UChip
-              :show="workDays.has(keyOf(day))"
-              size="2xs"
-              position="bottom-right"
-            >
-              {{ day.day }}
-            </UChip>
-          </template>
-        </UCalendar>
-      </SectionCard>
-
-      <div class="flex flex-col gap-4">
-        <SectionCard v-if="!groups.length">
-          <p class="text-muted text-sm">
-            {{ picked ? t('mine.noneThatDay', 'No shifts on that day.') : t('mine.noneUpcoming', 'No upcoming shifts.') }}
-          </p>
-        </SectionCard>
         <SectionCard
-          v-for="group in groups"
-          :key="group.day"
-          :title="format.day(group.day)"
-          flush
+          :title="t('mine.calendar', 'Calendar')"
+          icon="i-lucide-calendar"
         >
           <template
-            v-if="group.day === today"
+            v-if="picked"
             #actions
           >
-            <UBadge
-              size="sm"
-              variant="subtle"
-              :label="t('mine.today', 'Today')"
+            <UButton
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              icon="i-lucide-x"
+              :label="t('mine.showAll', 'Show all days')"
+              @click="picked = undefined"
             />
           </template>
-          <ul class="divide-default divide-y">
-            <li
-              v-for="item in group.items"
-              :key="item.assignment.id"
-            >
-              <ULink
-                :to="links.shift(item.assignment.id)"
-                class="hover:bg-elevated/50 flex items-center justify-between gap-3 px-4 py-3 transition"
+          <UCalendar
+            v-model="picked"
+            :week-starts-on="1"
+            class="w-full"
+          >
+            <template #day="{ day }">
+              <UChip
+                :show="workDays.has(keyOf(day))"
+                size="2xs"
+                position="bottom-right"
               >
-                <div class="flex min-w-0 flex-col">
-                  <span class="text-highlighted font-medium tabular-nums">{{ format.time(item.shift.startsAt) }}–{{ format.time(item.shift.endsAt) }}</span>
-                  <span class="text-muted truncate text-sm">
-                    {{ tr(item.teamName) }}<template v-if="item.roleName"> · {{ tr(item.roleName) }}</template> · {{ tr(item.operationName) }}
-                  </span>
-                </div>
-                <div class="flex shrink-0 items-center gap-2">
-                  <StatusBadge
-                    :status="item.swap ? item.swap.status : item.assignment.status"
-                    :label="statusLabel(item)"
-                    :colors="{ assigned: 'info', attended: 'success', no_show: 'error', open: 'warning', offered: 'warning', pending_approval: 'warning' }"
-                  />
-                  <UIcon
-                    name="i-lucide-chevron-right"
-                    class="text-dimmed size-4"
-                  />
-                </div>
-              </ULink>
-            </li>
-          </ul>
+                {{ day.day }}
+              </UChip>
+            </template>
+          </UCalendar>
         </SectionCard>
-        <UButton
-          v-if="!picked && pastCount"
-          color="neutral"
-          variant="ghost"
-          class="self-start"
-          :label="showPast ? t('mine.hidePast', 'Hide past shifts') : t('mine.showPast', 'Show {count} past shifts', { count: pastCount })"
-          @click="showPast = !showPast"
-        />
+
+        <div class="flex flex-col gap-4">
+          <SectionCard v-if="!groups.length">
+            <p class="text-muted text-sm">
+              {{ picked ? t('mine.noneThatDay', 'No shifts on that day.') : t('mine.noneUpcoming', 'No upcoming shifts.') }}
+            </p>
+          </SectionCard>
+          <SectionCard
+            v-for="group in groups"
+            :key="group.day"
+            :title="format.day(group.day)"
+            flush
+          >
+            <template
+              v-if="group.day === today"
+              #actions
+            >
+              <UBadge
+                size="sm"
+                variant="subtle"
+                :label="t('mine.today', 'Today')"
+              />
+            </template>
+            <ul class="divide-default divide-y">
+              <li
+                v-for="item in group.items"
+                :key="item.assignment.id"
+              >
+                <ULink
+                  :to="links.shift(item.assignment.id)"
+                  class="hover:bg-elevated/50 flex items-center justify-between gap-3 px-4 py-3 transition"
+                >
+                  <div class="flex min-w-0 flex-col">
+                    <span class="text-highlighted font-medium tabular-nums">{{ format.time(item.shift.startsAt) }}–{{ format.time(item.shift.endsAt) }}</span>
+                    <span class="text-muted truncate text-sm">
+                      {{ tr(item.teamName) }}<template v-if="item.roleName"> · {{ tr(item.roleName) }}</template> · {{ tr(item.operationName) }}
+                    </span>
+                  </div>
+                  <div class="flex shrink-0 items-center gap-2">
+                    <StatusBadge
+                      :status="item.swap ? item.swap.status : item.assignment.status"
+                      :label="statusLabel(item)"
+                      :colors="{ assigned: 'info', attended: 'success', no_show: 'error', open: 'warning', offered: 'warning', pending_approval: 'warning' }"
+                    />
+                    <UIcon
+                      name="i-lucide-chevron-right"
+                      class="text-dimmed size-4"
+                    />
+                  </div>
+                </ULink>
+              </li>
+            </ul>
+          </SectionCard>
+          <UButton
+            v-if="!picked && pastCount"
+            color="neutral"
+            variant="ghost"
+            class="self-start"
+            :label="showPast ? t('mine.hidePast', 'Hide past shifts') : t('mine.showPast', 'Show {count} past shifts', { count: pastCount })"
+            @click="showPast = !showPast"
+          />
+        </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>

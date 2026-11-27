@@ -1,5 +1,5 @@
 import { addComponentsDir, addImports, addServerImportsDir, addTypeTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
-import { defineVirtualRegistry, inlineModuleRuntime, registerLocales, registerModule, registerTailwindSource } from '@frigear-nu/module-kit/utils'
+import { defineVirtualRegistry, inlineModuleRuntime, registerLocales, registerModule, registerTailwindSource, isClientOnlyApp, serverModuleDependencies } from '@frigear-nu/module-kit/utils'
 import { buildMapsRegistry } from './runtime/utils/registry'
 import type { BuiltMapsRegistry } from './runtime/utils/registry'
 import { MAX_UNDERLAY_BYTES } from './runtime/utils/image'
@@ -65,12 +65,12 @@ function serverRegistryTemplate(registry: BuiltMapsRegistry): string {
 
 export default defineNuxtModule<ModuleOptions>({
   meta: { name: MODULE_NAME, configKey: 'maps' },
-  moduleDependencies: {
+  moduleDependencies: nuxt => ({
     // Blob holds underlay images (`storeMapUnderlay`); maps itself has no tables.
-    '@nuxthub/core': { version: '>=0.10', defaults: { blob: true } },
+    ...serverModuleDependencies(nuxt, { '@nuxthub/core': { version: '>=0.10', defaults: { blob: true } } }),
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
-  },
+  }),
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
@@ -138,7 +138,8 @@ declare module '#maps/server-registry' {
     }, { nitro: true, nuxt: true })
 
     // --- Server: helpers for the routes of the modules that store maps values ---------------------------------------
-    addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+    // A client-only app (`isClientOnlyApp`, e.g. a mobile app) has no such routes.
+    if (!isClientOnlyApp(nuxt)) addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
 
     // --- App: components that work on props and v-model only ---------------------------------------------------------

@@ -1,6 +1,7 @@
 import type { EmailDriver } from '../../../types'
 import { assertOk, hasHeaders, requireConfig, resolveFrom, toArray, type EmailConfig } from './shared'
 import { signRequest } from './sigv4'
+import { formatAddressHeader } from './mime'
 
 export interface SesConfig extends EmailConfig {
   region?: string
@@ -16,7 +17,8 @@ export const createSesDriver = (config: SesConfig): EmailDriver => async (n) => 
 
   const url = `https://email.${region}.amazonaws.com/v2/email/outbound-emails`
   const body = JSON.stringify({
-    FromEmailAddress: resolveFrom(config),
+    // SES takes the header value as it is: a non-ASCII display name (æøå) must be RFC 2047 encoded.
+    FromEmailAddress: formatAddressHeader(resolveFrom(config, n)),
     Destination: { ToAddresses: toArray(n.to), ...(n.cc ? { CcAddresses: toArray(n.cc) } : {}) },
     ReplyToAddresses: n.replyTo ? [n.replyTo] : undefined,
     Content: {

@@ -197,6 +197,41 @@
       "when": 1795726342858,
       "tag": "0027_short_links",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1795733024308,
+      "tag": "0028_inbox_email_cursors",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1795744140113,
+      "tag": "0029_campaigns_lists",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1795744268043,
+      "tag": "0030_campaigns_sending",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1795744365792,
+      "tag": "0031_campaigns_signup_mode",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1795746682209,
+      "tag": "0032_campaigns_kind_names",
+      "breakpoints": true
     }
   ]
 }

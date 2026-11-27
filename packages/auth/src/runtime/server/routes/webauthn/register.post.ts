@@ -70,6 +70,9 @@ export default defineWebAuthnRegisterEventHandler({
       throw error
     }
 
+    // Only now, with its passkey stored: a failed insert removed the account again.
+    if (createdUserId !== null) await notifyAuthUserCreated({ event, user: dbUser, source: 'passkey' })
+
     // A passkey sign-up starts a fresh session; adding a passkey refreshes the signed-in user's own one.
     if (createdUserId !== null) await startAuthSession(event, dbUser)
     else await setUserSession(event, { user: mapUserToSession(dbUser) })

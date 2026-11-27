@@ -51,6 +51,7 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Let a module store a location or a venue layout, with a picker, an editor and viewers | [Maps](/modules/interface/maps) | UI |
 | Answer the contact form, email, WhatsApp, Messenger and Instagram from shared inboxes | [Inbox](/modules/communication/inbox) | Auth, Notify, UI |
 | Put short, counted links in emails and SMS, and learn who clicked | [Short links](/modules/communication/short-links) | Auth, UI |
+| Let people sign up to lists (your news, the volunteers of an event), also without an account, with double opt-in and one-click unsubscribe | [Campaigns](/modules/communication/campaigns) | Auth, Users, Notify, UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
 module's page.
@@ -132,6 +133,7 @@ Reaching people: email, SMS and push, the templates they use, each user's choice
 | [Push](/modules/communication/push) | Device registration and FCM and APNs delivery, as the push driver of Notify. | ✓ | ✓ | ✓ |
 | [Inbox](/modules/communication/inbox) | Shared mailboxes for the contact form, email and Meta's channels, with assignment, notes, hidden threads, an audit log, retention and GDPR export and erase. | ✓ | ✓ |  |
 | [Short links](/modules/communication/short-links) | Short links any module makes for emails and SMS, with click counts without IP addresses and a hook that tells the owner who clicked. | ✓ | ✓ |  |
+| [Campaigns](/modules/communication/campaigns) | Newsletters people sign up to with double opt-in, stored consent and signed unsubscribe links, the signup component, the account page and the staff pages for the lists. | ✓ | ✓ |  |
 
 ### Interface
 

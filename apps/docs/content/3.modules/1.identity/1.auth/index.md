@@ -20,7 +20,8 @@ issuer, and the server accepts the issuer's access tokens.
 ## What you get
 
 - **Pages** (opt-in, need `@nuxt/ui`): a sign-in page (`/login`), a sign-up page (`/register`), `/forgot-password` and
-  `/reset-password`, and `/auth/magic-link` for emailed links.
+  `/reset-password`, and `/auth/magic-link` for emailed links. With [Widget](/modules/interface/widget), the sign-up
+  and sign-in pages have widget areas other modules add fields to (`auth.register`, `auth.login`).
 - **Server routes** under `/api/auth`: password sign-in and sign-up (on by default), password reset (on with
   passwords), emailed sign-in links and passkeys (opt-in), and sign-in through an
   [OAuth provider](/guide/concepts/glossary) (on once its credentials are set). See

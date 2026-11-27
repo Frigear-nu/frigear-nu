@@ -22,6 +22,7 @@
 'area: domain':
   - changed-files:
       - any-glob-to-any-file:
+          - packages/campaigns/**
           - packages/cli/**
           - packages/cookie-consent/**
           - packages/create-frigear-app/**

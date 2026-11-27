@@ -80,5 +80,14 @@ const profile = computed(() => {
         </NuxtLink>
       </li>
     </ListCard>
+
+    <!-- Last on the page, below the links: e.g. an app's sign-out. -->
+    <component
+      :is="widgetArea"
+      v-if="widgetArea"
+      name="account.overview.end"
+      :context="{ user }"
+      grid-class="grid gap-4"
+    />
   </div>
 </template>

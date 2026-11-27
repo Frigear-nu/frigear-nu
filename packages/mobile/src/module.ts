@@ -17,6 +17,7 @@ import {
   addOptionalImports,
   defineVirtualRegistry,
   inlineModuleRuntime,
+  markClientOnlyApp,
   registerLocales,
   registerModule,
   registerTailwindSource,
@@ -38,6 +39,7 @@ import { NATIVE_PLUGINS, type NativePluginName } from './runtime/shared/native'
 import { findTabsWithoutPage, normalizeTabs } from './runtime/shared/tabs'
 import { runDoctor } from './runtime/cli/doctor'
 import { resolveSplashScreen } from './runtime/shared/splash'
+import { resolveHostOption } from './runtime/shared/host'
 
 export type * from './types'
 
@@ -62,6 +64,8 @@ declare module '#app' {
     'mobile:deep-link': (ctx: MobileDeepLinkContext) => void | Promise<void>
     /** The Android back button, before the module acts. `preventDefault()` when you handled it. */
     'mobile:back-button': (ctx: MobileBackButtonContext) => void | Promise<void>
+    /** The user pulled to refresh. The spinner stays until every handler has resolved (10 s at most). */
+    'mobile:refresh': () => void | Promise<void>
   }
 }
 
@@ -100,6 +104,8 @@ export default defineNuxtModule<ModuleOptions>({
     nativeChrome: 'ios',
     keepTabsAlive: true,
     tabTransitionDuration: 180,
+    pageTransitionDuration: 300,
+    pullToRefresh: true,
     native: { statusBar: true, keyboardAccessoryBar: true, switchHaptics: true, backButton: true },
     appearance: { iosTypeScale: true, tapHighlight: true, toasterOffset: true },
     dev: { lanHost: true },
@@ -107,6 +113,9 @@ export default defineNuxtModule<ModuleOptions>({
     doctor: true,
   },
   moduleDependencies: (nuxt: Nuxt): Record<string, ModuleDependencyMeta> => {
+    // A static app without a server of its own: modules installed after this one leave out their server parts
+    // (`isClientOnlyApp`). Modules listed before it in `modules` see it from the list.
+    markClientOnlyApp(nuxt)
     const appId: string = appIdOf(nuxt) ?? FALLBACK_APP_ID
     const appName: string = mobileOptionsOf(nuxt)?.appName
       ?? (nuxt.options as { capacitor?: { config?: { appName?: string } } }).capacitor?.config?.appName
@@ -145,6 +154,8 @@ export default defineNuxtModule<ModuleOptions>({
               // Scalars only: array defaults would be appended to the app's own (defu). Read in Auth's setup.
               defaults: {
                 client: {
+                  // No server of its own: the `/api/` requests of the app's modules go to the API (`apiBase`).
+                  routeApi: true,
                   ...(scheme ? { native: { scheme } } : {}),
                   ...(lanHost ? { dev: { rewriteLoopback: lanHost } } : {}),
                 },
@@ -156,6 +167,7 @@ export default defineNuxtModule<ModuleOptions>({
   },
   setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
+    markClientOnlyApp(nuxt)
     const resolver = createResolver(import.meta.url)
     const logger = useLogger('mobile')
     inlineModuleRuntime(nuxt, resolver)
@@ -217,6 +229,8 @@ export default defineNuxtModule<ModuleOptions>({
     const deepLinkSchemes = deepLinks.schemes
     const { splash, errors: splashErrors } = resolveSplashScreen(options.splashScreen)
     if (splashErrors.length) throw new Error(`[${MODULE_NAME}] Invalid splash screen:\n- ${splashErrors.join('\n- ')}`)
+    const { host, errors: hostErrors } = resolveHostOption(options.host)
+    if (hostErrors.length) throw new Error(`[${MODULE_NAME}] Invalid host:\n- ${hostErrors.join('\n- ')}`)
     const publicDefaults: MobilePublicConfig = {
       appId,
       appName,
@@ -225,6 +239,8 @@ export default defineNuxtModule<ModuleOptions>({
       layout: options.layout ?? 'mobile',
       keepTabsAlive: options.keepTabsAlive !== false,
       tabTransitionDuration: Math.max(0, options.tabTransitionDuration ?? 180),
+      pageTransitionDuration: Math.max(0, options.pageTransitionDuration ?? 300),
+      pullToRefresh: options.pullToRefresh !== false,
       toasterOffset: options.appearance?.toasterOffset !== false,
       native: {
         statusBar: options.native?.statusBar !== false,
@@ -242,9 +258,20 @@ export default defineNuxtModule<ModuleOptions>({
         native: splash.native,
       },
       lanHost: lanHost ?? '',
+      host,
+      persistentCache: {
+        enabled: options.persistentCache !== false,
+        maxAge: (typeof options.persistentCache === 'object' ? options.persistentCache.maxAge : undefined) ?? 7 * 24 * 60 * 60 * 1000,
+        timeout: (typeof options.persistentCache === 'object' ? options.persistentCache.timeout : undefined) ?? 500,
+      },
     }
     const publicConfig = nuxt.options.runtimeConfig.public as { mobile?: Partial<MobilePublicConfig> }
     publicConfig.mobile = defu(publicConfig.mobile, publicDefaults) as MobilePublicConfig
+    // `useCachedFetch` / `useCachedAsyncData` (`@frigear-nu/ui`): in the app, `await` resolves at once when there is
+    // something to show (a stale or restored response), so pages render without waiting for the network, also offline.
+    // The website keeps `useFetch`'s waiting. An app can set `runtimeConfig.public.cachedFetch.instant: false`.
+    const cachedFetchConfig = nuxt.options.runtimeConfig.public as { cachedFetch?: { instant?: boolean } }
+    cachedFetchConfig.cachedFetch = defu(cachedFetchConfig.cachedFetch, { instant: true })
 
     // Native plugins are optional peers: `#mobile/native` only imports the installed ones.
     const installed = (pkg: string) => isPackageInstalled(pkg, nuxt.options.rootDir, nuxt.options.modulesDir)
@@ -279,6 +306,10 @@ declare module '#mobile/tabs' {
       { name: 'useAuth', available: () => clientAuth, fallback: 'undefined', fallbackType: `undefined | (() => { authenticated: import('vue').Ref<boolean>, isCallbackUrl: (url: string) => boolean })` },
       { name: 'useConfirmDialog', available: () => hasNuxtModule('@frigear-nu/ui', nuxt), fallback: 'undefined', fallbackType: `undefined | (() => (options: { title: string, description?: string, confirmText?: string, cancelText?: string, destructive?: boolean }) => Promise<boolean>)` },
       { name: 'useMenu', available: () => hasNuxtModule('@frigear-nu/menu', nuxt), fallback: 'undefined', fallbackType: `undefined | ((path: string) => { data: import('vue').Ref<import(${JSON.stringify(resolver.resolve('./runtime/shared/menu'))}).MenuItemLike[] | null | undefined> })` },
+      // `persistentCache`: the cache of `useCachedFetch`, which is `@frigear-nu/ui`'s.
+      { name: 'provideCachedFetchStorage', available: () => hasNuxtModule('@frigear-nu/ui', nuxt), fallback: 'undefined', fallbackType: `undefined | ((storage: unknown, options?: { maxAge?: number }) => void)` },
+      { name: 'hydrateCachedFetch', available: () => hasNuxtModule('@frigear-nu/ui', nuxt), fallback: 'undefined', fallbackType: `undefined | ((options?: { timeout?: number }) => Promise<void>)` },
+      { name: 'flushCachedFetch', available: () => hasNuxtModule('@frigear-nu/ui', nuxt), fallback: 'undefined', fallbackType: `undefined | (() => Promise<void>)` },
     ])
 
     // One tab registry: the app's `mobile.tabs`, then what modules added with `extendMobileTabs()`.
@@ -337,7 +368,9 @@ declare module '#mobile/tabs' {
       { name: 'useMobileToaster', from: resolver.resolve('./runtime/app/composables/useMobileToaster') },
       { name: 'useNative', from: resolver.resolve('./runtime/app/composables/useNative') },
       { name: 'onTabEnter', from: resolver.resolve('./runtime/app/composables/onTabEnter') },
+      { name: 'onMobileRefresh', from: resolver.resolve('./runtime/app/composables/onMobileRefresh') },
       { name: 'useMobileSplash', from: resolver.resolve('./runtime/app/composables/useMobileSplash') },
+      { name: 'useMobileHost', from: resolver.resolve('./runtime/app/composables/useMobileHost') },
     ])
     for (const name of ['MobileTabBar', 'MobileHeader', 'MobileFab']) {
       addComponent({ name, filePath: resolver.resolve(`./runtime/app/components/${name}.vue`) })
@@ -364,6 +397,22 @@ declare module '#mobile/tabs' {
     if (options.nativeChrome !== false && plugins.nativeNavigation) {
       addPlugin({ src: resolver.resolve('./runtime/app/plugins/native-navigation.client'), mode: 'client' })
     }
+    // `mobile.host`: what the app has no page for opens on the website. Without a URL of its own it needs Auth's issuer.
+    if (host.enabled) {
+      addPlugin({ src: resolver.resolve('./runtime/app/plugins/host.client'), mode: 'client' })
+      if (!host.url) {
+        nuxt.hook('modules:done', () => {
+          if (!clientAuth && !prepare) logger.warn('`mobile.host: true` opens pages on the issuer of `@frigear-nu/auth` in client mode, which the app does not configure: set `mobile.host` to the website\'s URL.')
+        })
+      }
+    }
+    // `persistentCache`: `useCachedFetch` responses on disk. Needs `@frigear-nu/ui` (whose cache it is) and the plugin.
+    const persistentCache = options.persistentCache !== false && plugins.filesystem
+    nuxt.hook('modules:done', () => {
+      if (persistentCache && hasNuxtModule('@frigear-nu/ui', nuxt)) {
+        addPlugin({ src: resolver.resolve('./runtime/app/plugins/persistent-cache.client'), mode: 'client' })
+      }
+    })
     if (plugins.app) {
       if (deepLinkSchemes.length || deepLinks.hosts.length) {
         addPlugin({ src: resolver.resolve('./runtime/app/plugins/deep-links.client'), mode: 'client' })
@@ -397,6 +446,8 @@ declare module '#mobile/tabs' {
           keyboardAccessoryBar: options.native?.keyboardAccessoryBar !== false,
           splashScreen: splash.native,
           oauth: clientAuth,
+          host: host.enabled,
+          persistentCache: options.persistentCache !== false && hasNuxtModule('@frigear-nu/ui', nuxt),
         }),
       }
     }

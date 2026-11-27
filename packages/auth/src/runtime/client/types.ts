@@ -47,10 +47,22 @@ export interface ClientModuleOptions {
    */
   apiOrigins?: string[]
   /**
+   * Send the app's own relative `/api/` requests (`$fetch`, `useFetch`, `useLazyFetch`: the pages of every module) to
+   * `apiBase` (else the issuer), with the bearer token as `$api` sends it: only to `apiOrigins`, one refresh on a 401.
+   * For an app without a server of its own whose modules call `/api/...`, such as a Capacitor app; `@frigear-nu/mobile`
+   * turns it on. Client mode only. Default `false`.
+   */
+  routeApi?: boolean
+  /**
    * What a 401 that a forced refresh did not fix does: `signOut` (default) clears the local session and sends the
    * visitor to the login page; `none` only throws.
    */
   onUnauthorized?: 'signOut' | 'none'
+  /**
+   * How long a started sign-in can still be completed, in seconds. Default 10800 (3 hours), above the 2 hours of an
+   * emailed verification link, so a sign-up that continues the sign-in from that link still lands in the app.
+   */
+  pendingTtlSeconds?: number
   /** The redirect URI in a browser. Default `<origin><callbackPath>`. */
   redirectUri?: string
   /** Path of the callback page, and of the redirect URIs derived from it. Default `/auth/callback`. */
@@ -124,7 +136,11 @@ export interface AuthClientPublicConfig {
   /** Empty: the issuer. */
   apiBase: string
   apiOrigins: string[]
+  /** Relative `/api/` requests go to `apiBase` (`routeApi`). */
+  routeApi: boolean
   onUnauthorized: 'signOut' | 'none'
+  /** How long a started sign-in can be completed, in seconds. */
+  pendingTtlSeconds: number
   redirectUri: string
   nativeRedirectUri: string
   /** How a Tauri app signs in (`native.desktopFlow`). */

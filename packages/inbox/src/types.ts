@@ -1,4 +1,4 @@
-import type { H3Event } from 'h3'
+import type { EventHandler, H3Event } from 'h3'
 import type { Grant } from '@frigear-nu/auth/grants'
 import type { OwnerRef } from '@frigear-nu/teams'
 
@@ -48,6 +48,17 @@ export type InboxInboundMessage = {
   /** A thread id the message answers (`[ibt_...]` in an email subject); used when it belongs to the same mailbox and contact. */
   threadId?: string | null
   /**
+   * A thread id the address named (`support+ibt_...@inbox.example.org`, the `Reply-To` of a reply). Tried before
+   * `references` and `threadId`, with the same checks.
+   */
+  threadHint?: string | null
+  /**
+   * The provider ids of the messages this one answers, most telling first (an email's `In-Reply-To`, then its
+   * `References` newest first). A stored message of the same account with one of them (`<channel>:<id>`) names the
+   * thread, tried after `threadHint` and before `threadId`.
+   */
+  references?: string[]
+  /**
    * Whether the channel verified the sender: a signed-in user, Meta's signed webhook, an email that passed SPF, DKIM or
    * DMARC. Only an authenticated message joins an existing thread or renames its contact; anything else (the default)
    * starts a new thread.
@@ -85,6 +96,11 @@ export type InboxSendResult = {
   externalId?: string | null
   /** The email addresses the channel copied (`Cc`), stored on the reply. Invalid addresses are dropped. */
   cc?: string[] | null
+  /**
+   * The `Message-ID` a reply sent by email went out with, when the sender reported it (Notify's `cloudflare-binding`
+   * driver does). Stored as `email:out:<id>` (it wins over `externalId`), so an answer to it threads by its headers.
+   */
+  messageId?: string | null
 } | undefined
 
 /** A channel adapter, the default export of the file `extendInbox` names. */
@@ -120,7 +136,61 @@ export type InboxChannelDefinition = {
 /** What a channel looks like to the app (`#inbox/registry`). */
 export type InboxChannelInfo = { id: string, label: Translated, icon?: string }
 
-export type InboxExtension = { channels?: InboxChannelDefinition[] }
+export type InboxExtension = { channels?: InboxChannelDefinition[], emailDrivers?: InboxEmailDriverDefinition[] }
+
+// --- Inbound email drivers ---------------------------------------------------------------------------------------------
+
+/**
+ * An inbound email driver, the default export of the file an `emailDrivers` registration names
+ * (`defineInboxEmailDriver`). It receives email from one provider and hands it to `inboxIngestEmail`, which routes it
+ * to the mailboxes and stores it. A driver has a `handler`, mounted at `POST /api/inbox/email/<name>` (a provider's
+ * webhook), a `setup` run once in a Nitro plugin (a runtime hook such as `cloudflare:email`), or both.
+ */
+/**
+ * The parts of the Nitro app a driver's `setup` gets. Typed here rather than as nitropack's `NitroApp`, so the published
+ * types do not pull in nitropack (and through it vite and esbuild). Cast `hooks` to the hook a driver registers.
+ */
+export type InboxNitroApp = {
+  hooks: object
+  localFetch: (url: string, init?: RequestInit) => Promise<Response>
+}
+
+export type InboxEmailDriver = {
+  name: string
+  /** Answers `POST /api/inbox/email/<name>`. Verify the request (a signature) before anything else. */
+  handler?: EventHandler
+  /** Runs once when the server starts, with the Nitro app: register runtime hooks here. */
+  setup?: (nitroApp: InboxNitroApp) => void
+}
+
+/** An inbound email driver registration: its name and the server file default-exporting `defineInboxEmailDriver()`. */
+export type InboxEmailDriverDefinition = {
+  /** Lower case words joined by `.`, `_` or `-`; the last part of its URL. */
+  name: string
+  /** Absolute path of the server file. */
+  driver: string
+}
+
+/** The settings of an `email` channel account (`config`), none of them secret. */
+export type InboxEmailAccountConfig = {
+  /** Where answers to replies go when the address is not on an inbox domain. Defaults to the address. */
+  replyTo?: string
+  /**
+   * Send replies from this address (`"<Mailbox name>" <address>`) instead of Notify's `from`. The domain must be
+   * verified with the email provider Notify sends through. Defaults to `false`.
+   */
+  sendFromAddress?: boolean
+  /**
+   * A driver that fetches this address's mail itself: `gmail` (a Google Workspace mailbox, as this address) or `imap`
+   * (with `imap`). Unset for mail that is pushed to the inbox (Cloudflare, Resend, the JSON webhook).
+   */
+  inbound?: 'gmail' | 'imap'
+  /** The IMAP connection of `inbound: 'imap'`; the password is the account's `secretRef`. */
+  imap?: { host: string, port?: number, secure?: boolean, user?: string, mailbox?: string, authservIds?: string[] }
+}
+
+/** A Notify email driver inbox replies can go out through (`inbox.email.outbound`). */
+export type InboxOutboundEmailDriver = 'log' | 'resend' | 'ses' | 'cloudflare' | 'cloudflare-binding'
 
 // --- DTOs --------------------------------------------------------------------------------------------------------------
 
@@ -153,6 +223,14 @@ export type InboxChannelAccountDto = {
   enabled: boolean
   createdAt: string
   updatedAt: string
+}
+
+/** How email reaches the inbox on this server (`GET /api/admin/inbox/email`). */
+export type InboxEmailSettingsDto = {
+  /** The inbox domains (`NUXT_INBOX_DOMAINS`). */
+  domains: string[]
+  /** The inbound email drivers installed besides the signed JSON webhook (`cloudflare`, `resend`, a host's own). */
+  drivers: string[]
 }
 
 /** A contact as everyone with access to the thread sees them: no contact details. */
@@ -335,6 +413,75 @@ export type ModuleOptions = {
   email?: {
     /** HMAC secret of `POST /api/inbox/webhooks/email` (`NUXT_INBOX_EMAIL_WEBHOOK_SECRET`). */
     webhookSecret?: string
+    /**
+     * The domains the inbox receives all mail for (`inbox.example.org`), overridden at run time by `NUXT_INBOX_DOMAINS`
+     * (a comma separated list). A reply from an account on one goes out with the thread's reply address
+     * (`support+ibt_...@inbox.example.org`), and an address on one that no account has is unknown (a bounce, where the
+     * driver can send one). None by default.
+     */
+    domains?: string[]
+    /**
+     * The built-in inbound email drivers to install; several can be on at once. Defaults to `{ webhook: true }`.
+     * - `webhook`: the signed JSON webhook, `POST /api/inbox/webhooks/email`.
+     * - `cloudflare`: Cloudflare Email Routing to this Worker (the `cloudflare:email` hook of the `cloudflare-module`
+     *   preset).
+     * - `resend`: Resend's `email.received` webhook, `POST /api/inbox/email/resend`.
+     * - `gmail`: Google Workspace mailboxes read through the Gmail API (push notifications through Pub/Sub,
+     *   `POST /api/inbox/email/gmail`), for email accounts with `config.inbound: 'gmail'`.
+     * - `imap`: IMAP mailboxes polled by the `inbox:imap` task, for email accounts with `config.inbound: 'imap'`.
+     */
+    inbound?: {
+      webhook?: boolean
+      cloudflare?: boolean | {
+        /**
+         * The authserv-ids of the `Authentication-Results` to trust (`NUXT_INBOX_CLOUDFLARE_AUTHSERV_IDS`, comma
+         * separated). Defaults to `['mx.cloudflare.net']`.
+         */
+        authservIds?: string[]
+        /**
+         * Install a Worker entry that awaits the `cloudflare:email` hook, so an unknown recipient is bounced (Nitro 2's
+         * entry runs it after Cloudflare accepted the email). Only on the `cloudflare-module` preset with its own entry.
+         * Defaults to `true`.
+         */
+        entry?: boolean
+      }
+      gmail?: boolean | {
+        /** The service account's `client_email` (`NUXT_INBOX_GMAIL_CLIENT_EMAIL`). */
+        clientEmail?: string
+        /** The service account's `private_key`, PEM (`NUXT_INBOX_GMAIL_PRIVATE_KEY`). */
+        privateKey?: string
+        /** The Pub/Sub topic Gmail publishes to, `projects/<project>/topics/<topic>` (`NUXT_INBOX_GMAIL_TOPIC`). */
+        topic?: string
+        /** The audience of the push subscription's OIDC token (`NUXT_INBOX_GMAIL_AUDIENCE`), e.g. the push URL. */
+        audience?: string
+        /** The service account the push subscription signs as; checked when set (`NUXT_INBOX_GMAIL_PUSH_SERVICE_ACCOUNT`). */
+        pushServiceAccount?: string
+        /** Defaults to `https://gmail.googleapis.com`. */
+        apiBase?: string
+        /** Cron of the `inbox:gmail` task (watch renewal and catch-up). Defaults to `'15 4 * * *'`; `false` for none. */
+        cron?: string | false
+      }
+      imap?: boolean | {
+        /** Cron of the `inbox:imap` task (the poll). Defaults to every five minutes; `false` for none. */
+        cron?: string | false
+      }
+      resend?: boolean | {
+        /** The webhook's signing secret, `whsec_...` (`NUXT_INBOX_RESEND_WEBHOOK_SECRET`). */
+        webhookSecret?: string
+        /** An API key that can read received emails (`NUXT_INBOX_RESEND_API_KEY`). */
+        apiKey?: string
+        /** Defaults to `https://api.resend.com`. */
+        apiBase?: string
+      }
+    }
+    /** Inbound email drivers of the host, next to the built-in ones and those of other modules (`extendInbox`). */
+    drivers?: InboxEmailDriverDefinition[]
+    /**
+     * The Notify email driver replies go out through instead of Notify's own (`NUXT_INBOX_EMAIL_OUTBOUND`), with
+     * Notify's settings: `cloudflare-binding` sends through a Workers `send_email` binding with a Message-ID of the
+     * inbox's own, so answers thread by their headers. Other Notify mail is unchanged. Defaults to Notify's driver.
+     */
+    outbound?: InboxOutboundEmailDriver
   }
   meta?: {
     /** The Meta app secret: checks `X-Hub-Signature-256` (`NUXT_INBOX_META_APP_SECRET`). */
@@ -374,7 +521,14 @@ export type PublicModuleOptions = {
 /** The server-only runtime config (`runtimeConfig.inbox`). */
 export type InboxRuntimeConfig = {
   retention: { days: number | false, mode: InboxRetentionMode, batch: number, tombstoneDays: number }
-  email: { webhookSecret: string }
+  email: { webhookSecret: string, outbound: string }
+  /** The authserv-ids Cloudflare Email Routing's `Authentication-Results` are trusted with (comma separated). */
+  cloudflare: { authservIds: string }
+  /** The Gmail driver: the service account (domain-wide delegation), the Pub/Sub topic and the push token's audience. */
+  gmail: { clientEmail: string, privateKey: string, topic: string, audience: string, pushServiceAccount: string, apiBase: string }
+  /** The inbox domains: `NUXT_INBOX_DOMAINS`, a comma separated list (read with `inboxDomains()`). */
+  domains: string | string[]
+  resend: { webhookSecret: string, apiKey: string, apiBase: string }
   meta: { appSecret: string, verifyToken: string, apiBase: string, apiVersion: string, timeoutMs: number }
   secrets: Record<string, string>
   mailboxes: InboxMailboxSeed[]

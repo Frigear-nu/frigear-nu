@@ -23,6 +23,9 @@ export const SHIFTS_DEFAULT_PAGES = {
   station: '/shifts/station/:stationId',
 } as const
 
+/** Where one shift goes below the crew home when that home is in the signed-in hub (`/dashboard/crew/shifts/:assignmentId`). */
+export const SHIFTS_HUB_SHIFT_SEGMENT = 'shifts/:assignmentId'
+
 /**
  * Builds every link to a shifts page through `localize` (the active locale's prefix, see `useLocaleLink` of
  * `@frigear-nu/ui`). My shifts and the swaps link to their tab of the crew home when they have no page. A page that is

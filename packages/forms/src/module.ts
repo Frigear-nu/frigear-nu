@@ -18,6 +18,8 @@ import {
   addOptionalMenuSource,
   inlineModuleRuntime,
   addModuleRoutes,
+  isClientOnlyApp,
+  serverModuleDependencies,
 } from '@frigear-nu/module-kit/utils'
 import { adminRoute } from '@frigear-nu/admin/utils'
 import { registerAccess } from '@frigear-nu/auth/utils'
@@ -73,21 +75,18 @@ export default defineNuxtModule<ModuleOptions>({
     settings: { pages: {}, rateLimit: 10, rateLimitWindowSeconds: 600 },
     seed: { enabled: false, forms: [] },
   },
-  moduleDependencies: {
-    '@nuxthub/core': {
-      version: '>=0.10',
-      defaults: { kv: true, blob: true },
-    },
+  moduleDependencies: nuxt => ({
+    ...serverModuleDependencies(nuxt, { '@nuxthub/core': { version: '>=0.10', defaults: { kv: true, blob: true } } }),
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
-    '@frigear-nu/mcp': { version: '>=0.0.1' },
+    ...serverModuleDependencies(nuxt, { '@frigear-nu/mcp': { version: '>=0.0.1' } }),
     '@frigear-nu/users': { version: '>=0.0.1' },
     '@frigear-nu/notify': { version: '>=0.0.1' },
     '@frigear-nu/ui': { version: '>=0.0.1' },
     '@frigear-nu/menu': { version: '>=0.0.1', optional: true },
     // The admin pages only exist with the admin shell; its page components come from `@frigear-nu/ui`.
     '@frigear-nu/admin': { version: '>=0.0.0', optional: true },
-  },
+  }),
   setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     // Permissions and the `forms` scope (`runtime/access.ts`).
@@ -179,12 +178,15 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'post', path: ':slug/submit', file: 'public/submit.post' },
     ], { base: '/api/forms' })
 
-    addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
-    if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/encryption'))
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/email-delivery'))
-    addNitroPlugin(resolver.resolve('./runtime/server/plugins/seed'))
+    // A client-only app (`isClientOnlyApp`, e.g. a mobile app) calls a remote API: no server utils, MCP or plugins.
+    if (!isClientOnlyApp(nuxt)) {
+      addServerImportsDir(resolver.resolve('./runtime/server/utils'))
+      if (settings.mcp === true) addMcpDefinitions(nuxt, resolver.resolve('./runtime/server/mcp'))
+      addNitroPlugin(resolver.resolve('./runtime/server/plugins/encryption'))
+      addNitroPlugin(resolver.resolve('./runtime/server/plugins/email-delivery'))
+      addNitroPlugin(resolver.resolve('./runtime/server/plugins/seed'))
+    }
 
     // --- App runtime ----------------------------------------------------------------------
     addImports([

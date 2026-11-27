@@ -3,7 +3,7 @@ import { shiftsApi } from '../../utils/api'
 import { SHIFT_SWAP_OFFER_STATUS_LABELS } from '../../utils/status'
 import { allowsSwapKind } from '../../utils/settings'
 import type { MyShiftDto, ShiftSwapDto } from '../../../types'
-import { $fetch, computed, errorMessage, navigateTo, onMounted, reactive, ref, useAction, useAuthPages, useLazyFetch, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate, watch } from '#imports'
+import { $fetch, computed, errorMessage, navigateTo, onMounted, reactive, ref, useAction, useAuthPages, useCachedFetch, useModuleT, useRoute, useShiftsFormat, useShiftsLinks, useShiftsTranslate, watch } from '#imports'
 
 defineOptions({ name: 'ShiftsHomeSwapsTab' })
 
@@ -17,9 +17,11 @@ const links = useShiftsLinks()
 const { busy, run } = useAction()
 const route = useRoute()
 
-const { data: swaps, status, error, refresh } = useLazyFetch<ShiftSwapDto[]>(shiftsApi.swaps, { key: 'shifts:swaps', default: () => [] })
-const { data: mine, refresh: refreshMine } = useLazyFetch<MyShiftDto[]>(shiftsApi.me.shifts, { key: 'shifts:me', default: () => [] })
-const loading = computed(() => status.value === 'pending' && !swaps.value.length)
+// The last responses show at once (also after a restart of the mobile app); every mount asks again in the background.
+const { data: fetchedSwaps, error, loading, refresh } = useCachedFetch<ShiftSwapDto[]>(shiftsApi.swaps, { key: 'shifts:swaps', ttl: 0, lazy: true })
+const { data: fetchedMine, refresh: refreshMine } = useCachedFetch<MyShiftDto[]>(shiftsApi.me.shifts, { key: 'shifts:me', ttl: 0, lazy: true })
+const swaps = computed(() => fetchedSwaps.value ?? [])
+const mine = computed(() => fetchedMine.value ?? [])
 // The pages around it are for signed-in people; a session that ran out goes to the sign-in page and comes back.
 watch(() => error.value?.statusCode, async (code) => {
   if (code === 401) await navigateTo({ path: useAuthPages().login, query: { redirect: route.fullPath } })
@@ -100,7 +102,7 @@ async function withdraw(swap: ShiftSwapDto) {
       />
     </div>
     <UEmpty
-      v-else-if="error && error.statusCode !== 401"
+      v-else-if="error && error.statusCode !== 401 && !swaps.length"
       icon="i-lucide-circle-alert"
       :title="t('swaps.loadFailed', 'The swaps could not be loaded')"
       :description="errorMessage(error, '')"
@@ -117,6 +119,11 @@ async function withdraw(swap: ShiftSwapDto) {
       class="flex flex-col gap-3"
       data-shifts-swaps
     >
+      <!-- Offline or a failed refresh: the last data stays, with a quiet note. -->
+      <StaleDataNotice
+        :error="error"
+        :refresh="refresh"
+      />
       <SectionCard
         v-for="swap in swaps"
         :key="swap.id"

@@ -35,10 +35,19 @@ export interface MobileTabDefinition {
   largeTitle?: boolean
   /** Lower first; tabs without `order` follow in registration order. */
   order?: number
+  /** `false` leaves the tab out, e.g. a module's tab the app does not want: `{ id: 'shifts', enabled: false }`. */
+  enabled?: boolean
 }
 
+/**
+ * Fields of a tab a module adds, set by the app in `mobile.tabs`: the ones the module leaves out, such as its place
+ * (`{ id: 'crew', order: 1 }`) or whether it shows (`{ id: 'shifts', enabled: false }`). The module's own fields follow
+ * the app's and replace them.
+ */
+export type MobileTabOverride = Partial<MobileTabDefinition> & { id: string }
+
 /** A tab after normalization: `match` resolved, `requiresAuth` decided. */
-export interface MobileTab extends Omit<MobileTabDefinition, 'match' | 'requiresAuth'> {
+export interface MobileTab extends Omit<MobileTabDefinition, 'match' | 'requiresAuth' | 'enabled'> {
   match: string[]
   requiresAuth: boolean
 }
@@ -87,6 +96,11 @@ export interface MobilePageMeta {
   back?: boolean
   /** Navbar buttons on this page, e.g. a settings gear. Reactive ones: `useMobileNavbarActions()`. */
   actions?: MobileNavbarAction[]
+  /**
+   * Native pull to refresh on this page (with the native chrome). `false` turns it off here. Default: the app's
+   * `pullToRefresh` option.
+   */
+  pullToRefresh?: boolean
 }
 
 export type NativeChromeOption = 'ios' | 'all' | false
@@ -121,8 +135,12 @@ export interface ModuleOptions {
   appId?: string
   /** Display name: `capacitor.config.appName` and the fallback page title. */
   appName?: string
-  /** The tabs. Modules add theirs with `extendMobileTabs()` from `@frigear-nu/mobile/utils`. */
-  tabs?: MobileTabDefinition[]
+  /**
+   * The tabs. Modules add theirs with `extendMobileTabs()` from `@frigear-nu/mobile/utils`; an entry here with the id
+   * of a module's tab sets the fields the module leaves out (`{ id: 'crew', order: 1 }`), or leaves the tab out
+   * (`{ id: 'shifts', enabled: false }`).
+   */
+  tabs?: (MobileTabDefinition | MobileTabOverride)[]
   /**
    * Whether the shell follows the sign-in state of `@frigear-nu/auth` in client mode (tabs with `requiresAuth` only
    * show signed in). Default: on when Auth runs in client mode.
@@ -144,6 +162,17 @@ export interface ModuleOptions {
   keepTabsAlive?: boolean
   /** Length of the crossfade between tabs with the native tab bar, in ms. `0` switches without one. Default `180`. */
   tabTransitionDuration?: number
+  /**
+   * Length of the native push / pop when a page of a tab opens or closes with the native chrome, in ms: the old page
+   * stays on screen until the new one has rendered, then slides away. `0` switches without one. Default `300`.
+   */
+  pageTransitionDuration?: number
+  /**
+   * Native pull to refresh on every page (with the native chrome): it refreshes the page's `useAsyncData` /
+   * `useFetch` data and runs `onMobileRefresh()` handlers and the `mobile:refresh` hook. A page opts out with
+   * `definePageMeta({ mobile: { pullToRefresh: false } })`. Default `true`.
+   */
+  pullToRefresh?: boolean
   native?: {
     /** Status bar text follows the app's colour mode. Default `true`. */
     statusBar?: boolean
@@ -189,6 +218,36 @@ export interface ModuleOptions {
   }
   /** Warnings on dev / build start about the native projects and missing plugins. Default `true`. */
   doctor?: boolean
+  /**
+   * A website that has the pages the app does not: navigation to a path with no page in the app, and taps on links to
+   * that website or to other sites, open in the in-app browser (`@capacitor/browser`; a new tab in a browser). `true`:
+   * the issuer of `@frigear-nu/auth` in client mode, whose session the in-app browser shares; a string: the website's
+   * URL. Off by default.
+   */
+  host?: boolean | string | MobileHostOptions
+  /**
+   * On a device, the responses of `useCachedFetch` / `useCachedAsyncData` (`@frigear-nu/ui`) are also kept in the app's
+   * Cache directory (`@capacitor/filesystem`, one file per key, per signed-in user), so the pages show them at once
+   * after a cold start and refresh in the background. Default `true` (when the plugin and `@frigear-nu/ui` are
+   * installed); `false` keeps the cache in memory only. In a browser it does nothing.
+   */
+  persistentCache?: boolean | MobilePersistentCacheOptions
+}
+
+export interface MobilePersistentCacheOptions {
+  /** How old (ms) a stored response may be and still show at startup. Default seven days. */
+  maxAge?: number
+  /** How long (ms) the start of the app waits for the stored responses at most. Default `500`. */
+  timeout?: number
+}
+
+export interface MobileHostOptions {
+  /** The website's URL. Default: the issuer of `@frigear-nu/auth` in client mode. */
+  url?: string
+  /** Navigation to a path the app has no page for opens that path on the website. Default `true`. */
+  routes?: boolean
+  /** Taps on links to the website or to other sites open in the in-app browser. Default `true`. */
+  links?: boolean
 }
 
 /** `runtimeConfig.public.mobile`. */
@@ -200,12 +259,18 @@ export interface MobilePublicConfig {
   layout: string | false
   keepTabsAlive: boolean
   tabTransitionDuration: number
+  pageTransitionDuration: number
+  pullToRefresh: boolean
   toasterOffset: boolean
   native: { statusBar: boolean, keyboardAccessoryBar: boolean, switchHaptics: boolean, backButton: boolean }
   deepLinks: { hosts: string[], schemes: string[] }
   splashScreen: MobileSplashConfig
   /** Set on `MOBILE_LAN` builds only. */
   lanHost: string
+  /** `mobile.host`: `url` is empty for the issuer of Auth in client mode. */
+  host: { enabled: boolean, url: string, routes: boolean, links: boolean }
+  /** `mobile.persistentCache`. */
+  persistentCache: { enabled: boolean, maxAge: number, timeout: number }
 }
 
 /** `runtimeConfig.public.mobile.splashScreen`: the timing can be changed per environment. */
