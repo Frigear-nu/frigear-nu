@@ -163,6 +163,11 @@ export interface ModuleOptions {
   /** Length of the crossfade between tabs with the native tab bar, in ms. `0` switches without one. Default `180`. */
   tabTransitionDuration?: number
   /**
+   * Length of the native push / pop when a page of a tab opens or closes with the native chrome, in ms: the old page
+   * stays on screen until the new one has rendered, then slides away. `0` switches without one. Default `300`.
+   */
+  pageTransitionDuration?: number
+  /**
    * Native pull to refresh on tab root pages (with the native chrome): it refreshes the page's `useAsyncData` /
    * `useFetch` data and runs `onMobileRefresh()` handlers and the `mobile:refresh` hook. A page sets its own with
    * `definePageMeta({ mobile: { pullToRefresh } })`. Default `true`.
@@ -240,6 +245,7 @@ export interface MobilePublicConfig {
   layout: string | false
   keepTabsAlive: boolean
   tabTransitionDuration: number
+  pageTransitionDuration: number
   pullToRefresh: boolean
   toasterOffset: boolean
   native: { statusBar: boolean, keyboardAccessoryBar: boolean, switchHaptics: boolean, backButton: boolean }

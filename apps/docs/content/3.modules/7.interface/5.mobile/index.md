@@ -136,6 +136,7 @@ Options go under the `mobile` key.
 | `nativeChrome` | `'ios' \| 'all' \| false` | `'ios'` | Where the navbar and tab bar are native: iOS, all platforms or never. |
 | `keepTabsAlive` | `boolean` | `true` | Each tab's own page stays as it was left between tab switches. See [Tab switching](#tab-switching). |
 | `tabTransitionDuration` | `number` | `180` | The crossfade between tabs with the native tab bar, in ms. `0` for none. |
+| `pageTransitionDuration` | `number` | `300` | The native push and pop between pages with the native chrome, in ms. `0` for none. See [Page transitions](#page-transitions). |
 | `pullToRefresh` | `boolean` | `true` | Native pull to refresh on tab root pages. See [Pull to refresh](#pull-to-refresh). |
 | `native.statusBar` | `boolean` | `true` | The status bar text follows the colour mode. |
 | `native.keyboardAccessoryBar` | `boolean` | `true` | iOS: the Done bar above the keyboard. |
@@ -417,6 +418,27 @@ onTabEnter(() => refresh())
 ::note
 The crossfade uses the plugin's `beginTransition`, which the starters' version (8.16) has. A plugin version without
 it switches tabs without a crossfade.
+::
+
+### Page transitions
+
+With the native chrome, opening and leaving a page works like a native navigation stack. The page you leave stays on
+screen as a snapshot while the new page renders with its data and the navbar changes, and then the new page slides in
+(or the old one slides out). Without it the navbar changed a frame before the page, and the page jumped as the navbar
+went from a large title to a small one.
+
+- **Push** to a page below the current one in the same tab, or a sibling page.
+- **Pop** on back (the navbar back button, Android back, any history back) and up to a parent path or the tab's root.
+- **Crossfade** to another tab, or from or to a page outside the tabs, with the length of `tabTransitionDuration`.
+  Native tab bar taps crossfade as described in [Tab switching](#tab-switching).
+
+As with tabs, the transition waits for every async `setup` of the new page, up to one second, so await a page's first
+request to reveal it with its data. A snapshot never stays up longer than three seconds. `pageTransitionDuration: 0`
+turns page transitions off.
+
+::note
+The plugin fades the incoming page in while it slides, so a darker band shows at its leading edge during the slide.
+That is the plugin's animation, not the page.
 ::
 
 ### Pull to refresh

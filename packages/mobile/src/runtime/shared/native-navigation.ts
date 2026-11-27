@@ -29,6 +29,8 @@ export interface NativeNavigationControllerOptions {
   onPullToRefresh?: () => unknown
   /** Feedback when a pull starts, e.g. a haptic (iOS gives one of its own). */
   onPullToRefreshStart?: () => unknown
+  /** Resolves when no other native transition runs (page transitions); a tab crossfade begins only then. */
+  beforeTabTransition?: () => Promise<unknown>
   /** Longest wait for `onPullToRefresh`, in ms. Default 10000. */
   pullToRefreshTimeout?: number
 }
@@ -40,6 +42,8 @@ export interface NativeNavigationController {
   apply: (state: ChromeState, colors: { foreground: string }) => Promise<void>
   /** Resolves once every queued bar update has run. */
   idle: () => Promise<void>
+  /** Whether a native tab tap is being handled (it runs its own crossfade). */
+  readonly switchingTab: boolean
   stop: () => Promise<void>
 }
 
@@ -178,6 +182,7 @@ export function createNativeNavigationController(options: NativeNavigationContro
     let transition: { id: string } | undefined
     if (switching) {
       try {
+        await options.beforeTabTransition?.()
         transition = await plugin.beginTransition!({ direction: 'tab', duration })
       }
       catch {
@@ -244,6 +249,10 @@ export function createNativeNavigationController(options: NativeNavigationContro
     },
 
     idle: () => queue.catch(() => {}),
+
+    get switchingTab() {
+      return switching
+    },
 
     async stop() {
       await Promise.all(listeners.splice(0).map(listener => listener.remove()))

@@ -104,6 +104,7 @@ export default defineNuxtModule<ModuleOptions>({
     nativeChrome: 'ios',
     keepTabsAlive: true,
     tabTransitionDuration: 180,
+    pageTransitionDuration: 300,
     pullToRefresh: true,
     native: { statusBar: true, keyboardAccessoryBar: true, switchHaptics: true, backButton: true },
     appearance: { iosTypeScale: true, tapHighlight: true, toasterOffset: true },
@@ -238,6 +239,7 @@ export default defineNuxtModule<ModuleOptions>({
       layout: options.layout ?? 'mobile',
       keepTabsAlive: options.keepTabsAlive !== false,
       tabTransitionDuration: Math.max(0, options.tabTransitionDuration ?? 180),
+      pageTransitionDuration: Math.max(0, options.pageTransitionDuration ?? 300),
       pullToRefresh: options.pullToRefresh !== false,
       toasterOffset: options.appearance?.toasterOffset !== false,
       native: {
