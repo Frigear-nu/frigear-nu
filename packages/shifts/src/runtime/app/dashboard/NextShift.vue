@@ -5,6 +5,9 @@ import { computed, surfaceClass, useLazyFetch, useModuleT, useShiftsFormat, useS
 
 defineOptions({ name: 'ShiftsNextItem' })
 
+// `homeTab`: drawn on the mobile Home tab (`@frigear-nu/dashboard`), where no shift means nothing at all, not an empty card.
+const props = defineProps<{ homeTab?: boolean }>()
+
 // The `shifts.next` item of the `crew.home` dashboard: my next shift (or the one running now), with a link to its page,
 // where the QR pass shows from `checkInOpensMinutes` before it starts. `GET /api/shifts/me` lists the shifts that have
 // not ended, soonest first, cancelled ones left out.
@@ -38,6 +41,7 @@ const running = computed(() => !!next.value && Date.parse(next.value.shift.start
   >
     {{ t('dashboard.nextFailed', 'Could not load your shifts.') }}
   </div>
+  <template v-else-if="!next && props.homeTab" />
   <EmptyCard
     v-else-if="!next"
     icon="i-lucide-calendar-clock"
