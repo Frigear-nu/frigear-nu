@@ -1355,7 +1355,7 @@ export declare const userinfo: boolean
   addPlugin(resolver.resolve('./runtime/client/app/plugins/api'))
 
   nuxt.hook('modules:done', async () => {
-    // With i18n, the user's saved language (the `locale` claim) switches the app's, once per sign-in and saved language.
+    // With i18n, the app is shown in the user's saved language (the `locale` claim).
     if (hasNuxtModule('@nuxtjs/i18n', nuxt)) {
       addPlugin({ src: resolver.resolve('./runtime/client/app/plugins/locale.client'), mode: 'client' })
     }

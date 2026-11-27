@@ -39,7 +39,6 @@ export default defineNuxtConfig({
   routeRules: {
     '/**': { authenticated: true },
     '/': { authenticated: false },
-    '/en': { authenticated: false },
   },
 
   compatibilityDate: '2026-06-30',
@@ -76,9 +75,10 @@ export default defineNuxtConfig({
     },
   },
 
-  // As the website: Danish by default, English under /en.
+  // Danish by default; signed in, the app is in the language saved on the account (@frigear-nu/auth). No locale prefix:
+  // the app's paths are not URLs anyone sees, and a prefix would be lost on every tab or link to an unprefixed path.
   i18n: {
-    strategy: 'prefix_except_default',
+    strategy: 'no_prefix',
     detectBrowserLanguage: false,
     defaultLocale: 'da',
     locales: [

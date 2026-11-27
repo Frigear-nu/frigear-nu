@@ -20,19 +20,14 @@ describe('matchAppLocale', () => {
 })
 
 describe('localeToApply', () => {
-  it('applies the saved language of a sign-in once', () => {
-    expect(localeToApply('s1', 'en', locales, null)).toEqual({ locale: 'en', marker: 's1:en' })
-    expect(localeToApply('s1', 'en', locales, 's1:en')).toBeNull()
+  it('switches to the saved language when the app shows another', () => {
+    expect(localeToApply('en', 'da', locales)).toBe('en')
+    expect(localeToApply('en-GB', 'da', locales)).toBe('en')
   })
 
-  it('applies again for a new sign-in or a newly saved language', () => {
-    expect(localeToApply('s2', 'en', locales, 's1:en')).toEqual({ locale: 'en', marker: 's2:en' })
-    expect(localeToApply('s1', 'da', locales, 's1:en')).toEqual({ locale: 'da', marker: 's1:da' })
-  })
-
-  it('does nothing signed out or without a known saved language', () => {
-    expect(localeToApply(null, 'en', locales, null)).toBeNull()
-    expect(localeToApply('s1', undefined, locales, null)).toBeNull()
-    expect(localeToApply('s1', 'de', locales, null)).toBeNull()
+  it('does nothing when the app shows it already or it is not a language of the app', () => {
+    expect(localeToApply('en', 'en', locales)).toBeNull()
+    expect(localeToApply('de', 'da', locales)).toBeNull()
+    expect(localeToApply(undefined, 'da', locales)).toBeNull()
   })
 })

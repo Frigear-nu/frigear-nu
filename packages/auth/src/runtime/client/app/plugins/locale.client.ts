@@ -1,5 +1,5 @@
 import { defineNuxtPlugin, useUserSession, watch } from '#imports'
-import { APPLIED_LOCALE_KEY, localeToApply } from '../utils/locale'
+import { localeToApply } from '../utils/locale'
 
 type I18n = {
   locale: { value: string }
@@ -7,11 +7,11 @@ type I18n = {
   setLocale: (locale: string) => Promise<void>
 }
 
-// Client mode's counterpart of the server mode's `frigear-locale`: shows the app in the language the user saved at the
-// issuer (the `locale` claim, or userinfo with `client.userinfo`). Applied once per sign-in and saved language, so a
-// switch made in the app afterwards stays, and a language saved on the profile page is applied when the session picks
-// it up. The marker lives in `localStorage`: an app restart keeps the sign-in and so the choice. Only registered with
-// `@nuxtjs/i18n` (`dependsOn` its plugin); it switches after mount, when the router can navigate.
+// Client mode shows the app in the language saved on the user's account at the issuer (the `locale` claim, or userinfo
+// with `client.userinfo`): at every start and sign-in, and when the saved language changes (the profile page). Only
+// registered with `@nuxtjs/i18n` (`dependsOn` its plugin); it switches after mount, when the router can navigate (a
+// prefix strategy moves the URL). An app should use `strategy: 'no_prefix'`: with a prefix, every link to an unprefixed
+// path (tabs, redirects) goes back to the default locale.
 export default defineNuxtPlugin({
   name: 'auth-client:locale',
   dependsOn: ['i18n:plugin'],
@@ -22,23 +22,10 @@ export default defineNuxtPlugin({
 
     nuxtApp.hook('app:mounted', () => {
       watch(() => [session.value?.id, (session.value?.user as { locale?: unknown } | undefined)?.locale] as const, ([id, saved]) => {
+        if (!id) return
         const codes = i18n.locales.value.map(locale => typeof locale === 'string' ? locale : locale.code)
-        let applied: string | null = null
-        try {
-          applied = localStorage.getItem(APPLIED_LOCALE_KEY)
-        }
-        catch {
-          // storage unavailable: apply on this load
-        }
-        const next = localeToApply(id, saved, codes, applied)
-        if (!next) return
-        try {
-          localStorage.setItem(APPLIED_LOCALE_KEY, next.marker)
-        }
-        catch {
-          // storage unavailable: applied on this load only
-        }
-        if (i18n.locale.value !== next.locale) void i18n.setLocale(next.locale)
+        const locale = localeToApply(saved, i18n.locale.value, codes)
+        if (locale) void i18n.setLocale(locale)
       }, { immediate: true })
     })
   },
