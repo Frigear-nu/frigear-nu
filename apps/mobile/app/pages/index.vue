@@ -3,7 +3,8 @@
 // redirects to the Home tab. It is also where a guarded page sends a visitor (`authorization.redirectTo`), with the
 // page in `?redirect=`, and where a failed sign-in lands (`?error=sign-in`).
 definePageMeta({
-  mobile: { tabBar: false, back: false, largeTitle: false },
+  // No navbar or tab bar: the hero starts under the status bar (the layout pads the top inset), as an app's start screen.
+  mobile: { navbar: false, tabBar: false },
 })
 
 const { t } = useI18n()
@@ -55,7 +56,7 @@ async function createAccount() {
 
 <template>
   <div class="flex flex-col gap-8 pb-8">
-    <section class="flex flex-col items-center gap-4 pt-6 text-center">
+    <section class="flex flex-col items-center gap-4 pt-8 text-center">
       <img
         src="/images/logo-light.png"
         alt="Frigear"
