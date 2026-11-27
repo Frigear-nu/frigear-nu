@@ -6,6 +6,7 @@ import { useCapacitor } from '../composables/useCapacitor'
 import { useMobileChrome } from '../composables/useMobileChrome'
 import { useNative } from '../composables/useNative'
 import { useOverlayCount } from '../utils/state'
+import { refreshMobileTranslations } from '../utils/translate'
 
 /**
  * The shell's client side: classes on `<html>` for the insets CSS, the open-overlay count, `:active` states on iOS,
@@ -20,6 +21,13 @@ export default defineNuxtPlugin({
     const { state } = useMobileChrome()
     const overlays = useOverlayCount()
     const root = document.documentElement
+
+    // This plugin runs before `@nuxtjs/i18n`'s, so tab labels and titles first compute without translations (the
+    // native tab bar then showed the English fallbacks). Compute them again once every plugin has run, and on a switch.
+    nuxtApp.hook('app:created', refreshMobileTranslations)
+    nuxtApp.hook('app:mounted', refreshMobileTranslations)
+    // `@nuxtjs/i18n` is optional, so its hook is not in this package's types.
+    ;(nuxtApp.hook as (name: string, hook: () => void) => void)('i18n:localeSwitched', refreshMobileTranslations)
 
     root.classList.add(`mobile-platform-${capacitor.platform}`)
     watch(() => [state.value.mode, state.value.tabBar.visible] as const, ([mode, tabBar]) => {
