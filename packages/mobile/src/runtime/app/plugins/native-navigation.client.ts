@@ -6,12 +6,13 @@ import { useMobileChrome } from '../composables/useMobileChrome'
 import { useMobileTabs } from '../composables/useMobileTabs'
 import { useMobileBack } from '../utils/back'
 import { runNavbarAction } from '../utils/navbar-actions'
+import { refreshMobilePage } from '../utils/refresh'
 
 /**
  * On iOS (and Android with `nativeChrome: 'all'`) the native navbar and tab bar of `@capgo/capacitor-native-navigation`
  * replace `MobileHeader` / `MobileTabBar`. Routing stays in Nuxt: a native tap navigates, and the bars follow the
  * route, the sign-in state, open overlays and the colour mode (the bars follow the system appearance otherwise). A tap on
- * a navbar action runs the page's `onSelect` / `to`.
+ * a navbar action runs the page's `onSelect` / `to`. A pull to refresh refreshes the page's data (`refreshMobilePage`).
  */
 export default defineNuxtPlugin({
   name: 'mobile:native-navigation',
@@ -43,6 +44,9 @@ export default defineNuxtPlugin({
         await nuxtApp.runWithContext(() => back())
       },
       onAction: action => runNavbarAction(action, to => router.push(to)),
+      onPullToRefresh: () => refreshMobilePage(nuxtApp),
+      // iOS arms the refresh with a haptic of its own.
+      onPullToRefreshStart: capacitor.isIos ? undefined : () => capacitor.load('haptics').then(haptics => haptics?.impact({ style: 'LIGHT' })),
     })
     try {
       await controller.start()
