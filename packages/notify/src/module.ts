@@ -35,6 +35,8 @@ export type {
   SimpleDriver,
   SMSDriver,
   EmailDriver,
+  EmailSendResult,
+  NotifyEmailDispatchOptions,
   PushDriver,
   EmailTemplateRef,
   EmailTemplateSource,
@@ -66,7 +68,7 @@ const BUILTIN_SERVER_DRIVERS: Record<string, { path: string, exportName: string 
 
 // Built-in email drivers are all served by one runtime-selecting driver (see
 // `runtime/drivers/email/index.ts`): the env vars that pick and configure them only exist at runtime.
-const BUILTIN_EMAIL_DRIVERS = ['log', 'resend', 'ses', 'cloudflare']
+const BUILTIN_EMAIL_DRIVERS = ['log', 'resend', 'ses', 'cloudflare', 'cloudflare-binding']
 const AUTO_EMAIL_DRIVER = { path: './runtime/drivers/email/index', exportName: 'default' }
 
 export default defineNuxtModule<ModuleOptions>({
@@ -132,6 +134,7 @@ export default defineNuxtModule<ModuleOptions>({
         resend: { apiToken: '' },
         ses: { region: '', accessKeyId: '', secretAccessKey: '', sessionToken: '' },
         cloudflare: { accountId: '', apiToken: '' },
+        binding: { name: 'SEND_EMAIL' },
       },
     })
     registerServerDriver('email-driver', 'EmailDriver', emailBuiltin ? 'auto' : emailDriver, { auto: AUTO_EMAIL_DRIVER })

@@ -5,6 +5,7 @@ import { newId } from '@frigear-nu/module-kit/id'
 import { inboxThreadSearchText } from './inbox-search'
 import type { InboxInboundMessage, InboxMessageDto, InboxThreadDto, InboxThreadStatus } from '../../../types'
 import { toInboxMessageDto, toInboxThreadDto } from './inbox-dto'
+import { INBOX_MAX_REFERENCES, messageIdExternalIds, outboundEmailExternalId, referenceExternalIds, threadCandidates } from '../../utils/email-routing'
 import type { InboxChannelAccountRow, InboxContactRow, InboxThreadRow } from './inbox-dto'
 
 export type InboxReceiveResult
@@ -81,20 +82,53 @@ async function upsertContact(channel: string, input: InboxInboundMessage['contac
 }
 
 /**
- * The thread a message belongs to. Only an authenticated message (a verified sender) joins an existing thread: the one
- * its `[ibt_...]` marker names, when it is in the same mailbox and the sender is the thread's contact or has the
- * contact's email address (a contact form thread answered by email), else the contact's latest thread on this channel
- * that is not closed. An answer to a thread retention or an erase anonymised starts a new thread: a blanked thread
- * never takes new content (retention would never look at it again). Anything else starts a new thread.
+ * The threads of the stored messages of this account a message answers (`references`, provider ids without the
+ * channel prefix), in the order of `references`.
+ */
+async function referencedThreads(account: InboxChannelAccountRow, references: readonly string[] | undefined): Promise<string[]> {
+  const ids = (references ?? []).slice(0, INBOX_MAX_REFERENCES)
+  if (!ids.length) return []
+  const candidates = ids.flatMap(id => messageIdExternalIds(account.channel, id))
+  const rows = await db.select({ externalId: schema.inboxMessages.externalId, threadId: schema.inboxMessages.threadId }).from(schema.inboxMessages)
+    .where(and(eq(schema.inboxMessages.channelAccountId, account.id), inArray(schema.inboxMessages.externalId, candidates)))
+  const byExternalId = new Map(rows.map(row => [row.externalId, row.threadId]))
+  // Our own replies with a Message-ID of ours (`email:out:<id>`), in any thread of this mailbox: a contact form thread is
+  // answered by email from another account than the one the answer comes back to.
+  if (account.channel === 'email') {
+    const outgoing = ids.map(outboundEmailExternalId)
+    const sent = await db.select({ externalId: schema.inboxMessages.externalId, threadId: schema.inboxMessages.threadId }).from(schema.inboxMessages)
+      .innerJoin(schema.inboxThreads, eq(schema.inboxThreads.id, schema.inboxMessages.threadId))
+      .where(and(eq(schema.inboxThreads.mailboxId, account.mailboxId), eq(schema.inboxMessages.direction, 'out'), inArray(schema.inboxMessages.externalId, outgoing)))
+    for (const row of sent) byExternalId.set(row.externalId, row.threadId)
+  }
+  return ids.flatMap(id => referenceExternalIds(account.channel, id).map(externalId => byExternalId.get(externalId)).filter((threadId): threadId is string => !!threadId))
+}
+
+/**
+ * The thread a message belongs to. Only an authenticated message (a verified sender) joins an existing thread. The
+ * threads it names are tried in order (`threadCandidates`): the reply address it was sent to (`threadHint`), the
+ * thread of a stored message of this account it answers (`references`: `In-Reply-To`, then `References`), then the
+ * `[ibt_...]` subject marker. The first one in the same mailbox whose contact is the sender, or has the sender's email
+ * address (a contact form thread answered by email), decides: the message joins it, unless retention or an erase
+ * anonymised it, then it starts a new thread (a blanked thread never takes new content, and retention would never look
+ * at it again). A named thread that fails the checks is skipped. Without one, the message joins the contact's latest
+ * thread on this channel that is not closed. Anything else starts a new thread.
  */
 async function threadFor(account: InboxChannelAccountRow, contact: InboxContactRow, inbound: InboxInboundMessage, authenticated: boolean, now: Date): Promise<InboxThreadRow> {
   let joinLatest = authenticated
-  if (authenticated && inbound.threadId) {
-    const [named] = await db.select().from(schema.inboxThreads)
-      .where(and(eq(schema.inboxThreads.id, inbound.threadId), eq(schema.inboxThreads.mailboxId, account.mailboxId))).limit(1)
-    if (named && (named.contactId === contact.id || await sameEmail(named.contactId, contact.email))) {
-      if (!named.anonymisedAt) return named
+  if (authenticated) {
+    const named = threadCandidates({
+      threadHint: inbound.threadHint,
+      referencedThreads: await referencedThreads(account, inbound.references),
+      subjectThreadId: inbound.threadId,
+    })
+    for (const id of named) {
+      const [thread] = await db.select().from(schema.inboxThreads)
+        .where(and(eq(schema.inboxThreads.id, id), eq(schema.inboxThreads.mailboxId, account.mailboxId))).limit(1)
+      if (!thread || (thread.contactId !== contact.id && !(await sameEmail(thread.contactId, contact.email)))) continue
+      if (!thread.anonymisedAt) return thread
       joinLatest = false
+      break
     }
   }
   if (joinLatest) {

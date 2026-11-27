@@ -1087,6 +1087,136 @@ describe('inbox (authenticated, database-backed)', async () => {
     })
   })
 
+  // `reply.test` is the fixture's inbox domain (`inbox.email.domains`); the other tests' addresses are on no inbox domain.
+  describe('two-way email on an inbox domain', () => {
+    let mailbox: Json
+    let account: Json
+    const help = 'help@reply.test'
+    const sentAt = async (index = -1) => (await getEmails()).at(index)! as Json
+
+    it('lists the inbox domains and the email drivers to admins', async () => {
+      mailbox = await as(admin).json<Json>('POST', inboxApi.admin.mailboxes, { key: 'two-way', name: { da: 'Tovejs', en: 'Two-way' }, grants: [{ kind: 'role', role: 'admin' }] })
+      account = await as(admin).json<Json>('POST', inboxApi.admin.channels, { mailboxId: mailbox.id, channel: 'email', address: help })
+      expect(await as(admin).json<Json>('GET', inboxApi.admin.email)).toEqual({ domains: ['reply.test'], drivers: ['cloudflare', 'resend', 'gmail', 'imap'] })
+      await expectApiError(as(coord).json('GET', inboxApi.admin.email), 403, 'forbidden')
+    })
+
+    it('replies with the thread\'s reply address and the In-Reply-To of the person\'s email', async () => {
+      const first = email({ to: help })
+      const threadId = await emailThread(first)
+      await as(admin).json('POST', inboxApi.admin.messages(threadId), { body: 'We are on it.' })
+      const sent = await sentAt()
+      expect(sent.replyTo).toBe(`help+${threadId}@reply.test`)
+      expect(sent.headers).toEqual({ 'In-Reply-To': first.messageId, 'References': first.messageId })
+      expect(sent.subject).toBe(`Re: Where is my ticket? [${threadId}]`)
+      expect(sent).not.toHaveProperty('from')
+    })
+
+    /** Two open threads of one person: `older` (authenticated) and a newer one their latest open thread would pick. */
+    async function twoThreads() {
+      const from = { email: `two${++counter}@example.org`, name: 'Two Threads' }
+      const firstEmail = email({ to: help, from })
+      const older = await emailThread(firstEmail)
+      const newer = await emailThread(email({ to: help, from, subject: 'Something else', authenticated: false }))
+      expect(newer).not.toBe(older)
+      // The newer thread is the person's latest open one (times are stored to the second): a plain answer joins it.
+      await backdate(older, 1)
+      const plain = await (await postEmail(email({ to: help, from, subject: 'No marker at all' }))).json() as Json
+      expect(plain.threadId).toBe(newer)
+      return { from, older, newer, firstEmail }
+    }
+
+    it('joins the thread its reply address names, whatever the subject', async () => {
+      const { from, older } = await twoThreads()
+      const answer = await (await postEmail(email({ to: `help+${older}@reply.test`, from, subject: 'A brand new subject' }))).json() as Json
+      expect(answer.threadId).toBe(older)
+      expect((await detail(admin, older)).messages.at(-1).body).toBe('Hello, I never got my ticket.')
+    })
+
+    it('joins the thread of the email it answers by References alone', async () => {
+      const { from, older, firstEmail } = await twoThreads()
+      const answer = await (await postEmail(email({ to: help, from, subject: 'Changed subject', references: [`<unknown@elsewhere>`, firstEmail.messageId] }))).json() as Json
+      expect(answer.threadId).toBe(older)
+    })
+
+    it('never lets another sender, or an unverified one, into a thread by its reply address', async () => {
+      const threadId = await emailThread(email({ to: help }))
+      const stranger = await (await postEmail(email({ to: `help+${threadId}@reply.test` }))).json() as Json
+      expect(stranger.status).toBe('received')
+      expect(stranger.threadId).not.toBe(threadId)
+      const { contact } = await detail(admin, threadId)
+      const forged = await (await postEmail(email({ to: `help+${threadId}@reply.test`, from: { email: contact.email }, authenticated: false }))).json() as Json
+      expect(forged.threadId).not.toBe(threadId)
+      expect((await detail(admin, threadId)).messages).toHaveLength(1)
+    })
+
+    it('ignores an address on an inbox domain that no account has', async () => {
+      expect(await (await postEmail(email({ to: 'nobody@reply.test' }))).json()).toEqual({ status: 'ignored', reason: 'no_account' })
+      expect(await (await postEmail(email({ to: 'nobody+ibt_0123456789abcdef@reply.test' }))).json()).toEqual({ status: 'ignored', reason: 'no_account' })
+    })
+
+    it('sends from the account\'s address with the mailbox name when sendFromAddress is on', async () => {
+      await as(admin).json('PATCH', inboxApi.admin.channel(account.id), { config: { sendFromAddress: true } })
+      try {
+        const threadId = await emailThread(email({ to: help }))
+        await as(admin).json('POST', inboxApi.admin.messages(threadId), { body: 'From us.' })
+        expect((await sentAt()).from).toBe('"Two-way" <help@reply.test>')
+      }
+      finally {
+        await as(admin).json('PATCH', inboxApi.admin.channel(account.id), { config: {} })
+      }
+    })
+
+    it('answers a contact form thread of the mailbox with the thread\'s reply address', async () => {
+      await as(admin).json('POST', formsApi.admin.forms, {
+        slug: 'two-way-contact',
+        name: 'Two-way contact',
+        status: 'published',
+        definition: {
+          mode: 'single',
+          storage: 'db',
+          access: { availability: 'web', auth: 'none' },
+          steps: [{ id: 'main', fields: [
+            { key: 'name', type: 'text', required: true, label: 'Name' },
+            { key: 'email', type: 'email', required: true, label: 'Email' },
+            { key: 'message', type: 'textarea', required: true, label: 'Message' },
+          ] }],
+        },
+      })
+      await as(admin).json('POST', inboxApi.admin.channels, { mailboxId: mailbox.id, channel: 'form', address: 'two-way-contact' })
+      await as().json('POST', formsApi.submit('two-way-contact'), { answers: { name: 'Form Person', email: 'form.person@example.org', message: 'Hello from the form' }, locale: 'en' })
+      const [thread] = (await threadsOf(admin, '&channel=form&status=all')).filter(item => item.mailboxId === mailbox.id)
+      await as(admin).json('POST', inboxApi.admin.messages(thread!.id), { body: 'Thanks for writing.' })
+      const sent = await sentAt()
+      expect(sent).toMatchObject({ to: 'form.person@example.org', replyTo: `help+${thread!.id}@reply.test` })
+      // The person answers our reply from their mail client: the reply address and the In-Reply-To of our Message-ID.
+      const answer = await (await postEmail(email({ to: `help+${thread!.id}@reply.test`, from: { email: 'form.person@example.org' }, subject: 'Re: thanks', inReplyTo: `<${sent.sentMessageId}>` }))).json() as Json
+      expect(answer.threadId).toBe(thread!.id)
+    })
+
+    it('threads an answer by the Message-ID of our reply alone', async () => {
+      const from = { email: `ours${++counter}@example.org`, name: 'Ours' }
+      const threadId = await emailThread(email({ to: help, from }))
+      await as(admin).json('POST', inboxApi.admin.messages(threadId), { body: 'Our reply.' })
+      const sent = await sentAt()
+      expect(sent.sentMessageId).toMatch(/@reply\.test$/)
+      // A newer open thread of the person, which an answer without headers would join.
+      const newer = await emailThread(email({ to: help, from, subject: 'Unrelated', authenticated: false }))
+      await backdate(threadId, 1)
+      const answer = await (await postEmail(email({ to: help, from, subject: 'No marker', inReplyTo: `<${sent.sentMessageId}>` }))).json() as Json
+      expect(answer.threadId).toBe(threadId)
+      expect(answer.threadId).not.toBe(newer)
+    })
+
+    it('keeps the inbound driver webhooks closed without their secrets, and the internal ones internal', async () => {
+      await expectApiError(fetch(inboxApi.webhooks.emailDriver('resend'), { method: 'POST', body: '{}' }), 501)
+      await expectApiError(fetch(inboxApi.webhooks.emailDriver('gmail'), { method: 'POST', body: '{}' }), 501)
+      expect((await fetch(inboxApi.webhooks.emailDriver('imap'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status).toBe(404)
+      expect((await fetch(inboxApi.webhooks.emailDriver('cloudflare'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status).toBe(404)
+      expect((await fetch(inboxApi.webhooks.emailDriver('postmark'), { method: 'POST', body: '{}' })).status).toBe(404)
+    })
+  })
+
   describe('pages', () => {
     it('renders the staff pages', async () => {
       for (const path of ['/admin/inbox', '/admin/inbox/settings']) {

@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "b2d33cbe-710a-46c3-bc89-41fae9fad492",
-  "prevId": "76e1cc42-258c-467d-80f6-5b351ab85682",
+  "id": "a26f6cef-5709-4e0d-b0ab-56684022bd4d",
+  "prevId": "eb052403-fbed-404e-84d5-ede08f1355ad",
   "tables": {
     "account_email_changes": {
       "name": "account_email_changes",
@@ -314,86 +314,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "campaign_clicks": {
-      "name": "campaign_clicks",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "delivery_id": {
-          "name": "delivery_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "link_id": {
-          "name": "link_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "at": {
-          "name": "at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "campaign_click_delivery_idx": {
-          "name": "campaign_click_delivery_idx",
-          "columns": [
-            "delivery_id"
-          ],
-          "isUnique": false
-        },
-        "campaign_click_link_idx": {
-          "name": "campaign_click_link_idx",
-          "columns": [
-            "link_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "campaign_clicks_delivery_id_campaign_deliveries_id_fk": {
-          "name": "campaign_clicks_delivery_id_campaign_deliveries_id_fk",
-          "tableFrom": "campaign_clicks",
-          "tableTo": "campaign_deliveries",
-          "columnsFrom": [
-            "delivery_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "campaign_clicks_link_id_campaign_links_id_fk": {
-          "name": "campaign_clicks_link_id_campaign_links_id_fk",
-          "tableFrom": "campaign_clicks",
-          "tableTo": "campaign_links",
-          "columnsFrom": [
-            "link_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "campaign_contacts": {
       "name": "campaign_contacts",
       "columns": {
@@ -478,255 +398,6 @@
         }
       },
       "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "campaign_deliveries": {
-      "name": "campaign_deliveries",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "campaign_id": {
-          "name": "campaign_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "channel": {
-          "name": "channel",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "contact_id": {
-          "name": "contact_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "subscription_id": {
-          "name": "subscription_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'queued'"
-        },
-        "skip_reason": {
-          "name": "skip_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "attempts": {
-          "name": "attempts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "claim_id": {
-          "name": "claim_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "claimed_at": {
-          "name": "claimed_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "sent_at": {
-          "name": "sent_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "opened_at": {
-          "name": "opened_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "clicked_at": {
-          "name": "clicked_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "clicks": {
-          "name": "clicks",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "error": {
-          "name": "error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "campaign_delivery_status_idx": {
-          "name": "campaign_delivery_status_idx",
-          "columns": [
-            "campaign_id",
-            "status"
-          ],
-          "isUnique": false
-        },
-        "campaign_delivery_claim_idx": {
-          "name": "campaign_delivery_claim_idx",
-          "columns": [
-            "status",
-            "claimed_at"
-          ],
-          "isUnique": false
-        },
-        "campaign_delivery_user_unique": {
-          "name": "campaign_delivery_user_unique",
-          "columns": [
-            "campaign_id",
-            "channel",
-            "user_id"
-          ],
-          "isUnique": true
-        },
-        "campaign_delivery_contact_unique": {
-          "name": "campaign_delivery_contact_unique",
-          "columns": [
-            "campaign_id",
-            "channel",
-            "contact_id"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {
-        "campaign_deliveries_campaign_id_campaigns_id_fk": {
-          "name": "campaign_deliveries_campaign_id_campaigns_id_fk",
-          "tableFrom": "campaign_deliveries",
-          "tableTo": "campaigns",
-          "columnsFrom": [
-            "campaign_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "campaign_links": {
-      "name": "campaign_links",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "campaign_id": {
-          "name": "campaign_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "short_link_id": {
-          "name": "short_link_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "url": {
-          "name": "url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "campaign_link_unique": {
-          "name": "campaign_link_unique",
-          "columns": [
-            "campaign_id",
-            "url"
-          ],
-          "isUnique": true
-        },
-        "campaign_link_short_unique": {
-          "name": "campaign_link_short_unique",
-          "columns": [
-            "short_link_id"
-          ],
-          "isUnique": true
-        }
-      },
-      "foreignKeys": {
-        "campaign_links_campaign_id_campaigns_id_fk": {
-          "name": "campaign_links_campaign_id_campaigns_id_fk",
-          "tableFrom": "campaign_links",
-          "tableTo": "campaigns",
-          "columnsFrom": [
-            "campaign_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -1014,204 +685,6 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "campaigns": {
-      "name": "campaigns",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "channels": {
-          "name": "channels",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "audience": {
-          "name": "audience",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "content": {
-          "name": "content",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "locale": {
-          "name": "locale",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "track_clicks": {
-          "name": "track_clicks",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": true
-        },
-        "track_opens": {
-          "name": "track_opens",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
-        },
-        "important": {
-          "name": "important",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'draft'"
-        },
-        "scheduled_at": {
-          "name": "scheduled_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "started_at": {
-          "name": "started_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "materialized_at": {
-          "name": "materialized_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "materialize_cursor": {
-          "name": "materialize_cursor",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "finished_at": {
-          "name": "finished_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "cancelled_at": {
-          "name": "cancelled_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "recipient_user_ids": {
-          "name": "recipient_user_ids",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "origin": {
-          "name": "origin",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "sent_by": {
-          "name": "sent_by",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "counts": {
-          "name": "counts",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "campaign_status_idx": {
-          "name": "campaign_status_idx",
-          "columns": [
-            "status",
-            "scheduled_at"
-          ],
-          "isUnique": false
-        },
-        "campaign_created_idx": {
-          "name": "campaign_created_idx",
-          "columns": [
-            "created_at"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -3258,6 +2731,73 @@
         }
       },
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "inbox_email_cursors": {
+      "name": "inbox_email_cursors",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "channel_account_id": {
+          "name": "channel_account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "driver": {
+          "name": "driver",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "inbox_email_cursor_account_idx": {
+          "name": "inbox_email_cursor_account_idx",
+          "columns": [
+            "channel_account_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "inbox_email_cursors_channel_account_id_inbox_channel_accounts_id_fk": {
+          "name": "inbox_email_cursors_channel_account_id_inbox_channel_accounts_id_fk",
+          "tableFrom": "inbox_email_cursors",
+          "tableTo": "inbox_channel_accounts",
+          "columnsFrom": [
+            "channel_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}

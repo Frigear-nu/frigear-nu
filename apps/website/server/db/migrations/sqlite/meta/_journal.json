@@ -201,15 +201,22 @@
     {
       "idx": 28,
       "version": "6",
-      "when": 1795730309378,
-      "tag": "0028_campaigns_lists",
+      "when": 1795733024308,
+      "tag": "0028_inbox_email_cursors",
       "breakpoints": true
     },
     {
       "idx": 29,
       "version": "6",
-      "when": 1795734642358,
-      "tag": "0029_campaigns_sending",
+      "when": 1795744140113,
+      "tag": "0029_campaigns_lists",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1795744268043,
+      "tag": "0030_campaigns_sending",
       "breakpoints": true
     }
   ]

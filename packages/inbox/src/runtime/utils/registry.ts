@@ -42,3 +42,28 @@ export function buildInboxRegistry(extensions: InboxExtension[]): { registry: Bu
   }
   return { registry, issues }
 }
+
+/**
+ * Merges inbound email driver registrations in order (built-ins, then every `extendInbox` call, then the host's own):
+ * a later driver with the same name replaces an earlier one. Returns the drivers by name and the issues of invalid
+ * ones instead of throwing.
+ */
+export function buildInboxEmailDrivers(extensions: InboxExtension[]): { drivers: Record<string, string>, issues: string[] } {
+  const issues: string[] = []
+  const drivers: Record<string, string> = {}
+  for (const extension of extensions) {
+    for (const definition of extension.emailDrivers ?? []) {
+      const name = typeof definition?.name === 'string' ? definition.name : ''
+      if (!INBOX_CHANNEL_ID.test(name)) {
+        issues.push(`email driver "${name}": the name must be lower case words joined by ".", "_" or "-"`)
+        continue
+      }
+      if (typeof definition.driver !== 'string' || !definition.driver) {
+        issues.push(`email driver "${name}": \`driver\` must be the path of a server file default-exporting defineInboxEmailDriver()`)
+        continue
+      }
+      drivers[name] = definition.driver
+    }
+  }
+  return { drivers, issues }
+}
