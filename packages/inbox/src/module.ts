@@ -1,3 +1,5 @@
+import { mkdir, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import {
   addComponentsDir,
   addImports,
@@ -6,6 +8,7 @@ import {
   addTypeTemplate,
   createResolver,
   defineNuxtModule,
+  getNitroVersion,
   hasNuxtModule,
 } from '@nuxt/kit'
 import type { Nuxt } from '@nuxt/schema'
@@ -25,7 +28,8 @@ import {
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { extendNotificationTopics } from '@frigear-nu/notify/utils'
 import { inboxAccess } from './runtime/access'
-import { buildInboxRegistry } from './runtime/utils/registry'
+import { buildInboxEmailDrivers, buildInboxRegistry } from './runtime/utils/registry'
+import { CLOUDFLARE_AUTHSERV_IDS } from './runtime/utils/email-inbound'
 import type { BuiltInboxRegistry } from './runtime/utils/registry'
 import type {
   InboxExtension,
@@ -90,6 +94,55 @@ function builtInExtension(resolve: (path: string) => string): InboxExtension {
   }
 }
 
+/** The built-in inbound email drivers `email.inbound` turns on (the signed JSON webhook is a route of its own). */
+function builtInEmailDrivers(inbound: NonNullable<NonNullable<ModuleOptions['email']>['inbound']>, resolve: (path: string) => string): InboxExtension {
+  return {
+    emailDrivers: [
+      ...(inbound.cloudflare ? [{ name: 'cloudflare', driver: resolve('./runtime/email-drivers/cloudflare') }] : []),
+      ...(inbound.resend ? [{ name: 'resend', driver: resolve('./runtime/email-drivers/resend') }] : []),
+      ...(inbound.gmail ? [{ name: 'gmail', driver: resolve('./runtime/email-drivers/gmail') }] : []),
+      ...(inbound.imap ? [{ name: 'imap', driver: resolve('./runtime/email-drivers/imap') }] : []),
+    ],
+  }
+}
+
+/** The inbound email drivers, imported statically, by name. */
+function emailDriversTemplate(drivers: Record<string, string>): string {
+  const names = Object.keys(drivers)
+  const lines = names.map((name, index) => `import driver${index} from ${JSON.stringify(drivers[name])}`)
+  lines.push(`export const drivers = {${names.map((name, index) => `${JSON.stringify(name)}: driver${index}`).join(', ')}}`)
+  return `${lines.join('\n')}\n`
+}
+
+/** The `cloudflare-module` preset's own Worker entry. */
+const PRESET_ENTRY = /[\\/]presets[\\/]cloudflare[\\/]runtime[\\/]cloudflare-module(?:\.mjs)?$/
+
+/**
+ * The Worker entry of the `cloudflare-module` preset with an `email` handler that waits for the `cloudflare:email` hook:
+ * the preset's handler is called with a context whose `waitUntil` also collects the hook's promise, and that promise is
+ * awaited, so a `setReject` in the hook reaches Cloudflare. Everything else is the preset's.
+ */
+function cloudflareEntryTemplate(presetEntry: string): string {
+  return `import handler from ${JSON.stringify(presetEntry)}
+
+export default {
+  ...handler,
+  async email(message, env, context) {
+    const pending = []
+    handler.email(message, env, {
+      waitUntil: (promise) => {
+        pending.push(promise)
+        context.waitUntil(promise)
+      },
+      passThroughOnException: () => context.passThroughOnException(),
+      get props() { return context.props },
+    })
+    await Promise.allSettled(pending)
+  },
+}
+`
+}
+
 /** The server registry: the channels and their adapters, imported statically. */
 function serverRegistryTemplate(registry: BuiltInboxRegistry): string {
   const ids = Object.keys(registry.adapters)
@@ -145,10 +198,18 @@ export default defineNuxtModule<ModuleOptions>({
       pages: { admin: adminPath, adminThread: adminThreadPath, adminSettings: adminSettingsPath },
     }
 
-    // Server only. The empty strings are there so `NUXT_INBOX_EMAIL_WEBHOOK_SECRET`, `NUXT_INBOX_META_APP_SECRET` and
+    // Server only. The empty strings are there so `NUXT_INBOX_EMAIL_WEBHOOK_SECRET`, `NUXT_INBOX_EMAIL_OUTBOUND`,
+    // `NUXT_INBOX_DOMAINS`, `NUXT_INBOX_CLOUDFLARE_AUTHSERV_IDS`, `NUXT_INBOX_RESEND_WEBHOOK_SECRET`,
+    // `NUXT_INBOX_RESEND_API_KEY`, `NUXT_INBOX_GMAIL_*`, `NUXT_INBOX_META_APP_SECRET` and
     // `NUXT_INBOX_META_VERIFY_TOKEN` override them at run time; a channel secret declared in `secrets` (empty) is
     // overridden by `NUXT_INBOX_SECRETS_<REF>`, and `NUXT_INBOX_SECRETS` (JSON) adds any.
     const existing = (nuxt.options.runtimeConfig as { inbox?: Partial<InboxRuntimeConfig> }).inbox ?? {}
+    // The built-in inbound email drivers: the signed JSON webhook unless turned off, the others when asked for.
+    const inbound = { webhook: true, ...options.email?.inbound }
+    const resendOptions = typeof inbound.resend === 'object' ? inbound.resend : {}
+    const cloudflareOptions = typeof inbound.cloudflare === 'object' ? inbound.cloudflare : {}
+    const gmailOptions = typeof inbound.gmail === 'object' ? inbound.gmail : {}
+    const imapOptions = typeof inbound.imap === 'object' ? inbound.imap : {}
     const runtime: InboxRuntimeConfig = {
       retention: {
         days: options.retention?.days ?? existing.retention?.days ?? 365,
@@ -156,7 +217,26 @@ export default defineNuxtModule<ModuleOptions>({
         batch: options.retention?.batch ?? existing.retention?.batch ?? 500,
         tombstoneDays: options.retention?.tombstoneDays ?? existing.retention?.tombstoneDays ?? 365,
       },
-      email: { webhookSecret: options.email?.webhookSecret ?? existing.email?.webhookSecret ?? '' },
+      email: {
+        webhookSecret: options.email?.webhookSecret ?? existing.email?.webhookSecret ?? '',
+        outbound: options.email?.outbound ?? existing.email?.outbound ?? '',
+      },
+      cloudflare: { authservIds: cloudflareOptions.authservIds?.join(',') ?? existing.cloudflare?.authservIds ?? CLOUDFLARE_AUTHSERV_IDS.join(',') },
+      gmail: {
+        clientEmail: gmailOptions.clientEmail ?? existing.gmail?.clientEmail ?? '',
+        privateKey: gmailOptions.privateKey ?? existing.gmail?.privateKey ?? '',
+        topic: gmailOptions.topic ?? existing.gmail?.topic ?? '',
+        audience: gmailOptions.audience ?? existing.gmail?.audience ?? '',
+        pushServiceAccount: gmailOptions.pushServiceAccount ?? existing.gmail?.pushServiceAccount ?? '',
+        apiBase: gmailOptions.apiBase ?? existing.gmail?.apiBase ?? 'https://gmail.googleapis.com',
+      },
+      // A comma separated list, so `NUXT_INBOX_DOMAINS` replaces it at run time (read with `inboxDomains()`).
+      domains: options.email?.domains?.join(',') ?? existing.domains ?? '',
+      resend: {
+        webhookSecret: resendOptions.webhookSecret ?? existing.resend?.webhookSecret ?? '',
+        apiKey: resendOptions.apiKey ?? existing.resend?.apiKey ?? '',
+        apiBase: resendOptions.apiBase ?? existing.resend?.apiBase ?? 'https://api.resend.com',
+      },
       meta: {
         appSecret: options.meta?.appSecret ?? existing.meta?.appSecret ?? '',
         verifyToken: options.meta?.verifyToken ?? existing.meta?.verifyToken ?? '',
@@ -200,6 +280,40 @@ export default defineNuxtModule<ModuleOptions>({
       collect: registryOf,
       contents: serverRegistryTemplate,
     })
+    // --- Inbound email drivers --------------------------------------------------------------------------------------
+    // Built-ins (`email.inbound`), then every module's `extendInbox` `emailDrivers`, then `email.drivers`; a later one
+    // with the same name replaces an earlier one. Handlers answer `POST /api/inbox/email/<name>`, setups run in a plugin.
+    let builtDrivers: Record<string, string> | undefined
+    const emailDriversOf = (): Record<string, string> => {
+      if (builtDrivers) return builtDrivers
+      const stash = (nuxt.options as unknown as { inbox?: InboxInNuxt }).inbox?._extensions ?? []
+      const { drivers, issues } = buildInboxEmailDrivers([
+        builtInEmailDrivers(inbound, path => resolver.resolve(path)),
+        ...stash,
+        { emailDrivers: options.email?.drivers },
+      ])
+      if (issues.length) throw new Error(`[${MODULE_NAME}] Invalid inbox email drivers:\n- ${issues.join('\n- ')}`)
+      builtDrivers = drivers
+      return drivers
+    }
+    nuxt.hook('modules:done', () => {
+      emailDriversOf()
+    })
+    defineVirtualRegistry(nuxt, {
+      filename: '#inbox/email-drivers',
+      target: 'server',
+      collect: emailDriversOf,
+      contents: emailDriversTemplate,
+    })
+    // Where received files go: NuxtHub Blob when the app has it, else they are only named on the message.
+    defineVirtualRegistry(nuxt, {
+      filename: '#inbox/blob',
+      target: 'server',
+      collect: () => !!(nuxt.options as unknown as { hub?: { blob?: unknown } }).hub?.blob,
+      contents: hasBlob => hasBlob ? `export { blob } from '@nuxthub/blob'\n` : 'export const blob = null\n',
+    })
+    addNitroPlugin(resolver.resolve('./runtime/server/plugins/email-drivers'))
+
     const types = JSON.stringify(resolver.resolve('./types'))
     addTypeTemplate({
       filename: 'types/inbox-registry.d.ts',
@@ -211,6 +325,16 @@ declare module '#inbox/server-registry' {
   import type { InboxChannelAdapter, InboxChannelInfo } from ${types}
   export const channels: Record<string, InboxChannelInfo>
   export const adapters: Record<string, InboxChannelAdapter>
+}
+declare module '#inbox/email-drivers' {
+  import type { InboxEmailDriver } from ${types}
+  export const drivers: Record<string, InboxEmailDriver>
+}
+declare module '#inbox/blob' {
+  export const blob: {
+    put(pathname: string, body: Uint8Array, options?: { contentType?: string }): Promise<{ pathname: string }>
+    del(pathnames: string | string[]): Promise<void>
+  } | null
 }
 `,
     }, { nitro: true, nuxt: true })
@@ -242,6 +366,7 @@ declare module '#inbox/server-registry' {
       { method: 'post', path: 'channels', file: 'admin/channels.post' },
       { method: 'patch', path: 'channels/:id', file: 'admin/channel.patch' },
       { method: 'delete', path: 'channels/:id', file: 'admin/channel.delete' },
+      { method: 'get', path: 'email', file: 'admin/email.get' },
       { method: 'get', path: 'audit', file: 'admin/audit.get' },
       { method: 'get', path: 'contacts/:id/export', file: 'admin/contact-export.get' },
       { method: 'post', path: 'contacts/:id/erase', file: 'admin/contact-erase.post' },
@@ -249,11 +374,16 @@ declare module '#inbox/server-registry' {
 
     // Webhooks are registered at the providers, the documented exception to the `/api/<module>` rule.
     addModuleRoutes(resolver, [
-      { method: 'post', path: 'email', file: 'webhooks/email.post' },
+      // The `webhook` inbound email driver (on unless `email.inbound.webhook` is `false`).
+      ...(inbound.webhook !== false ? [{ method: 'post' as const, path: 'email', file: 'webhooks/email.post' }] : []),
       { method: 'get', path: 'meta', file: 'webhooks/meta.get' },
       { method: 'post', path: 'meta', file: 'webhooks/meta.post' },
       { method: 'post', path: ':channel', file: 'webhooks/channel.post' },
     ], { base: '/api/inbox/webhooks' })
+    // The webhooks of the inbound email drivers with a `handler` (Resend, a host's own).
+    addModuleRoutes(resolver, [
+      { method: 'post', path: ':driver', file: 'email/driver.post' },
+    ], { base: '/api/inbox/email' })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
@@ -277,31 +407,57 @@ declare module '#inbox/server-registry' {
     // `inbox:thread:linked`: another module's action on a thread goes on the thread's audit trail.
     addNitroPlugin(resolver.resolve('./runtime/server/plugins/links'))
 
-    // --- Retention --------------------------------------------------------------------------------------------------
-    // The `inbox:retention` Nitro task, on `retention.cron` (nightly unless set; `false` registers it without a
-    // schedule). Like the shifts reminders it merges into `scheduledTasks` and mirrors its cron into wrangler.
-    const cron = options.retention?.cron === undefined ? '30 3 * * *' : options.retention.cron
+    // --- Tasks ------------------------------------------------------------------------------------------------------
+    // `inbox:retention` on `retention.cron` (nightly unless set), and, with their drivers, `inbox:gmail` (watch renewal
+    // and catch-up, daily) and `inbox:imap` (the poll, every five minutes). `false` registers a task without a
+    // schedule. Like the shifts reminders they merge into `scheduledTasks` and mirror their crons into wrangler.
+    const cronOf = (value: string | false | undefined, fallback: string) => value === undefined ? fallback : value
+    const tasks: Array<{ name: string, file: string, description: string, cron: string | false }> = [
+      { name: 'inbox:retention', file: 'retention', description: 'Delete or anonymise closed inbox threads older than their mailbox keeps them.', cron: cronOf(options.retention?.cron, '30 3 * * *') },
+      ...(inbound.gmail ? [{ name: 'inbox:gmail', file: 'gmail', description: 'Renew the Gmail watches of the inbox and take in mail a push notification missed.', cron: cronOf(gmailOptions.cron, '15 4 * * *') }] : []),
+      ...(inbound.imap ? [{ name: 'inbox:imap', file: 'imap', description: 'Take in new mail from the IMAP mailboxes of the inbox.', cron: cronOf(imapOptions.cron, '*/5 * * * *') }] : []),
+    ]
     nuxt.hook('nitro:config', (nitroConfig) => {
       nitroConfig.experimental ||= {}
       nitroConfig.experimental.tasks = true
       nitroConfig.tasks ||= {}
-      nitroConfig.tasks['inbox:retention'] = {
-        handler: resolver.resolve('./runtime/server/tasks/retention'),
-        description: 'Delete or anonymise closed inbox threads older than their mailbox keeps them.',
-      }
-      if (cron) {
+      for (const task of tasks) {
+        nitroConfig.tasks[task.name] = { handler: resolver.resolve(`./runtime/server/tasks/${task.file}`), description: task.description }
+        if (!task.cron) continue
         nitroConfig.scheduledTasks ||= {}
-        const scheduled = nitroConfig.scheduledTasks[cron]
-        nitroConfig.scheduledTasks[cron] = [...(Array.isArray(scheduled) ? scheduled : scheduled ? [scheduled] : []), 'inbox:retention']
+        const scheduled = nitroConfig.scheduledTasks[task.cron]
+        nitroConfig.scheduledTasks[task.cron] = [...(Array.isArray(scheduled) ? scheduled : scheduled ? [scheduled] : []), task.name]
       }
     })
     // nitropack 2 bundles `scheduledTasks` into the worker but never writes the cron expressions to wrangler.json, so
-    // Cloudflare would never trigger them: mirror our cron into `triggers.crons` (a deduped union).
-    if (cron) {
+    // Cloudflare would never trigger them: mirror our crons into `triggers.crons` (a deduped union).
+    const crons = tasks.map(task => task.cron).filter((cron): cron is string => !!cron)
+    if (crons.length) {
       nuxt.hook('nitro:init', (nitro) => {
         if (!nitro.options.preset.startsWith('cloudflare')) return
         const wrangler = ((nitro.options.cloudflare ||= {}).wrangler ||= {})
-        wrangler.triggers = { ...wrangler.triggers, crons: [...new Set([...(wrangler.triggers?.crons ?? []), cron])] }
+        wrangler.triggers = { ...wrangler.triggers, crons: [...new Set([...(wrangler.triggers?.crons ?? []), ...crons])] }
+      })
+    }
+    // Cloudflare Email Routing: Nitro 2's `cloudflare-module` entry runs the `cloudflare:email` hook in `waitUntil` and
+    // returns at once, so Cloudflare accepts every email before the driver could reject an unknown recipient. A small
+    // entry around the preset's own awaits the hook instead (`setReject` then bounces), and changes nothing else.
+    if (inbound.cloudflare && cloudflareOptions.entry !== false && getNitroVersion(nuxt) !== 3) {
+      nuxt.hook('nitro:init', (nitro) => {
+        if (nitro.options.preset !== 'cloudflare-module' || nitro.options.dev) return
+        const entry = nitro.options.entry
+        if (!PRESET_ENTRY.test(entry)) {
+          console.warn(`[${MODULE_NAME}] The Worker entry is not the cloudflare-module preset's own (${entry}): unknown email recipients are not bounced.`)
+          return
+        }
+        const file = join(nitro.options.buildDir, 'inbox', 'cloudflare-entry.mjs')
+        const contents = cloudflareEntryTemplate(entry.endsWith('.mjs') ? entry : `${entry}.mjs`)
+        // Written right before the bundle: the build directory is cleaned in between.
+        nitro.hooks.hook('rollup:before', async () => {
+          await mkdir(dirname(file), { recursive: true })
+          await writeFile(file, contents)
+        })
+        nitro.options.entry = file
       })
     }
 

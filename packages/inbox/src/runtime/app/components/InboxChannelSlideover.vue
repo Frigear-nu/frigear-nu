@@ -25,6 +25,7 @@ const state = reactive({
   secretRef: props.account?.secretRef ?? '',
   enabled: props.account?.enabled ?? true,
   replyTo: typeof config.replyTo === 'string' ? config.replyTo : '',
+  sendFromAddress: config.sendFromAddress === true,
   nameField: fields.name ?? '',
   emailField: fields.email ?? '',
   messageField: fields.message ?? '',
@@ -52,7 +53,9 @@ function buildConfig(): Record<string, unknown> {
   const next: Record<string, unknown> = { ...config }
   delete next.replyTo
   delete next.fields
+  delete next.sendFromAddress
   if (state.replyTo.trim()) next.replyTo = state.replyTo.trim()
+  if (state.channel === 'email' && state.sendFromAddress) next.sendFromAddress = true
   if (state.channel === 'form') {
     const mapped = Object.fromEntries(Object.entries({ name: state.nameField, email: state.emailField, message: state.messageField }).filter(([, value]) => value.trim()).map(([key, value]) => [key, value.trim()]))
     if (Object.keys(mapped).length) next.fields = mapped
@@ -148,6 +151,14 @@ async function save() {
           type="email"
           class="w-full"
         />
+      </UFormField>
+      <UFormField
+        v-if="state.channel === 'email'"
+        name="sendFromAddress"
+        :label="t('channels.sendFromAddress', 'Send replies from this address')"
+        :description="t('channels.sendFromAddressHelp', 'Replies come from the mailbox name and this address instead of the platform address. Verify the domain with the email provider first, or replies fail.')"
+      >
+        <USwitch v-model="state.sendFromAddress" />
       </UFormField>
       <template v-if="state.channel === 'form'">
         <UFormField

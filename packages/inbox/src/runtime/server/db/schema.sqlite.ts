@@ -171,3 +171,20 @@ export const inboxTombstones = sqliteTable('inbox_tombstones', {
   index('inbox_tombstone_created_idx').on(t.createdAt),
   index('inbox_tombstone_contact_idx').on(t.contactId),
 ])
+
+/**
+ * Where an inbound email driver that fetches mail itself left off, per email account: the Gmail driver's history id and
+ * watch expiry, the IMAP driver's UIDVALIDITY and last seen UID. Deleted with the account.
+ */
+export const inboxEmailCursors = sqliteTable('inbox_email_cursors', {
+  /** `<driver>:<channel account id>`. */
+  key: text().primaryKey(),
+  channelAccountId: text().notNull().references(() => inboxChannelAccounts.id, { onDelete: 'cascade' }),
+  /** The driver's name (`gmail`, `imap`). */
+  driver: text().notNull(),
+  /** The driver's own state (no secrets). */
+  state: text({ mode: 'json' }).$type<Record<string, unknown>>().notNull(),
+  updatedAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),
+}, t => [
+  index('inbox_email_cursor_account_idx').on(t.channelAccountId),
+])

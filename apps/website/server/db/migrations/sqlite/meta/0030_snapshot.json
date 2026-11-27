@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e92a0a0e-3af8-41a8-a319-bcab6804f7b0",
-  "prevId": "b2d33cbe-710a-46c3-bc89-41fae9fad492",
+  "id": "fb8d2f04-85cb-454f-b5e6-b4769581c31c",
+  "prevId": "a26f6cef-5709-4e0d-b0ab-56684022bd4d",
   "tables": {
     "account_email_changes": {
       "name": "account_email_changes",
@@ -813,14 +813,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "signup_mode": {
-          "name": "signup_mode",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'off'"
         },
         "created_at": {
           "name": "created_at",
@@ -3266,6 +3258,73 @@
         }
       },
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "inbox_email_cursors": {
+      "name": "inbox_email_cursors",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "channel_account_id": {
+          "name": "channel_account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "driver": {
+          "name": "driver",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "inbox_email_cursor_account_idx": {
+          "name": "inbox_email_cursor_account_idx",
+          "columns": [
+            "channel_account_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "inbox_email_cursors_channel_account_id_inbox_channel_accounts_id_fk": {
+          "name": "inbox_email_cursors_channel_account_id_inbox_channel_accounts_id_fk",
+          "tableFrom": "inbox_email_cursors",
+          "tableTo": "inbox_channel_accounts",
+          "columnsFrom": [
+            "channel_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}

@@ -87,6 +87,8 @@
     "drizzle-kit": "catalog:",
     "drizzle-orm": "catalog:",
     "h3": "catalog:",
+    "imapflow": "^2.12.2",
+    "postal-mime": "^2.7.6",
     "zod": "^4.6.7"
   },
   "peerDependencies": {
