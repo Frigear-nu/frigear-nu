@@ -26,7 +26,8 @@ export default defineNuxtConfig({
     // `admin` holds what the modules `grantTo` it (`shifts:manage`, `shifts:pii`, ...); `coordinator` is this host's own
     // role and names the same staff permissions of operations, teams, crew and shifts (without `crew:pii`);
     // `shiftmanager` holds `shifts:manage` only, so `shifts:pii` can be told apart; `wild` holds `shifts:*`, which never
-    // covers `shifts:pii`. `supervisor` feeds a mapping rule (a mapped lead is not assignable).
+    // covers `shifts:pii`. `supervisor` feeds a mapping rule (a mapped lead is not assignable). `checker` holds
+    // `shifts:checkin` only: it checks anyone in on any shift without leading a team.
     (_options, nuxt) => {
       addRole(nuxt, { name: 'member', label: 'Member', grant: [] })
       addRole(nuxt, { name: 'supervisor', label: 'Supervisor', grant: [], inherit: ['member'] })
@@ -38,6 +39,7 @@ export default defineNuxtConfig({
       })
       addRole(nuxt, { name: 'shiftmanager', label: 'Shift manager', grant: ['shifts:manage'] })
       addRole(nuxt, { name: 'wild', label: 'Wildcard staff', grant: ['shifts:*'] })
+      addRole(nuxt, { name: 'checker', label: 'Gate', grant: ['shifts:checkin'] })
       setRoleProvider(nuxt, { path: fileURLToPath(new URL('./server/roles/provider', import.meta.url)) })
     },
   ],

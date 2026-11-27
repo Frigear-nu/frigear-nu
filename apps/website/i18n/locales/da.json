@@ -229,6 +229,8 @@
     "user": "Bruger"
   },
   "permissions": {
-    "documentsCrew": "Læse crew-dokumenter"
+    "documentsCrew": "Læse crew-dokumenter",
+    "frigearIdRead": "Vise dit Frigear ID",
+    "frigearIdVerify": "Scanne Frigear ID'er"
   }
 }

@@ -229,6 +229,8 @@
     "user": "User"
   },
   "permissions": {
-    "documentsCrew": "Read crew documents"
+    "documentsCrew": "Read crew documents",
+    "frigearIdRead": "Show your Frigear ID",
+    "frigearIdVerify": "Scan Frigear IDs"
   }
 }

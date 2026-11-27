@@ -1,7 +1,8 @@
 {
   "app": {
     "tabs": {
-      "account": "Konto"
+      "account": "Konto",
+      "wallet": "Wallet"
     },
     "home": {
       "title": "Velkommen til Frigear",
@@ -30,6 +31,146 @@
       "confirm": {
         "title": "Log ud?",
         "description": "Du skal logge ind igen for at bruge appen."
+      }
+    },
+    "wallet": {
+      "status": {
+        "paid": "Betalt",
+        "pending": "Afventer betaling",
+        "cancelled": "Annulleret",
+        "refunded": "Refunderet",
+        "expired": "Udløbet"
+      },
+      "id": {
+        "title": "Mit Frigear ID",
+        "description": "Vis det, når crew spørger, hvem du er. Det fornyer sig selv.",
+        "number": "Frigear ID {id}",
+        "qrAlt": "QR-kode til dit Frigear ID",
+        "refreshesIn": "Fornyes om {seconds} s",
+        "refresh": "Forny Frigear ID",
+        "error": "Dit Frigear ID kunne ikke hentes.",
+        "retry": "Prøv igen"
+      },
+      "tickets": {
+        "title": "Mine billetter",
+        "empty": "Du har ingen billetter endnu.",
+        "noneUpcoming": "Du har ingen kommende billetter.",
+        "findEvents": "Find arrangementer",
+        "other": "Tidligere og annullerede billetter ({count})",
+        "otherTitle": "Tidligere og annullerede billetter",
+        "error": "Dine billetter kunne ikke hentes.",
+        "retry": "Prøv igen"
+      },
+      "ticket": {
+        "title": "Billet",
+        "qrAlt": "Billettens QR-kode",
+        "holder": "Indehaver",
+        "when": "Hvornår",
+        "checkedIn": "Tjekket ind",
+        "checkedInAt": "Tjekket ind {time}",
+        "notFound": "Billetten blev ikke fundet.",
+        "error": "Billetten kunne ikke hentes.",
+        "notValid": "Billetten kan ikke bruges: {status}.",
+        "pending": {
+          "title": "Afventer betaling",
+          "description": "Betal for billetten på hjemmesiden for at få dens QR-kode.",
+          "pay": "Betal for billet"
+        }
+      },
+      "scan": {
+        "open": "Scan kode",
+        "title": "Scan",
+        "scanCode": "Scan QR-kode",
+        "instructions": "Ret kameraet mod QR-koden",
+        "cancel": "Luk scanneren",
+        "torchOn": "Tænd lyset",
+        "torchOff": "Sluk lyset",
+        "noPermission": "Kameraet er ikke tilladt. Tillad det for Frigear i Indstillinger, eller skriv koden.",
+        "cameraFailed": "Kameraet kunne ikke starte. Skriv koden i stedet.",
+        "modes": {
+          "frigear-id": "Frigear ID",
+          "ticket": "Billet",
+          "shift": "Vagt"
+        },
+        "hints": {
+          "frigear-id": "Scan en persons Frigear ID for at se, hvem de er, deres medlemskab og deres crewhold.",
+          "ticket": "Scan en billet ved indgangen for at tjekke den ind.",
+          "shift": "Scan en frivilligs vagtpas for at tjekke dem ind på deres vagt."
+        },
+        "manual": {
+          "label": "Kode",
+          "placeholder": "Eller skriv koden",
+          "submit": "Tjek kode"
+        },
+        "none": {
+          "title": "Du har intet at scanne",
+          "description": "Scanning er for crew og ansvarlige.",
+          "back": "Tilbage til Wallet"
+        },
+        "id": {
+          "valid": "Gyldigt Frigear ID",
+          "member": "Aktivt medlemskab",
+          "noMembership": "Intet aktivt medlemskab",
+          "expired": "Dette Frigear ID er udløbet",
+          "expiredHint": "Bed dem vise deres Frigear ID igen: det fornyes hvert minut.",
+          "invalid": "Ikke et gyldigt Frigear ID",
+          "unknown": "Ingen konto har dette Frigear ID",
+          "forbidden": "Du må ikke tjekke Frigear ID'er",
+          "failed": "Frigear ID'et kunne ikke tjekkes",
+          "noName": "Intet navn",
+          "membership": "Medlemskab",
+          "memberShort": "Medlem",
+          "noMembershipShort": "Intet aktivt medlemskab",
+          "validUntil": "Gyldigt til {date}",
+          "crew": "Crewhold",
+          "noCrew": "Ikke på et crewhold lige nu",
+          "roles": {
+            "admin": "Administrator",
+            "coordinator": "Koordinator",
+            "manager": "Manager",
+            "eventmanager": "Eventmanager",
+            "barmanager": "Barchef",
+            "crew": "Crew",
+            "member": "Medlem",
+            "supplier": "Leverandør",
+            "partner": "Partner"
+          },
+          "subscription": {
+            "active": "Aktivt",
+            "trialing": "Prøveperiode",
+            "past_due": "Betaling forfalden",
+            "unpaid": "Ikke betalt",
+            "canceled": "Opsagt",
+            "incomplete": "Betaling ikke gennemført",
+            "incomplete_expired": "Betaling udløbet",
+            "paused": "Sat på pause"
+          }
+        },
+        "ticket": {
+          "checkedIn": "Billet tjekket ind",
+          "already": "Allerede tjekket ind",
+          "alreadyAt": "Første gang scannet {time}",
+          "notValid": "Billetten giver ikke adgang",
+          "status": "Billetten er {status}.",
+          "unknown": "Ukendt billet",
+          "forbidden": "Du må ikke tjekke billetter ind",
+          "failed": "Billetten kunne ikke tjekkes ind",
+          "event": "Arrangement",
+          "type": "Billet"
+        },
+        "shift": {
+          "checkedIn": "{name} er tjekket ind",
+          "already": "{name} var allerede tjekket ind",
+          "alreadyAt": "Kl. {time}, vagt {when}",
+          "shift": "Vagt {when}",
+          "shiftAndDaily": "Vagt {when} og {count} mere i dag",
+          "unknown": "Ukendt vagtpas",
+          "forbidden": "Du må ikke tjekke folk ind",
+          "outsideWindow": "Indtjekning til denne vagt er ikke åben nu",
+          "cancelled": "Personen er taget af vagten",
+          "notEligible": "Personen kan ikke tjekkes ind på denne vagt",
+          "failed": "Kunne ikke tjekke ind"
+        }
       }
     }
   }

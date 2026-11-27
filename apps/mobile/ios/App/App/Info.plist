@@ -66,6 +66,8 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Frigear uses the camera to scan Frigear IDs, tickets and shift passes.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Connects to a development server on your local network.</string>
 	<key>NSAppTransportSecurity</key>

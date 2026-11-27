@@ -1,7 +1,8 @@
 {
   "app": {
     "tabs": {
-      "account": "Account"
+      "account": "Account",
+      "wallet": "Wallet"
     },
     "home": {
       "title": "Welcome to Frigear",
@@ -30,6 +31,146 @@
       "confirm": {
         "title": "Sign out?",
         "description": "You need to sign in again to use the app."
+      }
+    },
+    "wallet": {
+      "status": {
+        "paid": "Paid",
+        "pending": "Awaiting payment",
+        "cancelled": "Cancelled",
+        "refunded": "Refunded",
+        "expired": "Expired"
+      },
+      "id": {
+        "title": "My Frigear ID",
+        "description": "Show it when crew ask who you are. It renews itself.",
+        "number": "Frigear ID {id}",
+        "qrAlt": "QR code of your Frigear ID",
+        "refreshesIn": "Renews in {seconds} s",
+        "refresh": "Renew Frigear ID",
+        "error": "Your Frigear ID could not be loaded.",
+        "retry": "Try again"
+      },
+      "tickets": {
+        "title": "My tickets",
+        "empty": "You have no tickets yet.",
+        "noneUpcoming": "You have no upcoming tickets.",
+        "findEvents": "Find events",
+        "other": "Past and cancelled tickets ({count})",
+        "otherTitle": "Past and cancelled tickets",
+        "error": "Your tickets could not be loaded.",
+        "retry": "Try again"
+      },
+      "ticket": {
+        "title": "Ticket",
+        "qrAlt": "QR code of the ticket",
+        "holder": "Holder",
+        "when": "When",
+        "checkedIn": "Checked in",
+        "checkedInAt": "Checked in {time}",
+        "notFound": "This ticket was not found.",
+        "error": "The ticket could not be loaded.",
+        "notValid": "This ticket cannot be used: {status}.",
+        "pending": {
+          "title": "Waiting for payment",
+          "description": "Pay for the ticket on the website to get its QR code.",
+          "pay": "Pay for ticket"
+        }
+      },
+      "scan": {
+        "open": "Scan code",
+        "title": "Scan",
+        "scanCode": "Scan QR code",
+        "instructions": "Point the camera at the QR code",
+        "cancel": "Close scanner",
+        "torchOn": "Turn on the light",
+        "torchOff": "Turn off the light",
+        "noPermission": "The camera is not allowed. Allow it for Frigear in Settings, or type the code.",
+        "cameraFailed": "The camera could not start. Type the code instead.",
+        "modes": {
+          "frigear-id": "Frigear ID",
+          "ticket": "Ticket",
+          "shift": "Shift"
+        },
+        "hints": {
+          "frigear-id": "Scan someone's Frigear ID to see who they are, their membership and their crew teams.",
+          "ticket": "Scan a ticket at the door to check it in.",
+          "shift": "Scan a volunteer's shift pass to check them in on their shift."
+        },
+        "manual": {
+          "label": "Code",
+          "placeholder": "Or type the code",
+          "submit": "Check code"
+        },
+        "none": {
+          "title": "Nothing to scan for you",
+          "description": "Scanning is for crew and staff.",
+          "back": "Back to Wallet"
+        },
+        "id": {
+          "valid": "Valid Frigear ID",
+          "member": "Active membership",
+          "noMembership": "No active membership",
+          "expired": "This Frigear ID has expired",
+          "expiredHint": "Ask them to show their Frigear ID again: it renews every minute.",
+          "invalid": "Not a valid Frigear ID",
+          "unknown": "No account has this Frigear ID",
+          "forbidden": "You may not check Frigear IDs",
+          "failed": "The Frigear ID could not be checked",
+          "noName": "No name",
+          "membership": "Membership",
+          "memberShort": "Member",
+          "noMembershipShort": "No active membership",
+          "validUntil": "Valid until {date}",
+          "crew": "Crew teams",
+          "noCrew": "Not on a crew team now",
+          "roles": {
+            "admin": "Administrator",
+            "coordinator": "Coordinator",
+            "manager": "Manager",
+            "eventmanager": "Event manager",
+            "barmanager": "Bar manager",
+            "crew": "Crew",
+            "member": "Member",
+            "supplier": "Supplier",
+            "partner": "Partner"
+          },
+          "subscription": {
+            "active": "Active",
+            "trialing": "Trial",
+            "past_due": "Payment overdue",
+            "unpaid": "Unpaid",
+            "canceled": "Cancelled",
+            "incomplete": "Payment not completed",
+            "incomplete_expired": "Payment expired",
+            "paused": "Paused"
+          }
+        },
+        "ticket": {
+          "checkedIn": "Ticket checked in",
+          "already": "Already checked in",
+          "alreadyAt": "First scanned {time}",
+          "notValid": "Ticket not valid for entry",
+          "status": "The ticket is {status}.",
+          "unknown": "Unknown ticket",
+          "forbidden": "You may not check tickets in",
+          "failed": "The ticket could not be checked in",
+          "event": "Event",
+          "type": "Ticket"
+        },
+        "shift": {
+          "checkedIn": "Checked in {name}",
+          "already": "{name} was checked in already",
+          "alreadyAt": "At {time}, shift {when}",
+          "shift": "Shift {when}",
+          "shiftAndDaily": "Shift {when}, and {count} more today",
+          "unknown": "Unknown shift pass",
+          "forbidden": "You may not check people in",
+          "outsideWindow": "Check-in for this shift is not open now",
+          "cancelled": "This person was taken off the shift",
+          "notEligible": "This person cannot be checked in on this shift",
+          "failed": "Could not check in"
+        }
       }
     }
   }

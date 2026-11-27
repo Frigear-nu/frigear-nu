@@ -141,7 +141,7 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
-    // `shifts:read`, `shifts:swap`, `shifts:attend`, `shifts:lead`, `shifts:manage`, `shifts:pii` and the `shifts` scope;
+    // `shifts:read`, `shifts:swap`, `shifts:attend`, `shifts:lead`, `shifts:checkin`, `shifts:manage`, `shifts:pii` and the `shifts` scope;
     // `perks:read`, `perks:claim` and the `perks` scope (`runtime/access.ts`).
     registerAccess(nuxt, shiftsAccess, { from: MODULE_NAME })
     registerAccess(nuxt, perksAccess, { from: MODULE_NAME })
@@ -226,6 +226,7 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'post', path: 'swaps/:swapId/offers/:offerId/reject', file: 'swaps/offer-reject.post' },
       { method: 'post', path: 'swaps/:swapId/approve', file: 'swaps/approve.post' },
       { method: 'post', path: 'swaps/:swapId/reject', file: 'swaps/reject.post' },
+      { method: 'post', path: 'check-in', file: 'lead/check-in-any.post' },
       { method: 'post', path: 'teams/:teamId/check-in', file: 'lead/check-in.post' },
       { method: 'get', path: 'teams/:teamId/shifts', file: 'lead/team-shifts.get' },
       { method: 'get', path: 'teams/:teamId/swaps', file: 'lead/team-swaps.get' },
