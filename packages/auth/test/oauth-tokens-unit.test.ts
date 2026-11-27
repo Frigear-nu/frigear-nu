@@ -22,7 +22,11 @@ describe('token encryption', () => {
     const sealed = await sealOAuthToken(key, 'access-token', 'frigear')
     expect(await openOAuthToken(await deriveOAuthTokensKey('another-secret'), sealed, 'frigear')).toBeNull()
     expect(await openOAuthToken(key, sealed, 'github')).toBeNull()
-    expect(await openOAuthToken(key, `${sealed.slice(0, -2)}AA`, 'frigear')).toBeNull()
+    // Change the ciphertext's first character: it carries six whole bits, so the bytes always change. (Writing `AA` over
+    // the last two characters changed nothing when the final byte was already 0, one run in 256.)
+    const [version, iv, data] = sealed.split('.') as [string, string, string]
+    const tampered = `${version}.${iv}.${data[0] === 'A' ? 'B' : 'A'}${data.slice(1)}`
+    expect(await openOAuthToken(key, tampered, 'frigear')).toBeNull()
     expect(await openOAuthToken(key, 'plain', 'frigear')).toBeNull()
   })
 })

@@ -149,6 +149,7 @@ Options go under the `mobile` key.
 | `dev.lanHost` | `boolean \| string` | `true` | For `MOBILE_LAN` builds: detect the LAN address, or fix it with a string. |
 | `ios.allowLocalNetworking` | `boolean` | `true` | Sets `NSAllowsLocalNetworking` in Info.plist, for plain http to the LAN. |
 | `doctor` | `boolean` | `true` | Warns about native projects and missing plugins when dev or build starts. |
+| `host` | `boolean \| string \| { url?, routes?, links? }` | `false` | A website that has the pages the app does not. See [Pages on the website](#pages-on-the-website). |
 
 **`appId`.** In lowercase, with `_` turned into `-`, it becomes the OAuth redirect and deep-link scheme. Without one,
 the build warns and uses `com.example.app`.
@@ -258,6 +259,7 @@ interface MobileTabDefinition {
   match?: string | string[] // default: `to` and `to/**` ('/' matches only itself)
   largeTitle?: boolean // default true
   order?: number // lower first; tabs without it follow in registration order
+  enabled?: boolean // false leaves the tab out
 }
 ```
 
@@ -272,6 +274,20 @@ extendMobileTabs(nuxt, { id: 'events', to: '/events', label: 'Events', icon: 'i-
 `@frigear-nu/mobile/utils` also exports `defineMobileTab`, `normalizeTabs`, `findActiveTab` and `matchesPath`. With
 [Menu](/modules/interface/menu), the items of the `mobile.tabs` menu are added as tabs and replace tabs with the same
 id. Tab fields such as `sfSymbol` go in the item's `meta`.
+
+In `mobile.tabs` the app can also name a module's tab by its id with only the fields the module leaves out: its place
+(`{ id: 'crew', order: 1 }`), or `{ id: 'shifts', enabled: false }` to leave it out. The module's own fields follow the
+app's entry and replace the same fields. An entry for a tab no module added is left out with a warning.
+
+```ts [nuxt.config.ts]
+mobile: {
+  tabs: [
+    { id: 'home', order: 0 },
+    { id: 'crew', order: 1 },
+    { id: 'shifts', enabled: false },
+  ],
+}
+```
 
 The build fails on an invalid id, or a tab without `to`, `label` or `icon`. It warns about more than five tabs, two
 tabs with the same `to`, a `to` that is not a page and, with native chrome, a tab without an `sfSymbol`.
@@ -346,6 +362,7 @@ The composables and components below are auto-imported.
 | `useNative()` | See [Native features](#native-features). |
 | `onTabEnter(fn)` | Runs `fn` when the user comes back to a page kept alive. See [Tab switching](#tab-switching). |
 | `useMobileToaster()` | Props for `<UApp :toaster>`. |
+| `useMobileHost()` | `enabled`, `base`, `url(path)` and `open(path or URL)`: the website of [`host`](#pages-on-the-website). |
 | `useMobileSplash()` | `visible`, `hold()`, `waitFor(promise)` and `hide()`: see [Splash screen](/modules/interface/mobile/splash-screen#keep-it-up). |
 | `MobileHeader` | The web header, with the page's navbar actions and `leading` and `trailing` slots. |
 | `MobileTabBar` | The web tab bar. |
@@ -398,6 +415,30 @@ onTabEnter(() => refresh())
 The crossfade uses the plugin's `beginTransition`, which the starters' version (8.16) has. A plugin version without
 it switches tabs without a crossfade.
 ::
+
+### Pages on the website
+
+An app built from modules has some of a website's pages, not all: an event page and its checkout, the admin, sign-up.
+With `host`, what the app has no page for opens on that website in the in-app browser (`@capacitor/browser`; a new
+tab in a desktop browser):
+
+```ts [nuxt.config.ts]
+mobile: {
+  host: true, // the issuer of Auth in client mode; or the website's URL
+}
+```
+
+- **Navigation to a path without a page** opens that path on the website, with its locale prefix, query and hash, and
+  the app stays where it was. This covers links that modules build to website-only pages, `navigateTo()`, and deep
+  links (`mobile:deep-link`) to such a path. A cold start on such a path opens the website and shows `/`.
+- **Taps on links** to the website or to another `http(s)` site open in the in-app browser. A link to a page of the app
+  stays in the app; `mailto:`, `tel:` and other schemes are left to the platform.
+- `useMobileHost().open('/events/summer')` opens a page yourself; `url(path)` gives its address.
+
+`true` uses `authentication.client.issuer`, whose website session the in-app browser shares after sign-in, so the
+pages open signed in. A `localhost` URL is rewritten as Auth rewrites the issuer (`MOBILE_LAN`, live reload on a
+phone). `{ routes: false }` or `{ links: false }` turns either half off. `@capacitor/browser` is needed on a device;
+the doctor lists it.
 
 ### Native features
 

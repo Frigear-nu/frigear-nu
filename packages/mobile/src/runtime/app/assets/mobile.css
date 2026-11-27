@@ -21,7 +21,8 @@ html.mobile-chrome-web.mobile-has-tabbar {
 }
 
 html.mobile-chrome-native {
-  --mobile-inset-top: var(--cap-native-navigation-top, env(safe-area-inset-top, 0px));
+  /* The plugin reports 0 while its navbar is hidden (`navbar: false`): the status bar still needs its room. */
+  --mobile-inset-top: max(var(--cap-native-navigation-top, 0px), env(safe-area-inset-top, 0px));
   --mobile-inset-bottom: max(var(--mobile-tabbar-height), var(--cap-native-navigation-bottom, 0px), env(safe-area-inset-bottom, 0px));
 }
 

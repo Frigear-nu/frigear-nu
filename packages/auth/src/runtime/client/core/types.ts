@@ -103,7 +103,10 @@ export interface OAuthClientOptions {
   requestTimeoutSeconds?: number
   /** Problems that do not fail the operation (e.g. a refreshed id_token that was not accepted). Default `console.warn`. */
   onWarning?: (message: string, error?: unknown) => void
-  /** How long a started authorization can be completed, in seconds. Default 3600. */
+  /**
+   * How long a started authorization can be completed, in seconds. Default 10800 (3 hours): long enough for a sign-up
+   * whose emailed verification link (valid 2 hours) continues the sign-in.
+   */
   pendingTtlSeconds?: number
   /**
    * A sign-in must return a valid id_token: one without fails in `handleCallback` and its tokens are discarded.

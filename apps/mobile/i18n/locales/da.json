@@ -1,0 +1,36 @@
+{
+  "app": {
+    "tabs": {
+      "account": "Konto"
+    },
+    "home": {
+      "title": "Velkommen til Frigear",
+      "description": "Bliv frivillig hos os, se hvad der sker og hold styr på dine vagter.",
+      "signIn": "Log ind",
+      "createAccount": "Opret konto",
+      "confirmEmail": {
+        "title": "Bekræft din e-mail, og log så ind",
+        "description": "Vi har sendt dig et link. Åbn det for at bekræfte din adresse, og kom så tilbage og log ind."
+      },
+      "signInFailed": "Det lykkedes ikke at logge ind. Prøv igen.",
+      "events": {
+        "title": "Kommende arrangementer",
+        "empty": "Der er ingen arrangementer på vej lige nu.",
+        "error": "Arrangementerne kunne ikke hentes.",
+        "retry": "Prøv igen",
+        "membersOnly": "Medlemmer"
+      },
+      "contact": {
+        "title": "Kontakt os",
+        "description": "Spørgsmål om frivilligt arbejde, samarbejde eller en betaling? Skriv til os."
+      }
+    },
+    "signOut": {
+      "label": "Log ud",
+      "confirm": {
+        "title": "Log ud?",
+        "description": "Du skal logge ind igen for at bruge appen."
+      }
+    }
+  }
+}

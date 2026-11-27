@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { AuthClientPublicConfig, StorageMode, StorageOption } from './runtime/client/types'
 import { isSafeRedirect } from './runtime/utils/redirect'
+import { DEFAULT_PENDING_TTL_SECONDS } from './runtime/client/core/client'
 
 // Build-time helpers of the client mode, pure so they can be tested without a Nuxt build.
 
@@ -14,6 +15,18 @@ export function mergeClientPublicConfig(host: Partial<AuthClientPublicConfig> | 
   const merged = defu(host, defaults) as AuthClientPublicConfig
   if (Array.isArray(host?.apiOrigins)) merged.apiOrigins = [...host.apiOrigins]
   return merged
+}
+
+/**
+ * `client.pendingTtlSeconds`: how long a started sign-in can be completed. Default 3 hours. Throws on anything but a
+ * positive number of seconds.
+ */
+export function resolvePendingTtlSeconds(value: unknown): number {
+  if (value === undefined || value === null) return DEFAULT_PENDING_TTL_SECONDS
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    throw new Error(`[@frigear-nu/auth] \`authentication.client.pendingTtlSeconds\` must be a positive number of seconds, got ${JSON.stringify(value)}.`)
+  }
+  return Math.round(value)
 }
 
 const SCHEME = /^[a-z][a-z0-9+.-]*$/

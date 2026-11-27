@@ -14,6 +14,7 @@ import {
   nativeLoaderTypes,
   parseStorageOption,
   resolveNativeRedirectUri,
+  resolvePendingTtlSeconds,
 } from '../../../src/client-build'
 
 describe('resolveNativeRedirectUri', () => {
@@ -33,6 +34,17 @@ describe('resolveNativeRedirectUri', () => {
 
   it('rejects a relative native redirect URI', () => {
     expect(() => resolveNativeRedirectUri({ redirectUri: '/auth/callback', callbackPath: '/auth/callback' })).toThrow(/absolute/)
+  })
+})
+
+describe('resolvePendingTtlSeconds', () => {
+  it('defaults to 3 hours, above the 2 hours of an emailed verification link', () => {
+    expect(resolvePendingTtlSeconds(undefined)).toBe(3 * 60 * 60)
+    expect(resolvePendingTtlSeconds(600)).toBe(600)
+  })
+
+  it.each([0, -1, Number.NaN, '3600'])('rejects %s', (value) => {
+    expect(() => resolvePendingTtlSeconds(value)).toThrow(/pendingTtlSeconds/)
   })
 })
 
@@ -124,7 +136,7 @@ describe('mergeClientPublicConfig', () => {
   it('lets lists the host sets replace the module\'s instead of being appended', () => {
     const defaults = {
       issuer: 'https://id.test', clientId: 'app', scope: 'openid', apiBase: '', apiOrigins: ['https://api.test'],
-      onUnauthorized: 'signOut' as const, redirectUri: '', nativeRedirectUri: '', desktopFlow: 'auto' as const, callbackPath: '/auth/callback',
+      onUnauthorized: 'signOut' as const, pendingTtlSeconds: 10800, redirectUri: '', nativeRedirectUri: '', desktopFlow: 'auto' as const, callbackPath: '/auth/callback',
       discovery: true, endpoints: {}, authorizationParams: {}, storage: 'auto' as const,
       redirect: { login: '/login', afterLogin: '/', afterLogout: '/' }, rewriteLoopback: true,
     }

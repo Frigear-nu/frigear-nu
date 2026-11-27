@@ -58,7 +58,7 @@ export default defineNuxtModule<ModuleOptions>({
       version: '>=0.0.1',
       optional: true,
     },
-    // The overview renders the `account.overview` widget area when it is installed.
+    // The overview renders the `account.overview` and `account.overview.end` widget areas when it is installed.
     '@frigear-nu/widget': {
       version: '>=0.0.0',
       optional: true,

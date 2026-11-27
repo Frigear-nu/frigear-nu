@@ -1,0 +1,73 @@
+{
+  "name": "@frigear-nu/mobile-app",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./identity": "./identity.ts"
+  },
+  "scripts": {
+    "build": "nuxt generate",
+    "generate": "nuxt generate",
+    "dev": "nuxt dev --port 3001",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "nuxt typecheck",
+    "native": "frigear-mobile native",
+    "doctor": "frigear-mobile doctor",
+    "watch": "frigear-mobile watch",
+    "assets": "pnpm dlx --allow-build=sharp @capacitor/assets@3.0.5 generate --ios --android",
+    "cap:sync": "nuxt generate && cap sync",
+    "ios:run": "frigear-mobile native --if-missing && nuxt generate && cap sync ios && cap run ios",
+    "ios:device": "frigear-mobile native --if-missing && MOBILE_LAN=1 nuxt generate && cap sync ios && cap open ios",
+    "ios:prod": "frigear-mobile native --if-missing && nuxt generate --dotenv .env.production && cap sync ios && cap open ios",
+    "android:run": "frigear-mobile native --if-missing && nuxt generate && cap sync android && cap run android"
+  },
+  "dependencies": {
+    "@aparajita/capacitor-secure-storage": "^8.0.1",
+    "@capacitor/action-sheet": "^8.1.1",
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/browser": "^8.0.5",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/dialog": "^8.0.1",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.6.2",
+    "@capacitor/keyboard": "^8.0.6",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.3",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4",
+    "@capgo/capacitor-native-navigation": "^8.16.3",
+    "@frigear-nu/account": "workspace:*",
+    "@frigear-nu/auth": "workspace:*",
+    "@frigear-nu/authorization": "workspace:*",
+    "@frigear-nu/crew": "workspace:*",
+    "@frigear-nu/dashboard": "workspace:*",
+    "@frigear-nu/forms": "workspace:*",
+    "@frigear-nu/help-center": "workspace:*",
+    "@frigear-nu/menu": "workspace:*",
+    "@frigear-nu/mobile": "workspace:*",
+    "@frigear-nu/shifts": "workspace:*",
+    "@frigear-nu/ui": "workspace:*",
+    "@frigear-nu/widget": "workspace:*",
+    "@iconify-json/lucide": "^1.2.155",
+    "@nuxt/ui": "catalog:",
+    "@nuxtjs/i18n": "catalog:",
+    "@nuxtjs/mdc": "^0.23.2",
+    "nuxt": "catalog:",
+    "tailwindcss": "^4.3.5"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.2",
+    "@nuxt/eslint": "catalog:",
+    "@nuxt/kit": "catalog:",
+    "eslint": "catalog:",
+    "typescript": "catalog:",
+    "vue-tsc": "catalog:"
+  },
+  "frigear": {
+    "platform": "mobile"
+  }
+}

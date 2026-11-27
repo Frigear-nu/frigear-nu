@@ -3,7 +3,15 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { resolveStarter } from '../src/commands/init.ts'
-import { resolveAppsDir, toPackageName } from '../src/utils/workspace.ts'
+import { freePackageName, resolveAppsDir, toPackageName } from '../src/utils/workspace.ts'
+
+describe('freePackageName', () => {
+  it('keeps a free name and adds -app, then a number, to a taken one', () => {
+    expect(freePackageName('@a/mobile', new Set(['@a/web']))).toBe('@a/mobile')
+    expect(freePackageName('@a/mobile', new Set(['@a/mobile']))).toBe('@a/mobile-app')
+    expect(freePackageName('@a/mobile', new Set(['@a/mobile', '@a/mobile-app']))).toBe('@a/mobile-app-2')
+  })
+})
 
 describe('toPackageName', () => {
   it.each([

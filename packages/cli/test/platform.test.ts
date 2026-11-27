@@ -78,6 +78,25 @@ describe('addPlatform', () => {
     expect(result.scripts.added.sort()).toEqual(starter.filter(key => key.startsWith('mobile:') || key === 'dev:mobile').sort())
   })
 
+  it('names the app <name>-app when a dependency of the app or a workspace package has its name', async () => {
+    const root = await webProject(cwd, { name: '@frigear-nu/root' })
+    await writeFile(join(root, 'apps/web/package.json'), JSON.stringify({ name: '@frigear-nu/web' }))
+    // The mobile template depends on @frigear-nu/mobile.
+    const mobile = await addPlatform({ cwd: root, platform: 'mobile', install: false })
+    expect(mobile.appDir).toBe(join(root, 'apps/mobile'))
+    expect(mobile.packageName).toBe('@frigear-nu/mobile-app')
+    expect((await readJson(join(root, 'apps/mobile/package.json'))).name).toBe('@frigear-nu/mobile-app')
+    // The scripts follow the folder, not the package name.
+    expect((await readJson(join(root, 'package.json'))).scripts['mobile:ios']).toBe('pnpm --filter ./apps/mobile run ios:run')
+
+    await mkdir(join(root, 'packages/tablet'), { recursive: true })
+    await writeFile(join(root, 'packages/tablet/package.json'), JSON.stringify({ name: '@frigear-nu/tablet' }))
+    const tablet = await addPlatform({ cwd: root, platform: 'mobile', name: 'tablet', install: false })
+    expect(tablet.packageName).toBe('@frigear-nu/tablet-app')
+    const phone = await addPlatform({ cwd: root, platform: 'mobile', name: 'phone', install: false })
+    expect(phone.packageName).toBe('@frigear-nu/phone')
+  })
+
   it('reproduces the multi-platform starter\'s desktop script names', async () => {
     const root = await webProject(cwd)
     const result = await addPlatform({ cwd: root, platform: 'desktop', install: false })

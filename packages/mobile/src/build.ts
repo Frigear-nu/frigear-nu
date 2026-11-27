@@ -81,6 +81,8 @@ export function usedPlugins(input: {
   keyboardAccessoryBar: boolean
   splashScreen?: boolean
   oauth: boolean
+  /** `mobile.host`: pages opened on the website in the in-app browser. */
+  host?: boolean
 }): { name: string, required: boolean, feature: string }[] {
   const keys: NativePluginName[] = ['app', 'haptics', 'actionSheet', 'dialog', 'share']
   if (input.statusBar) keys.push('statusBar')
@@ -97,6 +99,7 @@ export function usedPlugins(input: {
       { name: '@aparajita/capacitor-secure-storage', required: false, feature: 'Keychain token storage (@frigear-nu/auth client mode)' },
     )
   }
+  if (input.host && !input.oauth) plugins.push({ name: NATIVE_PLUGINS.browser.pkg, required: true, feature: NATIVE_PLUGINS.browser.feature })
   return plugins
 }
 

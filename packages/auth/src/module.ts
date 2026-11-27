@@ -85,10 +85,12 @@ import {
   nativeLoaderTypes,
   parseStorageOption,
   resolveNativeRedirectUri,
+  resolvePendingTtlSeconds,
   SECRET_ENV_NAMES,
   TAURI_PLUGIN_KEYS,
 } from './client-build'
 import type { NativePluginKey } from './client-build'
+import { applyDevSessionCookie } from './session-cookie'
 
 export type {
   AuthAppConfig,
@@ -467,13 +469,15 @@ function setupServerMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
   // `resolveAuthSession` refuses a session whose `signedInAt` (stamped by `startAuthSession`) is older, since Nuxt's
   // `useSession` reseals with a fresh ttl on every write. The host's own `runtimeConfig.session.maxAge` wins;
   // nuxt-auth-utils merges its defaults over what is set here.
-  const withSession = nuxt.options.runtimeConfig as { session?: { maxAge?: number, password?: string } }
+  const withSession = nuxt.options.runtimeConfig as { session?: { maxAge?: number, password?: string, cookie?: { secure?: boolean } } }
   const sessionConfig = withSession.session ??= {}
   sessionConfig.maxAge ??= settings.session?.maxAge === false ? 0 : (settings.session?.maxAge ?? DEFAULT_SESSION_MAX_AGE)
   // nuxt-auth-utils 0.6 seals sessions with `appSecret` and no longer declares `session.password`. Kept OAuth tokens
   // still try it before the key derived from `NUXT_APP_SECRET` (rows sealed with it stay readable), and Nuxt only lets
   // `NUXT_SESSION_PASSWORD` override a key declared at build time.
   sessionConfig.password ??= ''
+  // Plain http under `nuxt dev`: no `Secure` cookie, which Safari drops on localhost (`applyDevSessionCookie`).
+  applyDevSessionCookie(sessionConfig, nuxt.options.dev)
 
   const magicLinkSettings = typeof settings.magicLink === 'object' ? settings.magicLink : {}
   nuxt.options.runtimeConfig.authentication = {
@@ -1164,6 +1168,7 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     // Resource mode has a server of its own that answers `/api/`.
     routeApi: !resource && client.routeApi === true,
     onUnauthorized: client.onUnauthorized ?? 'signOut',
+    pendingTtlSeconds: resolvePendingTtlSeconds(client.pendingTtlSeconds),
     redirectUri: client.redirectUri ?? '',
     nativeRedirectUri,
     desktopFlow: client.native?.desktopFlow ?? 'auto',

@@ -37,6 +37,7 @@ import { extendNotificationTopics } from '@frigear-nu/notify/utils'
 import { shiftsNotificationTopics } from './runtime/notifications'
 import { normalizeAutomationBatch } from './runtime/utils/checkin'
 import { assertShiftsStationKey } from './runtime/utils/station-key'
+import { extendCrewHomeTabs } from './home-tabs'
 import type {
   ModuleOptions,
   PublicModuleOptions,
@@ -382,10 +383,10 @@ export default defineNuxtModule<ModuleOptions>({
     }
 
     // My shifts and Swaps on the crew home (`crew.dashboard`), after crew's Overview (0) and My crew (10). Each is there
-    // unless its page option is `false`.
-    if (crewHome && hasNuxtModule('@frigear-nu/widget')) {
-      const { extendTabs } = await import('@frigear-nu/widget/utils')
-      extendTabs(nuxt, 'crew.dashboard', [
+    // unless its page option is `false`. Also when `@frigear-nu/widget` is installed only later, as a dependency of Crew
+    // or Dashboard (`extendCrewHomeTabs`).
+    if (crewHome) {
+      await extendCrewHomeTabs(nuxt, [
         ...(shiftsSetting === false ? [] : [{ id: SHIFTS_HOME_TAB.shifts, component: resolver.resolve('./runtime/app/tabs/HomeShifts.vue'), order: 20, label: 'My shifts', labelKey: 'shifts.home.tabs.shifts', icon: 'i-lucide-calendar-clock', permission: shiftsAccess.permissions.read }]),
         ...(swapsSetting === false ? [] : [{ id: SHIFTS_HOME_TAB.swaps, component: resolver.resolve('./runtime/app/tabs/HomeSwaps.vue'), order: 30, label: 'Swaps', labelKey: 'shifts.home.tabs.swaps', icon: 'i-lucide-arrow-left-right', permission: shiftsAccess.permissions.swap }]),
       ])

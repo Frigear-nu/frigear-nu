@@ -52,7 +52,8 @@ export default defineNuxtPlugin({
       return
     }
 
-    watch([state, () => colorMode.value], ([chrome, mode]) => {
+    // The labels are watched too: they change when i18n becomes ready or the locale switches, with the same tabs.
+    watch([state, () => colorMode.value, () => state.value.tabs.map(label)], ([chrome, mode]) => {
       controller.apply(chrome, { foreground: mode === 'dark' ? '#FFFFFF' : '#0F172A' })
         .catch(error => console.error('[@frigear-nu/mobile] Native navigation:', error))
     }, { immediate: true, deep: true })
