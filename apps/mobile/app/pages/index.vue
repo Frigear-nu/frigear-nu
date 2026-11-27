@@ -56,7 +56,7 @@ async function createAccount() {
 
 <template>
   <div class="flex flex-col gap-8 pb-8">
-    <section class="flex flex-col items-center gap-4 pt-8 text-center">
+    <section class="flex flex-col items-center gap-4 pt-2 text-center">
       <img
         src="/images/logo-light.png"
         alt="Frigear"
