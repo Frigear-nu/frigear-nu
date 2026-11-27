@@ -1,8 +1,9 @@
 import type { H3Event } from 'h3'
-import { db, schema } from '@nuxthub/db'
+import { db } from '@nuxthub/db'
 import { and, eq } from 'drizzle-orm'
 import { base64UrlToBytes, bytesToBase64Url, deriveHkdfKey } from '@frigear-nu/module-kit/crypto'
 import { resolveSecret } from '@frigear-nu/module-kit/secret'
+import { optionalTable } from '../optional-tables'
 import { loadOAuthOpenIdConfiguration, resolveFrigearSso } from './frigear-sso'
 
 /** A provider's tokens kept for a user (`keepTokens`), decrypted. */
@@ -79,11 +80,12 @@ export function parseOAuthTokenResponse(response: Record<string, unknown>, fallb
 
 let warnedMissingTable = false
 function oauthTokensTable() {
-  if (!schema.authOAuthTokens && !warnedMissingTable) {
+  const table = optionalTable('authOAuthTokens')
+  if (!table && !warnedMissingTable) {
     warnedMissingTable = true
     console.warn('[@frigear-nu/auth] OAuth tokens are not kept: no `auth_oauth_tokens` table. Set `keepTokens` on a provider in `authentication.settings.oauth`.')
   }
-  return schema.authOAuthTokens
+  return table
 }
 
 async function resolveUserId(target: H3Event | number): Promise<number | null> {
@@ -118,7 +120,7 @@ export async function storeOAuthTokens(userId: number, provider: string, tokens:
  * `getOAuthAccessToken` to call the provider.
  */
 export async function getOAuthTokens(target: H3Event | number, provider: string): Promise<OAuthTokens | null> {
-  const table = schema.authOAuthTokens
+  const table = optionalTable('authOAuthTokens')
   const userId = await resolveUserId(target)
   if (!table || userId === null) return null
   const row = await db.query.authOAuthTokens.findFirst({ where: and(eq(table.userId, userId), eq(table.provider, provider)) })
@@ -149,7 +151,7 @@ export async function getOAuthAccessToken(target: H3Event | number, provider: st
 
 /** Forgets the tokens kept for the user and provider. */
 export async function revokeOAuthTokens(userId: number, provider: string) {
-  const table = schema.authOAuthTokens
+  const table = optionalTable('authOAuthTokens')
   if (!table) return
   await db.delete(table).where(and(eq(table.userId, userId), eq(table.provider, provider)))
 }

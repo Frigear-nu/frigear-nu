@@ -10,8 +10,8 @@ export interface VirtualRegistryOptions<T> {
   alias?: string
   /** Reads what modules registered during their own `setup()`. Called once every module is done. */
   collect: () => T
-  /** The source of the virtual module. */
-  contents: (data: T) => string
+  /** The source of the virtual module. Called when the template is written. */
+  contents: (data: T) => string | Promise<string>
   /** Called with the collected data after the template is registered, for hosts that want to inspect it. */
   resolved?: (data: T) => void | Promise<void>
 }

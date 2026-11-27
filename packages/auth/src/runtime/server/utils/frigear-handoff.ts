@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { db, schema } from '@nuxthub/db'
+import { db } from '@nuxthub/db'
 import { and, eq, gt, lt } from 'drizzle-orm'
 import { deriveSecret } from 'nuxt/server'
 import { apiError, sha256Hex } from '@frigear-nu/module-kit/server'
@@ -7,6 +7,7 @@ import { deriveHkdfKey } from '@frigear-nu/module-kit/crypto'
 import { challengeFor, randomString } from '../../client/core/pkce'
 import type { FrigearHandoffDto, FrigearHandoffStartDto } from '../../../types'
 import type { FrigearSsoConfig } from './frigear-sso'
+import { optionalTable } from '../optional-tables'
 import { openOAuthToken, sealOAuthToken } from './oauth-tokens'
 
 // "Log in with frigear.nu" handed off to the system browser (`oauth.frigear.handoff`). The window starts an attempt and
@@ -45,7 +46,7 @@ export type FrigearHandoffRow = {
 }
 
 function handoffTable() {
-  const table = schema.authFrigearHandoffs
+  const table = optionalTable('authFrigearHandoffs')
   if (!table) throw apiError(404, 'handoff_disabled', 'The browser handoff is not enabled (`oauth.frigear.handoff`).')
   return table
 }

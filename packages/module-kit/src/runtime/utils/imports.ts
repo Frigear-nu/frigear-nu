@@ -2,6 +2,9 @@ import { addTypeTemplate } from '@nuxt/kit'
 import type { Nuxt } from '@nuxt/schema'
 import { defineVirtualRegistry } from './registry'
 
+/** An auto-import as Nuxt's import context lists it: `name` exported by `from`, auto-imported as `as` (or `name`). */
+type AutoImport = { name: string, as?: string, from: string }
+
 export interface OptionalImport {
   /** The auto-import, as `#imports` exports it when its module is installed (`useMenu`, `queryCollection`). */
   name: string
@@ -28,14 +31,30 @@ export interface OptionalImport {
  */
 export function addOptionalImports(nuxt: Nuxt, alias: string, imports: OptionalImport[]) {
   const base = alias.replace(/^#/, '')
-  const line = (available: boolean, { name, fallback }: OptionalImport) =>
-    available ? `export { ${name} } from '#imports'` : `export const ${name} = ${fallback}`
+  // Each name is re-exported from the file that provides it, not from `#imports`: the build directory is not transformed
+  // like app code, so `#imports` there is Nuxt's whole auto-import barrel, and in the client build every auto-import
+  // with a side effect (a composable that imports its slideover, MDC's parser) would land in the entry chunk.
+  // The list is read from the auto-import context when the template is written, once every module added its entries.
+  let importsContext: { getImports: () => Promise<AutoImport[]> } | undefined
+  nuxt.hook('imports:context', (context) => {
+    importsContext = context
+  })
+  const line = (available: boolean, { name, fallback }: OptionalImport, autoImports: AutoImport[]) => {
+    if (!available) return `export const ${name} = ${fallback}`
+    const source = autoImports.find(entry => (entry.as ?? entry.name) === name)
+    return source
+      ? `export { ${source.name === name ? name : `${source.name} as ${name}`} } from ${JSON.stringify(source.from)}`
+      : `export { ${name} } from '#imports'`
+  }
 
   defineVirtualRegistry(nuxt, {
     filename: `${base}.mjs`,
     alias,
     collect: () => imports.map(entry => ({ entry, available: entry.available() })),
-    contents: entries => `${entries.map(({ entry, available }) => line(available, entry)).join('\n')}\n`,
+    contents: async (entries) => {
+      const autoImports = entries.some(({ available }) => available) ? await importsContext?.getImports() ?? [] : []
+      return `${entries.map(({ entry, available }) => line(available, entry, autoImports)).join('\n')}\n`
+    },
   })
 
   addTypeTemplate({

@@ -252,7 +252,7 @@ const carouselUi = {
 </template>
 
 <style lang="postcss">
-/**@reference "../../assets/css/main.css";**/
+/* Plain CSS, outside Tailwind: dark mode is the `.dark` class Nuxt UI sets (its `dark` variant), written out by hand. */
 
 .hero-carousel-stage {
   --hero-rotate-x: 0deg;
@@ -295,7 +295,7 @@ const carouselUi = {
   opacity: 0.95;
   animation: hero-aura-float 10s ease-in-out infinite alternate;
 
-  @variant dark {
+  &:where(.dark, .dark *) {
     background:
       radial-gradient(
         circle at var(--hero-aura-x) var(--hero-aura-y),
@@ -366,7 +366,7 @@ const carouselUi = {
     -8px 0 22px -5px rgb(var(--hcf-purple) / 0.50),
      8px 0 22px -5px rgb(var(--hcf-teal)   / 0.40);
 
-  @variant dark {
+  &:where(.dark, .dark *) {
     box-shadow:
       0 34px 70px -26px rgb(2 6 23 / 0.78),
       0 14px 32px rgb(2 6 23 / 0.42),
@@ -448,7 +448,7 @@ const carouselUi = {
     inset 0 1px 0 rgb(255 255 255 / 0.22),
     inset 0 -20px 40px rgb(3 7 18 / 0.18);
 
-  @variant dark {
+  &:where(.dark, .dark *) {
     background:
       linear-gradient(
         180deg,
@@ -578,7 +578,7 @@ const carouselUi = {
     border-color 160ms ease,
     box-shadow 160ms ease;
 
-  @variant dark {
+  &:where(.dark, .dark *) {
     border-color: rgb(255 255 255 / 0.12);
     background:
       linear-gradient(
