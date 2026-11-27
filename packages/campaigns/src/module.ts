@@ -56,7 +56,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@nuxthub/core': { version: '>=0.10' },
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
-    // Signed-in users manage their own newsletters; their verified email links them to their contact.
+    // Signed-in users manage their own subscriptions; their verified email links them to their contact.
     '@frigear-nu/users': { version: '>=0.0.1' },
     // Every message (the confirmation email and SMS) goes through notify's dispatch, on the app's drivers.
     '@frigear-nu/notify': { version: '>=0.0.1' },
@@ -77,7 +77,7 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
-    // `campaigns:manage`, `:send`, `:send-important`, `campaigns:pii`, `campaigns:subscriptions` and the `newsletters`
+    // `campaigns:manage`, `:send`, `:send-important`, `campaigns:pii`, `campaigns:subscriptions` and the `subscriptions`
     // scope (`runtime/access.ts`).
     registerAccess(nuxt, campaignsAccess, { from: MODULE_NAME })
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
@@ -90,10 +90,14 @@ export default defineNuxtModule<ModuleOptions>({
     const accountPath = resolvePagePath(pages.account ?? true, CAMPAIGNS_DEFAULT_PAGES.account)
     let adminListsPath: string | undefined
     let adminListPath: string | undefined
+    let adminCampaignsPath: string | undefined
+    let adminCampaignPath: string | undefined
     if (hasNuxtModule('@frigear-nu/admin')) {
       const { adminRoute } = await import('@frigear-nu/admin/utils')
       adminListsPath = resolvePagePath(pages.adminLists ?? true, adminRoute(nuxt, 'campaigns', 'lists'))
       adminListPath = resolvePagePath(pages.adminList ?? true, adminRoute(nuxt, 'campaigns', 'lists', ':id'))
+      adminCampaignsPath = resolvePagePath(pages.adminCampaigns ?? true, adminRoute(nuxt, 'campaigns'))
+      adminCampaignPath = resolvePagePath(pages.adminCampaign ?? true, adminRoute(nuxt, 'campaigns', ':id'))
     }
 
     const captchaProvider = options.captcha || false
@@ -107,7 +111,15 @@ export default defineNuxtModule<ModuleOptions>({
     const i18n = i18nLocales.length ? { strategy: i18nOptions?.strategy ?? 'prefix_except_default', defaultLocale: i18nOptions?.defaultLocale ?? null, locales: i18nLocales } : null
 
     nuxt.options.runtimeConfig.public.campaigns = {
-      pages: { confirm: confirmPath, unsubscribe: unsubscribePath, account: accountPath, adminLists: adminListsPath, adminList: adminListPath },
+      pages: {
+        confirm: confirmPath,
+        unsubscribe: unsubscribePath,
+        account: accountPath,
+        adminLists: adminListsPath,
+        adminList: adminListPath,
+        adminCampaigns: adminCampaignsPath,
+        adminCampaign: adminCampaignPath,
+      },
       captcha: captchaProvider || null,
       i18n,
     }
@@ -152,8 +164,9 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'patch', path: 'lists/:id', file: 'admin/list.patch' },
       { method: 'delete', path: 'lists/:id', file: 'admin/list.delete' },
       { method: 'get', path: 'lists/:id/subscribers', file: 'admin/list-subscribers.get' },
-      // The static segment `lists` wins over `:id` in h3's radix router, whatever the registration order.
+      // The static segments `lists` and `users` win over `:id` in h3's radix router, whatever the registration order.
       { method: 'get', path: '', file: 'admin/campaigns/list.get' },
+      { method: 'get', path: 'users', file: 'admin/campaigns/users.get' },
       { method: 'post', path: '', file: 'admin/campaigns/create.post' },
       { method: 'get', path: ':id', file: 'admin/campaigns/get.get' },
       { method: 'patch', path: ':id', file: 'admin/campaigns/patch.patch' },
@@ -220,10 +233,12 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'useCampaignsLocale', from: resolver.resolve('./runtime/app/composables/useCampaignsTranslate') },
       { name: 'useCampaignsLinks', from: resolver.resolve('./runtime/app/composables/useCampaignsLinks') },
       { name: 'useCampaignListActions', from: resolver.resolve('./runtime/app/composables/useCampaignListActions') },
+      { name: 'useCampaignActions', from: resolver.resolve('./runtime/app/composables/useCampaignActions') },
+      { name: 'useCampaignsAccess', from: resolver.resolve('./runtime/app/composables/useCampaignsAccess') },
     ])
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
-    // Global, so Nuxt Content resolves `::newsletter-signup{list="…"}` too.
-    addComponent({ name: 'NewsletterSignup', filePath: resolver.resolve('./runtime/app/components/NewsletterSignup.vue'), global: true, priority: 1 })
+    // Global, so Nuxt Content resolves `::list-signup{list="…"}` too.
+    addComponent({ name: 'ListSignup', filePath: resolver.resolve('./runtime/app/components/ListSignup.vue'), global: true, priority: 1 })
 
     addModulePages(MODULE_NAME, resolver, [
       { name: 'campaigns-confirm', path: confirmPath, file: './runtime/app/pages/confirm.vue' },
@@ -231,11 +246,13 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'campaigns-account', path: accountPath, file: './runtime/app/pages/account.vue' },
       { name: 'campaigns-admin-lists', path: adminListsPath, file: './runtime/app/pages/admin-lists.vue' },
       { name: 'campaigns-admin-list', path: adminListPath, file: './runtime/app/pages/admin-list.vue' },
+      { name: 'campaigns-admin-campaigns', path: adminCampaignsPath, file: './runtime/app/pages/admin-campaigns.vue' },
+      { name: 'campaigns-admin-campaign', path: adminCampaignPath, file: './runtime/app/pages/admin-campaign.vue' },
     ])
     // Only for signed-in people: a route rule `@frigear-nu/authorization` enforces.
     if (accountPath) guardPages(nuxt, [accountPath])
 
-    // The Newsletters item of the admin sidebar (Manage) and of the account menu.
+    // The Campaigns item of the admin sidebar (Manage) and the Subscriptions item of the account menu.
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'admin.nav' })
   },
 })

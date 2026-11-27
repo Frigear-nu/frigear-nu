@@ -6,16 +6,16 @@ import { newId } from '@frigear-nu/module-kit/id'
 import type { CampaignChannel, CampaignMyListDto, CampaignMySubscriptionsDto, CampaignSubscriptionStatus } from '../../../types'
 import type { CampaignContactRow } from './campaigns-dto'
 
-// The signed-in user's newsletters (`/api/campaigns/me/subscriptions`). Their contact is linked to them by their verified
+// The signed-in user's subscriptions (`/api/campaigns/me/subscriptions`). Their contact is linked to them by their verified
 // email address; a list they turn on from the account page is active at once when that address is verified, and
 // waits for the confirmation email otherwise.
 
 export type CampaignsMe = { id: number, email: string, name: string, locale: string | null, emailVerified: boolean }
 
-/** The signed-in user as the newsletters page needs them: address, name, language and whether the address is verified. */
+/** The signed-in user as the subscriptions page needs them: address, name, language and whether the address is verified. */
 export async function campaignsLoadMe(userId: number): Promise<CampaignsMe> {
   const [row] = await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1)
-  if (!row) throw apiError(401, 'unauthorized', 'Sign in to see your newsletters.')
+  if (!row) throw apiError(401, 'unauthorized', 'Sign in to see your subscriptions.')
   const verifiedAt = (row as { emailVerifiedAt?: unknown }).emailVerifiedAt
   return { id: row.id, email: row.email, name: row.name, locale: row.locale ?? null, emailVerified: !!verifiedAt }
 }
@@ -94,12 +94,12 @@ export async function campaignsUpdateMySubscriptions(event: H3Event, me: Campaig
   for (const id of ids) {
     const list = byId.get(id)
     if (!list || (!list.public && !mine.some(row => row.listId === id))) {
-      issues.push({ code: 'custom', path: ['lists', id], message: 'Unknown newsletter.' })
+      issues.push({ code: 'custom', path: ['lists', id], message: 'Unknown list.' })
       continue
     }
     for (const [channel, on] of Object.entries(changes[id]!) as Array<[CampaignChannel, boolean]>) {
       if (on && channel === 'sms') issues.push({ code: 'custom', path: ['lists', id, channel], message: 'Sign up for SMS with the signup form, which confirms your phone number.' })
-      else if (on && !list.channels.includes(channel)) issues.push({ code: 'custom', path: ['lists', id, channel], message: 'This newsletter is not sent on this channel.' })
+      else if (on && !list.channels.includes(channel)) issues.push({ code: 'custom', path: ['lists', id, channel], message: 'This list does not use this channel.' })
     }
   }
   if (issues.length) throw validationError(issues)

@@ -5,7 +5,7 @@ import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
 import { campaignsAccess } from '../src/runtime/access'
 import { campaignsApi } from '../src/runtime/utils/api'
-import type { CampaignDeliveryDto, CampaignDto, CampaignListDto, CampaignMySubscriptionsDto, CampaignPreviewDto, CampaignStatsDto, CampaignSubscriberDto, CampaignSubscriptionResultDto } from '../src/types'
+import type { CampaignDeliveryDto, CampaignDto, CampaignListDto, CampaignMySubscriptionsDto, CampaignPreviewDto, CampaignStatsDto, CampaignSubscriberDto, CampaignSubscriptionResultDto, CampaignUserLookupDto } from '../src/types'
 import { BROWSER_UA, createToken, deliveryTokenOf, emailsTo, getDeliveries, getMessages, getSubscriptions, registerUser, runDeliver, subscriptionOf, tokenOf, verifyEmail, withServerEnv } from './helpers'
 import type { Session } from './helpers'
 
@@ -89,7 +89,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
       expect(mail?.template?.name).toBe('campaigns-confirm')
       expect(mail?.subject).toBe('Bekræft din tilmelding til Nyheder')
       const confirmUrl = mail!.template!.props.confirmUrl!
-      expect(confirmUrl).toContain('/newsletter/confirm?token=')
+      expect(confirmUrl).toContain('/subscriptions/confirm?token=')
       // Rendered from the template, with the confirmation link and the unsubscribe link in the footer.
       expect(mail!.body).toContain(confirmUrl)
       expect(mail!.body).toContain(mail!.template!.props.unsubscribeUrl!)
@@ -192,7 +192,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
         redirect: 'manual',
       })
       expect(response.status).toBe(303)
-      expect(response.headers.get('location')).toMatch(/\/newsletter\/confirm\?subscribed=news&confirm=1$/)
+      expect(response.headers.get('location')).toMatch(/\/subscriptions\/confirm\?subscribed=news&confirm=1$/)
       expect((await subscriptionOf(news.id, email))?.subscription.status).toBe('pending')
     })
 
@@ -227,7 +227,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
       // A GET of the API route or the page changes nothing.
       const get = await fetch(campaignsApi.unsubscribe(token))
       expect(get.status).toBeGreaterThanOrEqual(400)
-      const page = await fetch(`/newsletter/unsubscribe?token=${encodeURIComponent(token)}`)
+      const page = await fetch(`/subscriptions/unsubscribe?token=${encodeURIComponent(token)}`)
       expect(page.status).toBe(200)
       expect((await subscriptionOf(news.id, email))?.subscription.status).toBe('active')
 
@@ -262,7 +262,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
     })
   })
 
-  describe('the signed-in user\'s newsletters', () => {
+  describe('the signed-in user\'s subscriptions', () => {
     it('needs a signed-in user', async () => {
       await expectApiError(anonymous.fetch('GET', campaignsApi.me.subscriptions), 401)
     })
@@ -372,7 +372,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
     })
 
     it('renders the staff, account and public pages, and the signup component', async () => {
-      for (const path of ['/admin/campaigns/lists', `/admin/campaigns/lists/${news.id}`, '/account/newsletters', '/signup', '/newsletter/confirm?subscribed=news&confirm=1']) {
+      for (const path of ['/admin/campaigns/lists', `/admin/campaigns/lists/${news.id}`, '/account/subscriptions', '/signup', '/subscriptions/confirm?subscribed=news&confirm=1']) {
         const response = await fetch(path, { headers: { cookie: admin.cookie } })
         const html = await response.text()
         expect(response.status, `${path}: ${html.slice(0, 3000)}`).toBe(200)
@@ -397,7 +397,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
       throw new Error(`campaign ${id} was not sent`)
     }
 
-    const newsletterInput = (extra: Record<string, unknown> = {}) => ({
+    const toListsInput = (extra: Record<string, unknown> = {}) => ({
       kind: 'newsletter',
       name: 'Weekly issue',
       channels: ['email'],
@@ -419,24 +419,39 @@ describe('campaigns (authenticated, database-backed)', async () => {
     })
 
     it('creates a draft, previews its audience and refuses changes once sent', async () => {
-      const draft = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, newsletterInput({ name: 'Draft only' }))
+      const draft = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, toListsInput({ name: 'Draft only' }))
       expect(draft).toMatchObject({ status: 'draft', kind: 'newsletter', trackClicks: true, trackOpens: false, important: false })
       expect(draft.id).toMatch(/^cmp_[0-9a-f]{32}$/)
       expect(await as(admin).json<CampaignPreviewDto>('GET', campaignsApi.admin.preview(draft.id))).toEqual({ recipients: 2, channels: { email: 2 } })
       const renamed = await as(admin).json<CampaignDto>('PATCH', campaignsApi.admin.campaign(draft.id), { name: 'Renamed' })
       expect(renamed.name).toBe('Renamed')
-      // Not ready: push on a newsletter.
+      // Not ready: push on a campaign to lists.
       await expectApiError(as(admin).fetch('PATCH', campaignsApi.admin.campaign(draft.id), { channels: ['push'] }).then(async (response) => {
         expect(response.status).toBe(200)
         return as(admin).fetch('POST', campaignsApi.admin.send(draft.id))
       }), 400, 'validation_failed')
       expect((await as(admin).fetch('DELETE', campaignsApi.admin.campaign(draft.id))).status).toBe(204)
       await expectApiError(as(admin).fetch('GET', campaignsApi.admin.campaign(draft.id)), 404, 'not_found')
-      await expectApiError(as(admin).fetch('POST', campaignsApi.admin.campaigns, newsletterInput({ audience: { listIds: ['cml_missing'] } })), 400, 'validation_failed')
+      await expectApiError(as(admin).fetch('POST', campaignsApi.admin.campaigns, toListsInput({ audience: { listIds: ['cml_missing'] } })), 400, 'validation_failed')
     })
 
-    it('sends a newsletter with tracked links, unsubscribe headers and footer; clicks count, opens only with trackOpens', async () => {
-      const campaign = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, newsletterInput())
+    it('filters the campaigns by the list they go to', async () => {
+      const other = await as(admin).json<CampaignListDto>('POST', campaignsApi.admin.lists, { slug: 'other-list', name: 'Other', doubleOptIn: false })
+      const toWeekly = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, toListsInput({ name: 'To weekly' }))
+      const toBoth = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, toListsInput({ name: 'To both', audience: { listIds: [other.id, weekly.id] } }))
+      const toOther = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, toListsInput({ name: 'To other', audience: { listIds: [other.id] } }))
+      const ids = async (listId: string) => (await as(admin).json<{ items: CampaignDto[] }>('GET', `${campaignsApi.admin.campaigns}?listId=${listId}&pageSize=100`)).items.map(item => item.id)
+      expect(await ids(other.id)).toEqual(expect.arrayContaining([toBoth.id, toOther.id]))
+      expect(await ids(other.id)).not.toContain(toWeekly.id)
+      expect(await ids(weekly.id)).toEqual(expect.arrayContaining([toWeekly.id, toBoth.id]))
+      expect(await ids(weekly.id)).not.toContain(toOther.id)
+      await expectApiError(as(admin).fetch('GET', `${campaignsApi.admin.campaigns}?listId=${encodeURIComponent('%')}`), 400)
+      for (const campaign of [toWeekly, toBoth, toOther]) await as(admin).fetch('DELETE', campaignsApi.admin.campaign(campaign.id))
+      await as(admin).fetch('DELETE', campaignsApi.admin.list(other.id))
+    })
+
+    it('sends a campaign to lists with tracked links, unsubscribe headers and footer; clicks count, opens only with trackOpens', async () => {
+      const campaign = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, toListsInput())
       const sent = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.send(campaign.id))
       expect(['scheduled', 'sending', 'sent']).toContain(sent.status)
       await expectApiError(as(admin).fetch('PATCH', campaignsApi.admin.campaign(campaign.id), { name: 'Late' }), 409, 'not_draft')
@@ -460,9 +475,9 @@ describe('campaigns (authenticated, database-backed)', async () => {
         'List-Unsubscribe': expect.stringMatching(new RegExp(`^<http.*/api/campaigns/unsubscribe/${token.replace('.', '\\.')}>$`)),
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
       })
-      expect(mail!.template!.props.unsubscribeUrl).toContain(`/newsletter/unsubscribe?token=${encodeURIComponent(token)}`)
+      expect(mail!.template!.props.unsubscribeUrl).toContain(`/subscriptions/unsubscribe?token=${encodeURIComponent(token)}`)
       expect(mail!.body).toContain(mail!.template!.props.unsubscribeUrl!.replace(/&/g, '&amp;'))
-      expect(mail!.body).toContain('/account/newsletters')
+      expect(mail!.body).toContain('/account/subscriptions')
       expect(mail!.body).not.toContain('/api/campaigns/o/')
 
       // Following the link redirects to the stored URL and counts on the delivery.
@@ -490,7 +505,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
     })
 
     it('counts an open with trackOpens, and a one-click unsubscribe with the delivery token stops the next send', async () => {
-      const campaign = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, newsletterInput({ name: 'Opens', trackOpens: true }))
+      const campaign = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, toListsInput({ name: 'Opens', trackOpens: true }))
       await as(admin).json('POST', campaignsApi.admin.send(campaign.id))
       await deliverAll(campaign.id)
       const mail = (await emailsTo(readerA)).at(-1)!
@@ -500,6 +515,9 @@ describe('campaigns (authenticated, database-backed)', async () => {
       await fetch(new URL(pixelUrl).pathname)
       const stats = await as(admin).json<CampaignStatsDto>('GET', campaignsApi.admin.stats(campaign.id))
       expect(stats.counts.email?.opened).toBe(1)
+      // The list counts from the delivery rows too, not the counts kept when the campaign finished (before this open).
+      const page = await as(admin).json<{ items: CampaignDto[] }>('GET', `${campaignsApi.admin.campaigns}?q=Opens`)
+      expect(page.items.find(item => item.id === campaign.id)?.counts?.email?.opened).toBe(1)
 
       // RFC 8058: the mail app posts to the List-Unsubscribe URL.
       const oneClick = mail.headers!['List-Unsubscribe']!.slice(1, -1)
@@ -509,7 +527,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
       expect((await subscriptionOf(weekly.id, readerA))?.subscription.status).toBe('unsubscribed')
 
       const before = (await emailsTo(readerA)).length
-      const next = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, newsletterInput({ name: 'Next' }))
+      const next = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, toListsInput({ name: 'Next' }))
       await as(admin).json('POST', campaignsApi.admin.send(next.id))
       const nextStats = await deliverAll(next.id)
       expect(nextStats.counts.email).toMatchObject({ total: 1, sent: 1 })
@@ -544,7 +562,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
       await expectApiError(as(sender).fetch('POST', campaignsApi.admin.campaigns, { ...message, important: true }), 403, 'forbidden')
       const important = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, { ...message, name: 'Important', important: true })
       await expectApiError(as(sender).fetch('POST', campaignsApi.admin.send(important.id)), 403, 'forbidden')
-      await expectApiError(as(admin).fetch('POST', campaignsApi.admin.campaigns, newsletterInput({ important: true })).then(async (response) => {
+      await expectApiError(as(admin).fetch('POST', campaignsApi.admin.campaigns, toListsInput({ important: true })).then(async (response) => {
         const created = await response.json() as CampaignDto
         return as(admin).fetch('POST', campaignsApi.admin.send(created.id))
       }), 400, 'validation_failed')
@@ -569,7 +587,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
     })
 
     it('schedules and cancels', async () => {
-      const campaign = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, newsletterInput({ name: 'Later' }))
+      const campaign = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, toListsInput({ name: 'Later' }))
       await expectApiError(as(admin).fetch('POST', campaignsApi.admin.schedule(campaign.id), { scheduledAt: '2000-01-01T00:00:00Z' }), 400)
       const later = new Date(Date.now() + 3_600_000).toISOString()
       const scheduled = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.schedule(campaign.id), { scheduledAt: later })
@@ -593,7 +611,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
 
       // `campaigns:manage` sees campaigns and stats, but does not send.
       expect((await as(manager).json<CampaignStatsDto>('GET', campaignsApi.admin.stats(first!.id))).status).toBe('sent')
-      const draft = await as(manager).json<CampaignDto>('POST', campaignsApi.admin.campaigns, newsletterInput({ name: 'Manager draft' }))
+      const draft = await as(manager).json<CampaignDto>('POST', campaignsApi.admin.campaigns, toListsInput({ name: 'Manager draft' }))
       await expectApiError(as(manager).fetch('POST', campaignsApi.admin.send(draft.id)), 403, 'forbidden')
 
       // Deliveries name recipients: only with `campaigns:pii`, which `campaigns:*` never reaches.
@@ -610,6 +628,66 @@ describe('campaigns (authenticated, database-backed)', async () => {
       expect((await bearer(pii).json<{ total: number }>('GET', campaignsApi.admin.deliveries(first!.id))).total).toBe(withPii.total)
       const noScope = await createToken(admin.cookie, [campaignsAccess.permissions.subscriptions])
       await expectApiError(bearer(noScope).fetch('GET', campaignsApi.admin.campaigns), 403, 'insufficient_scope')
+    })
+
+    it('counts skipped deliveries by reason', async () => {
+      const { items } = await as(admin).json<{ items: CampaignDto[] }>('GET', `${campaignsApi.admin.campaigns}?status=sent&kind=message`)
+      const all = await Promise.all(items.map(item => as(admin).json<CampaignStatsDto>('GET', campaignsApi.admin.stats(item.id))))
+      const stats = all.find(entry => (entry.counts.email?.skipped ?? 0) > 0)!
+      // The plain message skipped the user who turned email off for messages.
+      expect(stats.skipReasons.disabled).toBeGreaterThanOrEqual(1)
+      for (const entry of all) {
+        const skipped = Object.values(entry.counts).reduce((sum, counts) => sum + (counts?.skipped ?? 0), 0)
+        expect(Object.values(entry.skipReasons).reduce<number>((sum, count) => sum + (count ?? 0), 0)).toBe(skipped)
+      }
+    })
+
+    it('looks up people for the message form: names for `campaigns:manage`, emails with `campaigns:pii`', async () => {
+      const byName = await as(manager).json<CampaignUserLookupDto[]>('GET', `${campaignsApi.admin.users}?q=Sender`)
+      expect(byName.map(user => user.id)).toContain(sender.id)
+      expect(byName.every(user => !('email' in user))).toBe(true)
+      // Without `campaigns:pii` an email address finds nobody.
+      expect(await as(manager).json<CampaignUserLookupDto[]>('GET', `${campaignsApi.admin.users}?q=${encodeURIComponent(sender.email)}`)).toEqual([])
+      const withPii = await as(admin).json<CampaignUserLookupDto[]>('GET', `${campaignsApi.admin.users}?q=${encodeURIComponent(sender.email)}`)
+      expect(withPii).toEqual([expect.objectContaining({ id: sender.id, email: sender.email })])
+      const byId = await as(manager).json<CampaignUserLookupDto[]>('GET', `${campaignsApi.admin.users}?ids=${sender.id},${admin.id},x`)
+      expect(byId.map(user => user.id).sort()).toEqual([admin.id, sender.id].sort())
+      await expectApiError(as(member).fetch('GET', `${campaignsApi.admin.users}?q=Sender`), 403, 'forbidden')
+    })
+
+    it('renders the campaign pages, with the send actions and the recipients only for those allowed', async () => {
+      const [sent] = (await as(admin).json<{ items: CampaignDto[] }>('GET', `${campaignsApi.admin.campaigns}?status=sent&kind=newsletter`)).items
+      const draft = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, toListsInput({ name: 'Page draft' }))
+      const message = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, { kind: 'message', name: 'Page message', audience: { userIds: [String(sender.id)] }, channels: ['email', 'push'] })
+      const render = async (session: Session, path: string) => {
+        const response = await fetch(path, { headers: { cookie: session.cookie } })
+        const html = await response.text()
+        expect(response.status, `${path}: ${html.slice(0, 3000)}`).toBe(200)
+        return html
+      }
+      const list = await render(admin, '/admin/campaigns')
+      expect(list).toContain('data-campaigns-table')
+      expect(list).toContain('Page draft')
+      await render(admin, '/admin/campaigns/lists')
+      await render(admin, `/admin/campaigns/${message.id}`)
+      expect(await render(admin, '/admin/campaigns/cmp_missing')).toContain('Campaign not found')
+
+      // Deliveries name recipients: `campaigns:pii` only, which `campaigns:*` never reaches.
+      expect(await render(admin, `/admin/campaigns/${sent!.id}`)).toContain('data-campaign-deliveries')
+      expect(await render(wild, `/admin/campaigns/${sent!.id}`)).not.toContain('data-campaign-deliveries')
+      expect(await render(manager, `/admin/campaigns/${sent!.id}`)).not.toContain('data-campaign-deliveries')
+
+      // Send and schedule need `campaigns:send`; a draft that is ready shows no list of what is missing.
+      const ready = await render(admin, `/admin/campaigns/${draft.id}`)
+      expect(ready).toContain('data-campaign-send')
+      expect(ready).toContain('data-campaign-schedule')
+      expect(ready).not.toContain('data-campaign-issues')
+      expect(await render(sender, `/admin/campaigns/${draft.id}`)).toContain('data-campaign-send')
+      expect(await render(manager, `/admin/campaigns/${draft.id}`)).not.toContain('data-campaign-send')
+      // The message has no texts yet: it lists what is missing.
+      expect(await render(admin, `/admin/campaigns/${message.id}`)).toContain('data-campaign-issues')
+      await as(admin).fetch('DELETE', campaignsApi.admin.campaign(draft.id))
+      await as(admin).fetch('DELETE', campaignsApi.admin.campaign(message.id))
     })
 
     it('prunes the per-recipient rows after `retentionDays`, keeping the counts', async () => {

@@ -47,7 +47,7 @@ async function confirm() {
           {{ t('confirm.title', 'Confirm your subscription') }}
         </h1>
         <p class="text-sm text-muted">
-          {{ t('confirm.description', 'One click, and the newsletter is on its way to you.') }}
+          {{ t('confirm.description', 'One click, and your subscription starts.') }}
         </p>
       </div>
       <UAlert
@@ -57,7 +57,7 @@ async function confirm() {
         variant="subtle"
         :title="t('confirm.done', 'You are subscribed to {list}', { list: tr(result.list.name) })"
         :description="t('confirm.doneDescription', 'Every message has a link to unsubscribe again.')"
-        :actions="links.account() ? [{ label: t('confirm.manage', 'Manage your newsletters'), to: links.account(), color: 'neutral', variant: 'outline' }] : []"
+        :actions="links.account() ? [{ label: t('confirm.manage', 'Manage your subscriptions'), to: links.account(), color: 'neutral', variant: 'outline' }] : []"
       />
       <UAlert
         v-else-if="!token && subscribed"
@@ -66,7 +66,7 @@ async function confirm() {
         variant="subtle"
         :title="mustConfirm ? t('confirm.checkInbox', 'Check your inbox') : t('confirm.signedUp', 'You are signed up')"
         :description="mustConfirm
-          ? t('confirm.checkInboxDescription', 'We sent you a link. Open it and confirm, and the newsletter starts coming to you.')
+          ? t('confirm.checkInboxDescription', 'We sent you a link. Open it and confirm, and your subscription starts.')
           : t('confirm.signedUpDescription', 'Thank you for signing up.')"
       />
       <UEmpty
@@ -86,12 +86,12 @@ async function confirm() {
             ? t('confirm.expired', 'This link has expired')
             : failureCode === 'invalid_token' ? t('confirm.invalid', 'This link does not work any more') : t('confirm.failed', 'The subscription could not be confirmed')"
           :description="failureCode === 'invalid_token'
-            ? t('confirm.invalidDescription', 'It may have been used already. Sign up again if you are not getting the newsletter.')
+            ? t('confirm.invalidDescription', 'It may have been used already. Sign up again if you are not getting messages from the list.')
             : failureCode === 'token_expired' ? t('confirm.expiredDescription', 'Sign up again to get a new link.') : errorMessage(failure, '')"
         />
         <SectionCard :title="t('confirm.cardTitle', 'Confirm your subscription')">
           <p class="text-muted text-sm">
-            {{ t('confirm.explanation', 'Confirm that you want this newsletter. You can unsubscribe from every message.') }}
+            {{ t('confirm.explanation', 'Confirm that you want messages from this list. You can unsubscribe from every message.') }}
           </p>
           <template #footer>
             <div class="flex justify-end gap-2">

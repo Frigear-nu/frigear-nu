@@ -51,7 +51,7 @@ rarely add more than one at a time. Module Kit is left out of the last column, s
 | Let a module store a location or a venue layout, with a picker, an editor and viewers | [Maps](/modules/interface/maps) | UI |
 | Answer the contact form, email, WhatsApp, Messenger and Instagram from shared inboxes | [Inbox](/modules/communication/inbox) | Auth, Notify, UI |
 | Put short, counted links in emails and SMS, and learn who clicked | [Short links](/modules/communication/short-links) | Auth, UI |
-| Let people sign up to newsletters, also without an account, with double opt-in and one-click unsubscribe | [Campaigns](/modules/communication/campaigns) | Auth, Users, Notify, UI |
+| Let people sign up to lists (your news, the volunteers of an event), also without an account, with double opt-in and one-click unsubscribe | [Campaigns](/modules/communication/campaigns) | Auth, Users, Notify, UI |
 
 Every module that stores data also needs [NuxtHub](/guide/concepts/glossary) for the database. It is listed on each
 module's page.

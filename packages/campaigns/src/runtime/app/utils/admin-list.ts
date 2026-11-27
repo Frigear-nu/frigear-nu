@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { CampaignChannel, CampaignListDto, Translated } from '../../../types'
 import { CAMPAIGN_SLUG, CAMPAIGN_CHANNELS } from '../../utils/schemas'
 
-// The staff form of a newsletter list: its state, the schema `UForm` checks it with, and the request body.
+// The staff form of a list: its state, the schema `UForm` checks it with, and the request body.
 
 export type CampaignListFormState = {
   name: Translated | undefined
@@ -21,8 +21,8 @@ type T = (key: string, fallback: string) => string
 /** The form's schema, with messages in the staff member's language. */
 export function campaignListFormSchema(t: T) {
   return z.object({
-    name: z.custom<Translated | undefined>(value => hasText(value as Translated | undefined), t('admin.form.nameRequired', 'Give the newsletter a name.')),
-    slug: z.string().trim().min(1, t('admin.form.slugRequired', 'Give the newsletter a URL name.')).max(64).regex(CAMPAIGN_SLUG, t('admin.form.slugInvalid', 'Use lowercase letters, digits and dashes.')),
+    name: z.custom<Translated | undefined>(value => hasText(value as Translated | undefined), t('admin.form.nameRequired', 'Give the list a name.')),
+    slug: z.string().trim().min(1, t('admin.form.slugRequired', 'Give the list a URL name.')).max(64).regex(CAMPAIGN_SLUG, t('admin.form.slugInvalid', 'Use lowercase letters, digits and dashes.')),
     description: z.custom<Translated | undefined>(),
     channels: z.array(z.enum(CAMPAIGN_CHANNELS)).min(1, t('admin.form.channelsRequired', 'Pick at least one channel.')),
     doubleOptIn: z.boolean(),

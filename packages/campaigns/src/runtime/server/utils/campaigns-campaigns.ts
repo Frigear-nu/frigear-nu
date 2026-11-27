@@ -1,8 +1,8 @@
 import { db, schema } from '@nuxthub/db'
-import { and, count, eq, sql } from 'drizzle-orm'
+import { and, count, eq, inArray, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import { z } from 'zod'
-import { apiError, isoDate, likeContains, notFound, orderByQuery, pageQuery, pageRange, paginate } from '@frigear-nu/module-kit/server'
+import { apiError, chunkParams, isoDate, likeContains, notFound, orderByQuery, pageQuery, pageRange, paginate } from '@frigear-nu/module-kit/server'
 import type { Page } from '@frigear-nu/module-kit/server'
 import { newId } from '@frigear-nu/module-kit/id'
 import type {
@@ -54,6 +54,8 @@ export const campaignsListQuery = pageQuery({
   filters: {
     status: z.enum(['all', 'draft', 'scheduled', 'sending', 'sent', 'cancelled']).default('all'),
     kind: z.enum(['all', 'newsletter', 'message']).default('all'),
+    /** Only the campaigns whose audience names this list (`all`: any). */
+    listId: z.string().trim().min(1).max(64).regex(/^[\w-]+$/).default('all'),
   },
 })
 
@@ -62,6 +64,9 @@ export async function listCampaigns(query: z.output<typeof campaignsListQuery>):
   const conditions: SQL[] = []
   if (query.status !== 'all') conditions.push(eq(c.status, query.status))
   if (query.kind !== 'all') conditions.push(eq(c.kind, query.kind))
+  // The audience is JSON in both dialects; its text holds the id quoted (`"listIds":["cml_…"]`). Ids are letters, digits,
+  // `_` and `-`, so the pattern needs no escaping beyond what `_` already matches.
+  if (query.listId !== 'all') conditions.push(sql`cast(${c.audience} as text) like ${`%"${query.listId}"%`}`)
   if (query.q) conditions.push(likeContains(c.name, query.q))
   const where = conditions.length ? and(...conditions) : undefined
   const [total] = await db.select({ total: count() }).from(c).where(where)
@@ -69,7 +74,11 @@ export async function listCampaigns(query: z.output<typeof campaignsListQuery>):
   const rows = await db.select().from(c).where(where)
     .orderBy(...orderByQuery({ createdAt: c.createdAt, scheduledAt: c.scheduledAt, name: c.name, status: c.status }, query, { tiebreaker: c.id }))
     .limit(limit).offset(offset)
-  return paginate({ items: rows.map(toCampaignDto), total: Number(total?.total ?? 0), query })
+  // Opens and clicks keep arriving after a campaign is sent, so the counts come from the delivery rows while they exist;
+  // the ones kept on the campaign are only for campaigns whose rows retention has deleted.
+  const live = await campaignDeliveryCountsMany(rows.filter(row => row.startedAt).map(row => row.id))
+  const items = rows.map(row => ({ ...toCampaignDto(row), counts: live.get(row.id) ?? row.counts ?? null }))
+  return paginate({ items, total: Number(total?.total ?? 0), query })
 }
 
 export async function findCampaign(id: string): Promise<CampaignRow | undefined> {
@@ -130,30 +139,43 @@ const emptyChannelCounts = (): CampaignChannelCounts => ({ total: 0, queued: 0, 
 
 /** Counts per channel from the delivery rows (`queued` includes claimed rows). */
 export async function campaignDeliveryCounts(campaignId: string): Promise<CampaignCounts> {
-  const d = schema.campaignDeliveries
-  const rows = await db.select({
-    channel: d.channel,
-    status: d.status,
-    total: count(),
-    opened: sql<number>`sum(case when ${d.openedAt} is not null then 1 else 0 end)`,
-    clicked: sql<number>`sum(case when ${d.clickedAt} is not null then 1 else 0 end)`,
-    clicks: sql<number>`sum(${d.clicks})`,
-  }).from(d).where(eq(d.campaignId, campaignId)).groupBy(d.channel, d.status)
-  const counts: CampaignCounts = {}
-  for (const row of rows) {
-    const entry = counts[row.channel as CampaignSendChannel] ??= emptyChannelCounts()
-    const total = Number(row.total)
-    entry.total += total
-    if (row.status === 'sending' || row.status === 'queued') entry.queued += total
-    else entry[row.status as 'sent' | 'skipped' | 'failed'] += total
-    entry.opened += Number(row.opened ?? 0)
-    entry.clicked += Number(row.clicked ?? 0)
-    entry.clicks += Number(row.clicks ?? 0)
-  }
-  return counts
+  return (await campaignDeliveryCountsMany([campaignId])).get(campaignId) ?? {}
 }
 
-/** Counts (from the rows while they exist, else the ones kept on the campaign) and clicks per link. */
+/** {@link campaignDeliveryCounts} for several campaigns; a campaign without delivery rows is left out of the map. */
+export async function campaignDeliveryCountsMany(campaignIds: readonly string[]): Promise<Map<string, CampaignCounts>> {
+  const d = schema.campaignDeliveries
+  const result = new Map<string, CampaignCounts>()
+  for (const ids of chunkParams(campaignIds)) {
+    const rows = await db.select({
+      campaignId: d.campaignId,
+      channel: d.channel,
+      status: d.status,
+      total: count(),
+      opened: sql<number>`sum(case when ${d.openedAt} is not null then 1 else 0 end)`,
+      clicked: sql<number>`sum(case when ${d.clickedAt} is not null then 1 else 0 end)`,
+      clicks: sql<number>`sum(${d.clicks})`,
+    }).from(d).where(inArray(d.campaignId, ids)).groupBy(d.campaignId, d.channel, d.status)
+    for (const row of rows) {
+      let counts = result.get(row.campaignId)
+      if (!counts) result.set(row.campaignId, counts = {})
+      const entry = counts[row.channel as CampaignSendChannel] ??= emptyChannelCounts()
+      const total = Number(row.total)
+      entry.total += total
+      if (row.status === 'sending' || row.status === 'queued') entry.queued += total
+      else entry[row.status as 'sent' | 'skipped' | 'failed'] += total
+      entry.opened += Number(row.opened ?? 0)
+      entry.clicked += Number(row.clicked ?? 0)
+      entry.clicks += Number(row.clicks ?? 0)
+    }
+  }
+  return result
+}
+
+/**
+ * Counts (from the rows while they exist, else the ones kept on the campaign), skipped rows by reason (while the rows
+ * exist) and clicks per link.
+ */
 export async function campaignStats(row: CampaignRow): Promise<CampaignStatsDto> {
   const live = await campaignDeliveryCounts(row.id)
   const counts = Object.keys(live).length ? live : (row.counts ?? {})
@@ -166,9 +188,18 @@ export async function campaignStats(row: CampaignRow): Promise<CampaignStatsDto>
     recipients: sql<number>`count(distinct ${k.deliveryId})`,
   }).from(k).innerJoin(l, eq(k.linkId, l.id)).where(eq(l.campaignId, row.id)).groupBy(k.linkId)
   const byLink = new Map(clickRows.map(entry => [entry.linkId, entry]))
+  const d = schema.campaignDeliveries
+  const skipRows = await db.select({ reason: d.skipReason, total: count() }).from(d)
+    .where(and(eq(d.campaignId, row.id), eq(d.status, 'skipped'))).groupBy(d.skipReason)
+  const skipReasons: Partial<Record<string, number>> = {}
+  for (const entry of skipRows) {
+    const reason = entry.reason ?? 'unavailable'
+    skipReasons[reason] = (skipReasons[reason] ?? 0) + Number(entry.total)
+  }
   return {
     status: row.status,
     counts,
+    skipReasons,
     links: links.map((link): CampaignLinkStatsDto => ({
       id: link.id,
       url: link.url,
@@ -179,6 +210,13 @@ export async function campaignStats(row: CampaignRow): Promise<CampaignStatsDto>
     })),
   }
 }
+
+/** `GET /api/admin/campaigns/users`: a search term, or the ids of people to name (`1,2,3`, at most 200). */
+export const campaignsUserLookupQuery = z.object({
+  q: z.string().trim().max(200).optional(),
+  ids: z.string().trim().max(2000).optional()
+    .transform(value => value ? value.split(',').map(id => id.trim()).filter(id => /^\d+$/.test(id)).slice(0, 200) : []),
+})
 
 /** `GET /api/admin/campaigns/:id/deliveries`: `useTableQuery`'s keys plus `status` and `channel`. */
 export const campaignDeliveriesQuery = pageQuery({

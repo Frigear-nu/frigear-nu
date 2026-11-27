@@ -4,33 +4,35 @@ import { campaignsAccess } from './access'
 
 // Only registered when `@frigear-nu/menu` is installed (see `module.ts`).
 export default defineMenuSource(() => {
-  const config = useRuntimeConfig().public.campaigns as { pages?: { adminLists?: string, account?: string } } | undefined
+  const config = useRuntimeConfig().public.campaigns as { pages?: { adminCampaigns?: string, adminLists?: string, account?: string } } | undefined
 
-  // The staff entry of the admin sidebar (`@frigear-nu/admin`), in the Manage group; the pages and the API check access
-  // themselves.
-  if (config?.pages?.adminLists) {
+  // One staff entry for the area in the admin sidebar (`@frigear-nu/admin`), in the Manage group: the campaigns page,
+  // whose heading has tabs to the lists (or the lists page when the campaigns page is off). The pages and
+  // the API check access themselves.
+  const adminPath = config?.pages?.adminCampaigns ?? config?.pages?.adminLists
+  if (adminPath) {
     extendMenuItem('admin.nav', defineMenuItem({
-      id: 'campaigns-lists',
-      label: 'Newsletters',
+      id: 'campaigns',
+      label: 'Campaigns',
       labelKey: 'campaigns.menu.admin.label',
-      description: 'Newsletter lists, their signup and their subscribers.',
+      description: 'Campaigns to the subscribers of lists and to people, and the lists people sign up to.',
       descriptionKey: 'campaigns.menu.admin.description',
-      icon: 'i-lucide-newspaper',
-      to: config.pages.adminLists,
+      icon: 'i-lucide-megaphone',
+      to: adminPath,
       permission: campaignsAccess.permissions.manage,
       order: 40,
     }))
   }
 
-  // The signed-in user's newsletters, in the account area.
+  // The signed-in user's subscriptions, in the account area.
   if (config?.pages?.account) {
     extendMenuItem('account', defineMenuItem({
-      id: 'newsletters',
-      label: 'Newsletters',
+      id: 'subscriptions',
+      label: 'Subscriptions',
       labelKey: 'campaigns.menu.account.label',
-      description: 'Choose the newsletters you get.',
+      description: 'Choose the lists you are subscribed to.',
       descriptionKey: 'campaigns.menu.account.description',
-      icon: 'i-lucide-newspaper',
+      icon: 'i-lucide-list',
       to: config.pages.account,
       order: 26,
     }))

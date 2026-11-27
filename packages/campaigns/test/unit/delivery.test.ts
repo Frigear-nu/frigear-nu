@@ -123,9 +123,9 @@ describe('token kinds', () => {
 describe('messages', () => {
   const links: CampaignsRecipientLinks = {
     link: url => url.startsWith('https://example.org') ? 'https://s.test/l/abc/cmd_1.sig' : undefined,
-    unsubscribeUrl: 'https://site.test/newsletter/unsubscribe?token=cmd_1.sig',
+    unsubscribeUrl: 'https://site.test/subscriptions/unsubscribe?token=cmd_1.sig',
     oneClickUrl: 'https://site.test/api/campaigns/unsubscribe/cmd_1.sig',
-    preferencesUrl: 'https://site.test/account/newsletters',
+    preferencesUrl: 'https://site.test/account/subscriptions',
     pixelUrl: null,
   }
   const content = {

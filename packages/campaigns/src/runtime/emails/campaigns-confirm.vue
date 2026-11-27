@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { EmailButton, EmailDivider, EmailFooter, EmailHeading, EmailLayout, EmailText } from '@frigear-nu/email-templates/components'
 
-// Sent when somebody signs up for a newsletter with double opt-in: the link confirms the subscription (on a page that
+// Sent when somebody signs up for a list with double opt-in: the link confirms the subscription (on a page that
 // asks for a click, so link scanners confirm nothing). The texts come in the person's language from
 // `buildCampaignsConfirmEmail`; the defaults are English.
 withDefaults(defineProps<{
@@ -22,7 +22,7 @@ withDefaults(defineProps<{
   subject: 'Confirm your subscription',
   heading: 'Confirm your subscription',
   greeting: 'Hi,',
-  intro: 'Someone, hopefully you, signed this address up for a newsletter. Confirm it, and we will start sending it to you.',
+  intro: 'Someone, hopefully you, signed this address up for a list. Confirm it, and we will start sending it to you.',
   button: 'Confirm subscription',
   expiry: undefined,
   footer: 'If you did not sign up, ignore this email: nothing is sent to you unless you confirm.',

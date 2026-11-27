@@ -49,7 +49,7 @@ export async function campaignsRecordOpen(event: H3Event, token: string): Promis
 }
 
 /**
- * Unsubscribes the recipient of a campaign message. A newsletter: the contact's subscriptions on the delivery's channel
+ * Unsubscribes the recipient of a campaign message. To lists: the contact's subscriptions on the delivery's channel
  * to every list the campaign went to. A message to a user: their `campaigns.message` choice for the channel is turned off
  * (notify's choices store, `@frigear-nu/preferences`; 501 `not_configured` without one).
  */

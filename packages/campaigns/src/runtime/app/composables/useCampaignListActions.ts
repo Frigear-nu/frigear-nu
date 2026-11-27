@@ -14,7 +14,7 @@ export type CampaignListMenuOptions = {
 }
 
 /**
- * What staff can do with a newsletter list: `create` and `edit` (a slideover, resolving with the saved list or `false`),
+ * What staff can do with a list: `create` and `edit` (a slideover, resolving with the saved list or `false`),
  * `remove` (confirms first, and says how many subscriptions go with it) and `menu(list)`: Open, Edit | Delete.
  */
 export function useCampaignListActions() {
@@ -39,13 +39,13 @@ export function useCampaignListActions() {
       description: subscriptions
         ? t('admin.deleteDescription', 'Its {count} subscriptions and their consent records are deleted with it. This cannot be undone.', { count: subscriptions })
         : t('admin.deleteEmptyDescription', 'Nobody is subscribed to it yet. This cannot be undone.'),
-      confirmText: t('admin.deleteAction', 'Delete newsletter'),
+      confirmText: t('admin.deleteAction', 'Delete list'),
       destructive: true,
     })
     if (!confirmed) return false
     const done = await run(
       () => $fetch(campaignsApi.admin.list(list.id), { method: 'DELETE' }).then(() => true),
-      { success: t('admin.deleted', 'Deleted {name}', { name }), error: t('admin.deleteFailed', 'Could not delete the newsletter') },
+      { success: t('admin.deleted', 'Deleted {name}', { name }), error: t('admin.deleteFailed', 'Could not delete the list') },
     )
     return done === true
   }
@@ -57,7 +57,7 @@ export function useCampaignListActions() {
       items.push({ label: t('admin.open', 'Open'), icon: 'i-lucide-arrow-right', onSelect: () => navigateTo(to) })
     }
     items.push({
-      label: t('admin.edit', 'Edit newsletter'),
+      label: t('admin.edit', 'Edit list'),
       icon: 'i-lucide-pencil',
       onSelect: async () => {
         if (await edit(list)) await options.onChanged?.()
@@ -66,7 +66,7 @@ export function useCampaignListActions() {
     return [
       items,
       [{
-        label: t('admin.deleteAction', 'Delete newsletter'),
+        label: t('admin.deleteAction', 'Delete list'),
         icon: 'i-lucide-trash-2',
         color: 'error',
         onSelect: async () => {

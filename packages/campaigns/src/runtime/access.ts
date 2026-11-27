@@ -6,13 +6,13 @@ import { defineAccess } from '@frigear-nu/auth/access'
 export const campaignsAccess = defineAccess('campaigns', {
   permissions: {
     'manage': {
-      label: 'Manage newsletters',
-      description: 'Create, edit and delete newsletter lists, and see how many people are subscribed.',
+      label: 'Manage lists',
+      description: 'Create, edit and delete lists, and see how many people are subscribed.',
       grantTo: ['admin'],
     },
     'send': {
       label: 'Send campaigns',
-      description: 'Schedule and send campaigns to newsletter subscribers and users.',
+      description: 'Schedule and send campaigns to list subscribers and users.',
       grantTo: ['admin'],
     },
     'send-important': {
@@ -23,22 +23,22 @@ export const campaignsAccess = defineAccess('campaigns', {
     // Sensitive (`:pii`): never covered by `campaigns:*` or `*`, only granted by name.
     'pii': {
       label: 'See subscribers\' contact details',
-      description: 'See the email addresses and phone numbers of newsletter subscribers.',
+      description: 'See the email addresses and phone numbers of list subscribers.',
       grantTo: ['admin'],
     },
     // Self-service: every signed-in user holds it. The routes only ever act on the caller's own subscriptions.
     'subscriptions': {
-      label: 'Your newsletters',
-      description: 'See and change which newsletters you are subscribed to.',
+      label: 'Your subscriptions',
+      description: 'See and change which lists you are subscribed to.',
       implicit: true,
     },
   },
   scopes: {
     // A named scope groups the permission for token consent; `campaigns:subscriptions` is usable as a scope as well.
-    newsletters: {
-      label: 'Your newsletters',
-      description: 'See and change which newsletters you get.',
-      icon: 'i-lucide-newspaper',
+    subscriptions: {
+      label: 'Your subscriptions',
+      description: 'See and change which lists you are subscribed to.',
+      icon: 'i-lucide-list',
       permissions: ['campaigns:subscriptions'],
     },
   },

@@ -15,11 +15,11 @@ type CampaignContent = {
 }
 type CampaignChannelCounts = { total: number, queued: number, sent: number, skipped: number, failed: number, opened: number, clicked: number, clicks: number }
 
-/** A newsletter people sign up to. */
+/** A list people sign up to. */
 export const campaignLists = pgTable('campaign_lists', {
   /** `cml_` + random id. */
   id: text().primaryKey(),
-  /** The list in URLs and the signup component (`<NewsletterSignup list="slug">`). */
+  /** The list in URLs and the signup component (`<ListSignup list="slug">`). */
   slug: text().notNull(),
   name: jsonb().$type<Translated>().notNull(),
   description: jsonb().$type<Translated>(),
@@ -96,7 +96,7 @@ export const campaignSubscriptions = pgTable('campaign_subscriptions', {
 ])
 
 /**
- * A campaign: a newsletter issue to the subscribers of lists (`kind: 'newsletter'`, email and SMS), or a message to
+ * A campaign: to the subscribers of lists (`kind: 'newsletter'`, email and SMS), or to people, that is
  * users (`kind: 'message'`, email, SMS and push, following their `campaigns.message` choices unless `important`).
  */
 export const campaigns = pgTable('campaigns', {
@@ -107,7 +107,7 @@ export const campaigns = pgTable('campaigns', {
   /** Staff-facing name; never sent. */
   name: text().notNull(),
   channels: jsonb().$type<CampaignSendChannel[]>().notNull(),
-  /** `listIds` for a newsletter; `grants` and/or `userIds` for a message. */
+  /** `listIds` for a campaign to lists; `grants` and/or `userIds` for a message. */
   audience: jsonb().$type<CampaignAudience>().notNull(),
   /** The text per channel; markdown for the email body. */
   content: jsonb().$type<CampaignContent>().notNull(),
@@ -125,7 +125,7 @@ export const campaigns = pgTable('campaigns', {
   startedAt: timestamp({ withTimezone: true }),
   /** Set once every delivery row exists; until then the deliver task keeps adding them from `materializeCursor`. */
   materializedAt: timestamp({ withTimezone: true }),
-  /** Where materializing stopped: the last contact id (newsletter) or the number of users done (message). */
+  /** Where materializing stopped: the last contact id (to lists) or the number of users done (message). */
   materializeCursor: text(),
   finishedAt: timestamp({ withTimezone: true }),
   cancelledAt: timestamp({ withTimezone: true }),
@@ -162,7 +162,7 @@ export const campaignLinks = pgTable('campaign_links', {
 
 /**
  * One message of a campaign to one recipient on one channel. No address is copied here: it is read at send time from the
- * contact (newsletter) or notify's recipient store (message).
+ * contact (to lists) or notify's recipient store (message).
  */
 export const campaignDeliveries = pgTable('campaign_deliveries', {
   /** `cmd_` + random id; signed, it is the token in the message's links. */
@@ -171,7 +171,7 @@ export const campaignDeliveries = pgTable('campaign_deliveries', {
   channel: text().$type<CampaignSendChannel>().notNull(),
   /** A message's recipient (`users.id`). */
   userId: integer(),
-  /** A newsletter's recipient. */
+  /** The recipient of a campaign to lists. */
   contactId: text(),
   /** The subscription it went out for (the first one, when the contact is on several of the campaign's lists). */
   subscriptionId: text(),

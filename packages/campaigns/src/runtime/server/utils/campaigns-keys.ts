@@ -27,7 +27,7 @@ async function campaignsKey(event: H3Event | undefined, info: 'campaigns_unsubsc
   return key
 }
 
-const missingKey = () => notConfigured('Newsletters are not set up: set NUXT_APP_SECRET (or NUXT_CAMPAIGNS_SIGNING_KEY) on the server.')
+const missingKey = () => notConfigured('Campaigns are not set up: set NUXT_APP_SECRET (or NUXT_CAMPAIGNS_SIGNING_KEY) on the server.')
 
 /** 501 `not_configured` unless there is a signing key: checked before a signup writes anything. */
 export async function campaignsRequireSigningKey(event: H3Event | undefined): Promise<void> {

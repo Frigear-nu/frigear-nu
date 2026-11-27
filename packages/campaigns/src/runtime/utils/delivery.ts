@@ -121,7 +121,7 @@ const hasText = (value: Translated | null | undefined) => translatedTexts(value)
 
 /**
  * What keeps a campaign from being sent, as zod-like issues: a channel the kind cannot use, a channel without its text,
- * an audience of the wrong kind or an empty one, `important` on a newsletter. Empty when it is ready.
+ * an audience of the wrong kind or an empty one, `important` on a campaign to lists. Empty when it is ready.
  */
 export function campaignSendIssues(campaign: {
   kind: CampaignKind
@@ -148,13 +148,13 @@ export function campaignSendIssues(campaign: {
   }
   const { audience } = campaign
   if (campaign.kind === 'newsletter') {
-    if (!audience.listIds?.length) issues.push({ path: ['audience', 'listIds'], message: 'Pick the newsletters to send to.' })
-    if (audience.grants?.length || audience.userIds?.length) issues.push({ path: ['audience'], message: 'A newsletter goes to list subscribers only.' })
+    if (!audience.listIds?.length) issues.push({ path: ['audience', 'listIds'], message: 'Pick the lists to send to.' })
+    if (audience.grants?.length || audience.userIds?.length) issues.push({ path: ['audience'], message: 'A campaign to lists goes to their subscribers only.' })
     if (campaign.important) issues.push({ path: ['important'], message: 'Only a message to users can be important.' })
   }
   else {
     if (!audience.grants?.length && !audience.userIds?.length) issues.push({ path: ['audience'], message: 'Name the people or groups to send to.' })
-    if (audience.listIds?.length) issues.push({ path: ['audience', 'listIds'], message: 'A message goes to users; send a newsletter to reach list subscribers.' })
+    if (audience.listIds?.length) issues.push({ path: ['audience', 'listIds'], message: 'A campaign to people goes to users; send one to lists to reach their subscribers.' })
   }
   return issues
 }

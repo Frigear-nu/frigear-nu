@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
 import type { Page } from '@frigear-nu/module-kit/server'
-import type { CampaignListDto, CampaignSubscriberDto } from '../../../types'
+import type { CampaignDto, CampaignListDto, CampaignSubscriberDto } from '../../../types'
 import { campaignsApi } from '../../utils/api'
 import { campaignEmbedSnippet } from '../../utils/links'
+import { CAMPAIGN_STATUS_COLORS, campaignTotals } from '../utils/admin-campaign'
 import { campaignListFormBody, campaignListFormSchema, campaignListToForm } from '../utils/admin-list'
 import type { CampaignListFormState } from '../utils/admin-list'
-import { $fetch, computed, emptyCell, errorMessage, h, navigateTo, reactive, ref, resolveComponent, tableUi, useAction, useCampaignListActions, useCampaignsLinks, useCampaignsLocale, useCampaignsTranslate, useCopyToClipboard, useFetch, useFormat, useModuleT, useRequestURL, useRoute, watch } from '#imports'
+import { $fetch, computed, emptyCell, errorMessage, h, navigateTo, numericColumn, reactive, ref, resolveComponent, tableUi, useAction, useCampaignActions, useCampaignListActions, useCampaignsLinks, useCampaignsLocale, useCampaignsTranslate, useCopyToClipboard, useFetch, useFormat, useModuleT, useRequestURL, useRoute, watch } from '#imports'
 
 defineOptions({ name: 'CampaignsAdminListPage' })
 
@@ -41,7 +42,7 @@ async function save(event: FormSubmitEvent<CampaignListFormState>) {
   if (!list.value) return
   const saved = await run(
     () => $fetch<CampaignListDto>(campaignsApi.admin.list(list.value!.id), { method: 'PATCH', body: campaignListFormBody(event.data) }),
-    { success: t('admin.saved', 'Saved {name}', { name: tr(event.data.name) }), error: t('admin.saveFailed', 'Could not save the newsletter') },
+    { success: t('admin.saved', 'Saved {name}', { name: tr(event.data.name) }), error: t('admin.saveFailed', 'Could not save the list') },
   )
   if (saved) list.value = saved
 }
@@ -103,6 +104,56 @@ const subscriberColumns = computed<TableColumn<CampaignSubscriberDto>[]>(() => [
   },
 ])
 
+// --- Sent to this list: its campaigns, newest first ------------------------------------------------------------------
+const campaignActions = useCampaignActions()
+const sentPage = ref(1)
+const sentPageSize = ref(10)
+const sentQuery = computed(() => ({ listId: id.value, page: sentPage.value, pageSize: sentPageSize.value, sort: 'createdAt', order: 'desc' }))
+const { data: sent, status: sentStatus, error: sentError } = await useFetch<Page<CampaignDto>>(
+  campaignsApi.admin.campaigns,
+  { key: `campaigns:list:${id.value}:sent`, query: sentQuery, watch: [sentQuery] },
+)
+const sentLoading = computed(() => sentStatus.value === 'pending' && !sent.value)
+const sentRefreshing = computed(() => sentStatus.value === 'pending' && !!sent.value)
+
+const campaignStatusLabel = (value: string) => t(`campaign.statuses.${value}`, { draft: 'Draft', scheduled: 'Scheduled', sending: 'Sending', sent: 'Sent', cancelled: 'Cancelled' }[value] ?? value)
+const campaignWhen = (campaign: CampaignDto) => ({
+  draft: campaign.updatedAt,
+  scheduled: campaign.scheduledAt,
+  sending: campaign.startedAt,
+  sent: campaign.finishedAt,
+  cancelled: campaign.cancelledAt,
+}[campaign.status])
+const campaignCount = (campaign: CampaignDto, key: 'sent' | 'opened' | 'clicked') => {
+  const totals = campaignTotals(campaign.counts)
+  if (!totals || (key === 'opened' && !campaign.trackOpens) || (key === 'clicked' && !campaign.trackClicks)) return emptyCell()
+  return String(totals[key])
+}
+const sentColumns = computed<TableColumn<CampaignDto>[]>(() => [
+  { id: 'name', header: t('campaign.fields.name', 'Name'), cell: ({ row }) => h('span', { class: 'font-medium text-highlighted' }, row.original.name) },
+  {
+    id: 'status',
+    header: t('campaign.status', 'Status'),
+    cell: ({ row }) => h(StatusBadge, { status: row.original.status, label: campaignStatusLabel(row.original.status), colors: CAMPAIGN_STATUS_COLORS }),
+  },
+  {
+    id: 'when',
+    header: t('campaign.when', 'When'),
+    cell: ({ row }) => {
+      const at = campaignWhen(row.original)
+      return at ? h('span', { class: 'tabular-nums' }, format.dateTime(at)) : emptyCell()
+    },
+  },
+  { id: 'sent', header: t('campaign.stats.sent', 'Sent'), meta: numericColumn, cell: ({ row }) => campaignCount(row.original, 'sent') },
+  { id: 'opened', header: t('campaign.stats.opened', 'Opened'), meta: numericColumn, cell: ({ row }) => campaignCount(row.original, 'opened') },
+  { id: 'clicked', header: t('campaign.stats.clicked', 'Clicked'), meta: numericColumn, cell: ({ row }) => campaignCount(row.original, 'clicked') },
+])
+function openCampaign(campaign: CampaignDto) {
+  const to = links.adminCampaign(campaign.id)
+  if (to) void navigateTo(to)
+}
+const createForList = () => list.value && campaignActions.create('newsletter', { listIds: [list.value.id] })
+
 // --- Embed ----------------------------------------------------------------------------------------------------------
 const origin = useRequestURL().origin
 const snippet = computed(() => list.value
@@ -114,13 +165,13 @@ const snippet = computed(() => list.value
         name: t('signup.name', 'Name'),
         email: t('signup.email', 'Email'),
         phone: t('signup.phone', 'Phone number'),
-        consent: tr(list.value.consentText) || t('signup.consentDefault', 'Yes, send me this newsletter.'),
+        consent: tr(list.value.consentText) || t('signup.consentDefault', 'Yes, send me messages from this list.'),
         submit: t('signup.submit', 'Sign up'),
       },
     })
   : '')
-const componentSnippet = computed(() => list.value ? `<NewsletterSignup list="${list.value.slug}" />` : '')
-const contentSnippet = computed(() => list.value ? `::newsletter-signup{list="${list.value.slug}"}\n::` : '')
+const componentSnippet = computed(() => list.value ? `<ListSignup list="${list.value.slug}" />` : '')
+const contentSnippet = computed(() => list.value ? `::list-signup{list="${list.value.slug}"}\n::` : '')
 </script>
 
 <template>
@@ -129,7 +180,7 @@ const contentSnippet = computed(() => list.value ? `::newsletter-signup{list="${
       <PageHeading
         :title="name"
         :description="tr(list.description) || undefined"
-        :breadcrumb="[{ label: t('admin.title', 'Newsletters'), to: links.adminLists() }, { label: name }]"
+        :breadcrumb="[{ label: t('admin.title', 'Lists'), to: links.adminLists() }, { label: name }]"
       >
         <template #badge>
           <StatusBadge
@@ -148,7 +199,7 @@ const contentSnippet = computed(() => list.value ? `::newsletter-signup{list="${
 
       <SectionCard
         :title="t('admin.settings', 'Settings')"
-        :description="t('admin.settingsDescription', 'What the newsletter is called, how people get it and what they agree to.')"
+        :description="t('admin.settingsDescription', 'What the list is called, how its messages reach people and what they agree to.')"
       >
         <UForm
           id="campaign-list-settings"
@@ -170,7 +221,7 @@ const contentSnippet = computed(() => list.value ? `::newsletter-signup{list="${
           <FormRow
             name="slug"
             :label="t('admin.fields.slug', 'URL name')"
-            :description="t('admin.fields.slugHelp', 'Lowercase letters, digits and dashes. The signup names the newsletter by it, so changing it breaks signups that use the old one.')"
+            :description="t('admin.fields.slugHelp', 'Lowercase letters, digits and dashes. The signup names the list by it, so changing it breaks signups that use the old one.')"
             required
           >
             <UInput
@@ -193,7 +244,7 @@ const contentSnippet = computed(() => list.value ? `::newsletter-signup{list="${
           <FormRow
             name="channels"
             :label="t('admin.fields.channels', 'Channels')"
-            :description="t('admin.fields.channelsHelp', 'How people can get it. SMS goes through the SMS driver the app has set up.')"
+            :description="t('admin.fields.channelsHelp', 'How its messages can reach people. SMS goes through the SMS driver the app has set up.')"
             required
           >
             <UCheckboxGroup
@@ -235,11 +286,61 @@ const contentSnippet = computed(() => list.value ? `::newsletter-signup{list="${
               type="submit"
               form="campaign-list-settings"
               :loading="busy"
-              :label="t('admin.saveAction', 'Save newsletter')"
+              :label="t('admin.saveAction', 'Save list')"
             />
           </div>
         </template>
       </SectionCard>
+
+      <TableCard
+        :title="t('admin.sentTitle', 'Sent to this list')"
+        :description="t('admin.sentDescription', 'The campaigns that go or went to this list, newest first. Each keeps its texts and who got it.')"
+        :loading="sentLoading"
+        :refreshing="sentRefreshing"
+      >
+        <template #actions>
+          <UButton
+            icon="i-lucide-plus"
+            color="neutral"
+            variant="outline"
+            :label="t('campaign.create', 'Create campaign')"
+            @click="createForList"
+          />
+        </template>
+        <UAlert
+          v-if="sentError"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-circle-alert"
+          :title="t('campaign.loadFailed', 'Campaigns could not be loaded')"
+          :description="errorMessage(sentError, '')"
+          class="m-4"
+        />
+        <UTable
+          v-else
+          :data="sent?.items ?? []"
+          :columns="sentColumns"
+          :ui="tableUi()"
+          data-list-campaigns-table
+          @select="(_: Event, row: { original: CampaignDto }) => openCampaign(row.original)"
+        >
+          <template #empty>
+            <UEmpty
+              variant="naked"
+              icon="i-lucide-send"
+              :title="t('admin.sentEmpty', 'Nothing sent to this list yet')"
+              :description="t('admin.sentEmptyDescription', 'Campaigns to this list show up here, with what was sent and how it went.')"
+            />
+          </template>
+        </UTable>
+        <template #footer>
+          <TablePagination
+            v-model:page="sentPage"
+            v-model:page-size="sentPageSize"
+            :total="sent?.total ?? 0"
+          />
+        </template>
+      </TableCard>
 
       <TableCard
         :title="t('admin.subscribersTitle', 'Subscribers')"
@@ -339,9 +440,9 @@ const contentSnippet = computed(() => list.value ? `::newsletter-signup{list="${
     <UEmpty
       v-else
       :icon="notFound ? 'i-lucide-search-x' : forbidden ? 'i-lucide-lock' : 'i-lucide-circle-alert'"
-      :title="notFound ? t('admin.notFound', 'Newsletter not found') : forbidden ? t('admin.forbidden', 'You do not have access to newsletters') : t('admin.loadFailed', 'Newsletters could not be loaded')"
+      :title="notFound ? t('admin.notFound', 'List not found') : forbidden ? t('admin.forbidden', 'You do not have access to lists') : t('admin.loadFailed', 'Lists could not be loaded')"
       :description="errorMessage(error, '')"
-      :actions="[{ label: t('admin.backToList', 'Back to newsletters'), icon: 'i-lucide-arrow-left', color: 'neutral', variant: 'outline', to: links.adminLists() }]"
+      :actions="[{ label: t('admin.backToList', 'Back to lists'), icon: 'i-lucide-arrow-left', color: 'neutral', variant: 'outline', to: links.adminLists() }]"
     />
   </div>
 </template>

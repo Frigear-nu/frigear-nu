@@ -1,7 +1,7 @@
 /** A text that is either one string for every language, or a map of locale -> text. */
 export type Translated = string | Record<string, string>
 
-/** The channels a newsletter reaches people on. */
+/** The channels a list reaches people on. */
 export type CampaignChannel = 'email' | 'sms'
 
 /** `pending` until the person confirms, `active`, or `unsubscribed`. */
@@ -21,16 +21,20 @@ export type CampaignCaptchaProvider = 'turnstile' | 'recaptcha' | 'hcaptcha'
 
 /** Page paths: `true` for the default path, a string for another, `false` to leave the page out. */
 export type CampaignPagesOptions = {
-  /** `/newsletter/confirm`: confirms a subscription from the link in the confirmation message. */
+  /** `/subscriptions/confirm`: confirms a subscription from the link in the confirmation message. */
   confirm?: string | boolean
-  /** `/newsletter/unsubscribe`: unsubscribes from a link in a message. */
+  /** `/subscriptions/unsubscribe`: unsubscribes from a link in a message. */
   unsubscribe?: string | boolean
-  /** `/account/newsletters`: the signed-in user's newsletters. */
+  /** `/account/subscriptions`: the signed-in user's subscriptions. */
   account?: string | boolean
   /** `/admin/campaigns/lists`, with `@frigear-nu/admin`. */
   adminLists?: string | boolean
   /** `/admin/campaigns/lists/:id`, with `@frigear-nu/admin`. */
   adminList?: string | boolean
+  /** `/admin/campaigns`: the campaigns, with `@frigear-nu/admin`. */
+  adminCampaigns?: string | boolean
+  /** `/admin/campaigns/:id`: one campaign, with `@frigear-nu/admin`. */
+  adminCampaign?: string | boolean
 }
 
 export type ModuleOptions = {
@@ -84,6 +88,8 @@ export type PublicModuleOptions = {
     account?: string
     adminLists?: string
     adminList?: string
+    adminCampaigns?: string
+    adminCampaign?: string
   }
   /** The captcha the signup shows, or `null`. */
   captcha: CampaignCaptchaProvider | null
@@ -162,7 +168,7 @@ export type CampaignSubscriptionResultDto = {
   status: CampaignSubscriptionStatus
 }
 
-/** One list on the signed-in user's newsletters page. */
+/** One list on the signed-in user's subscriptions page. */
 export type CampaignMyListDto = {
   id: string
   slug: string
@@ -183,7 +189,10 @@ export type CampaignMySubscriptionsDto = {
 
 // --- Campaigns -------------------------------------------------------------------------------------------------------
 
-/** `newsletter`: to the subscribers of lists (email, SMS). `message`: to users (email, SMS, push). */
+/**
+ * `newsletter` ("To lists"): to the subscribers of lists (email, SMS). `message` ("To people"): to users (email, SMS,
+ * push).
+ */
 export type CampaignKind = 'newsletter' | 'message'
 
 /** The channels a campaign goes out on: push only for messages to users. */
@@ -194,7 +203,7 @@ export type CampaignStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'cance
 export type CampaignDeliveryStatus = 'queued' | 'sending' | 'sent' | 'skipped' | 'failed'
 
 /**
- * Who a campaign goes to: `listIds` (a newsletter: the active subscribers of these lists, each person once per channel),
+ * Who a campaign goes to: `listIds` (a campaign to lists: the active subscribers of these lists, each person once per channel),
  * or `grants` and/or `userIds` (a message: the members of the grants, `@frigear-nu/auth`, and these users).
  */
 export type CampaignAudience = {
@@ -272,7 +281,20 @@ export type CampaignLinkStatsDto = {
 export type CampaignStatsDto = {
   status: CampaignStatus
   counts: CampaignCounts
+  /**
+   * Skipped deliveries by reason (`disabled`, `unavailable`, `unsubscribed`, `cancelled`), every channel together. Read
+   * from the delivery rows, so empty once `campaigns:retention` pruned them.
+   */
+  skipReasons: Partial<Record<string, number>>
   links: CampaignLinkStatsDto[]
+}
+
+/** One person found by `GET /api/admin/campaigns/users` (the message form's picker). `email` only with `campaigns:pii`. */
+export type CampaignUserLookupDto = {
+  id: number
+  name: string | null
+  avatar: string | null
+  email?: string | null
 }
 
 /** One delivery (`GET /api/admin/campaigns/:id/deliveries`, `campaigns:pii` only). */

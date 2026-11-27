@@ -8,7 +8,7 @@ import { $fetch, computed, reactive, useAction, useCampaignsTranslate, useModule
 
 defineOptions({ name: 'CampaignListFormSlideover' })
 
-// Create and edit form of a newsletter list, opened with `useOverlay()` by `useCampaignListActions()`: it closes with
+// Create and edit form of a list, opened with `useOverlay()` by `useCampaignListActions()`: it closes with
 // the saved list, or `false` when cancelled.
 const props = defineProps<{ list?: CampaignListDto }>()
 const emit = defineEmits<{ close: [saved: CampaignListDto | false] }>()
@@ -40,7 +40,7 @@ async function save(event: FormSubmitEvent<CampaignListFormState>) {
       : $fetch<CampaignListDto>(campaignsApi.admin.lists, { method: 'POST', body }),
     {
       success: props.list ? t('admin.saved', 'Saved {name}', { name }) : t('admin.created', 'Created {name}', { name }),
-      error: props.list ? t('admin.saveFailed', 'Could not save the newsletter') : t('admin.createFailed', 'Could not create the newsletter'),
+      error: props.list ? t('admin.saveFailed', 'Could not save the list') : t('admin.createFailed', 'Could not create the list'),
     },
   )
   if (saved) emit('close', saved)
@@ -50,9 +50,9 @@ async function save(event: FormSubmitEvent<CampaignListFormState>) {
 <template>
   <FormSlideover
     form-id="campaign-list-form"
-    :title="list ? t('admin.editTitle', 'Edit newsletter') : t('admin.create', 'Create newsletter')"
+    :title="list ? t('admin.editTitle', 'Edit list') : t('admin.create', 'Create list')"
     :description="list ? undefined : t('admin.createDescription', 'People sign up for it with the signup component or the HTML form on its page.')"
-    :submit-label="list ? t('admin.saveAction', 'Save newsletter') : t('admin.create', 'Create newsletter')"
+    :submit-label="list ? t('admin.saveAction', 'Save list') : t('admin.create', 'Create list')"
     :loading="busy"
     @close="emit('close', false)"
   >
@@ -73,7 +73,7 @@ async function save(event: FormSubmitEvent<CampaignListFormState>) {
       <UFormField
         name="slug"
         :label="t('admin.fields.slug', 'URL name')"
-        :description="t('admin.fields.slugHelp', 'Lowercase letters, digits and dashes. The signup names the newsletter by it, so changing it breaks signups that use the old one.')"
+        :description="t('admin.fields.slugHelp', 'Lowercase letters, digits and dashes. The signup names the list by it, so changing it breaks signups that use the old one.')"
         required
       >
         <UInput
@@ -96,7 +96,7 @@ async function save(event: FormSubmitEvent<CampaignListFormState>) {
       <UFormField
         name="channels"
         :label="t('admin.fields.channels', 'Channels')"
-        :description="t('admin.fields.channelsHelp', 'How people can get it. SMS goes through the SMS driver the app has set up.')"
+        :description="t('admin.fields.channelsHelp', 'How its messages can reach people. SMS goes through the SMS driver the app has set up.')"
         required
       >
         <UCheckboxGroup

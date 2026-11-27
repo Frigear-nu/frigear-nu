@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { EmailFooter, EmailLayout } from '@frigear-nu/email-templates/components'
 
-// A campaign email: a newsletter issue or a message to a user. `bodyHtml` is the campaign's markdown, rendered and
+// A campaign email: a campaign to the subscribers of lists or to people. `bodyHtml` is the campaign's markdown, rendered and
 // escaped on the server (`renderMarkdown`: bold, italics, links, paragraphs), its links already the recipient's tracked
 // short links. The footer carries the recipient's unsubscribe and preferences links; `pixelUrl` (only when the campaign
 // tracks opens) is the 1x1 image that marks it opened.
