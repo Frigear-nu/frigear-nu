@@ -71,6 +71,12 @@ export interface EmailNotification<M = NotificationMeta> {
   body: string
   /** Optional plain-text body. */
   text?: string
+  /**
+   * The sender of this email (`a@x.test` or `"Name" <a@x.test>`), instead of the configured `from`
+   * (`NUXT_NOTIFY_EMAIL_FROM`). Optional and additive: every built-in driver (`resend`, `ses`, `cloudflare`, `log`) uses
+   * it. The address's domain must be verified with the provider, which refuses the send otherwise.
+   */
+  from?: string
   /** Address replies should go to (the `Reply-To` header). */
   replyTo?: string
   /**

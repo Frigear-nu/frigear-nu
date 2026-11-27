@@ -25,7 +25,7 @@ import {
 import { addPolicies, registerAccess } from '@frigear-nu/auth/utils'
 import { extendNotificationTopics } from '@frigear-nu/notify/utils'
 import { inboxAccess } from './runtime/access'
-import { buildInboxRegistry } from './runtime/utils/registry'
+import { buildInboxEmailDrivers, buildInboxRegistry } from './runtime/utils/registry'
 import type { BuiltInboxRegistry } from './runtime/utils/registry'
 import type {
   InboxExtension,
@@ -90,6 +90,24 @@ function builtInExtension(resolve: (path: string) => string): InboxExtension {
   }
 }
 
+/** The built-in inbound email drivers `email.inbound` turns on (the signed JSON webhook is a route of its own). */
+function builtInEmailDrivers(inbound: NonNullable<NonNullable<ModuleOptions['email']>['inbound']>, resolve: (path: string) => string): InboxExtension {
+  return {
+    emailDrivers: [
+      ...(inbound.cloudflare ? [{ name: 'cloudflare', driver: resolve('./runtime/email-drivers/cloudflare') }] : []),
+      ...(inbound.resend ? [{ name: 'resend', driver: resolve('./runtime/email-drivers/resend') }] : []),
+    ],
+  }
+}
+
+/** The inbound email drivers, imported statically, by name. */
+function emailDriversTemplate(drivers: Record<string, string>): string {
+  const names = Object.keys(drivers)
+  const lines = names.map((name, index) => `import driver${index} from ${JSON.stringify(drivers[name])}`)
+  lines.push(`export const drivers = {${names.map((name, index) => `${JSON.stringify(name)}: driver${index}`).join(', ')}}`)
+  return `${lines.join('\n')}\n`
+}
+
 /** The server registry: the channels and their adapters, imported statically. */
 function serverRegistryTemplate(registry: BuiltInboxRegistry): string {
   const ids = Object.keys(registry.adapters)
@@ -145,10 +163,14 @@ export default defineNuxtModule<ModuleOptions>({
       pages: { admin: adminPath, adminThread: adminThreadPath, adminSettings: adminSettingsPath },
     }
 
-    // Server only. The empty strings are there so `NUXT_INBOX_EMAIL_WEBHOOK_SECRET`, `NUXT_INBOX_META_APP_SECRET` and
+    // Server only. The empty strings are there so `NUXT_INBOX_EMAIL_WEBHOOK_SECRET`, `NUXT_INBOX_DOMAINS`,
+    // `NUXT_INBOX_RESEND_WEBHOOK_SECRET`, `NUXT_INBOX_RESEND_API_KEY`, `NUXT_INBOX_META_APP_SECRET` and
     // `NUXT_INBOX_META_VERIFY_TOKEN` override them at run time; a channel secret declared in `secrets` (empty) is
     // overridden by `NUXT_INBOX_SECRETS_<REF>`, and `NUXT_INBOX_SECRETS` (JSON) adds any.
     const existing = (nuxt.options.runtimeConfig as { inbox?: Partial<InboxRuntimeConfig> }).inbox ?? {}
+    // The built-in inbound email drivers: the signed JSON webhook unless turned off, Cloudflare and Resend when asked for.
+    const inbound = { webhook: true, ...options.email?.inbound }
+    const resendOptions = typeof inbound.resend === 'object' ? inbound.resend : {}
     const runtime: InboxRuntimeConfig = {
       retention: {
         days: options.retention?.days ?? existing.retention?.days ?? 365,
@@ -157,6 +179,13 @@ export default defineNuxtModule<ModuleOptions>({
         tombstoneDays: options.retention?.tombstoneDays ?? existing.retention?.tombstoneDays ?? 365,
       },
       email: { webhookSecret: options.email?.webhookSecret ?? existing.email?.webhookSecret ?? '' },
+      // A comma separated list, so `NUXT_INBOX_DOMAINS` replaces it at run time (read with `inboxDomains()`).
+      domains: options.email?.domains?.join(',') ?? existing.domains ?? '',
+      resend: {
+        webhookSecret: resendOptions.webhookSecret ?? existing.resend?.webhookSecret ?? '',
+        apiKey: resendOptions.apiKey ?? existing.resend?.apiKey ?? '',
+        apiBase: resendOptions.apiBase ?? existing.resend?.apiBase ?? 'https://api.resend.com',
+      },
       meta: {
         appSecret: options.meta?.appSecret ?? existing.meta?.appSecret ?? '',
         verifyToken: options.meta?.verifyToken ?? existing.meta?.verifyToken ?? '',
@@ -200,6 +229,40 @@ export default defineNuxtModule<ModuleOptions>({
       collect: registryOf,
       contents: serverRegistryTemplate,
     })
+    // --- Inbound email drivers --------------------------------------------------------------------------------------
+    // Built-ins (`email.inbound`), then every module's `extendInbox` `emailDrivers`, then `email.drivers`; a later one
+    // with the same name replaces an earlier one. Handlers answer `POST /api/inbox/email/<name>`, setups run in a plugin.
+    let builtDrivers: Record<string, string> | undefined
+    const emailDriversOf = (): Record<string, string> => {
+      if (builtDrivers) return builtDrivers
+      const stash = (nuxt.options as unknown as { inbox?: InboxInNuxt }).inbox?._extensions ?? []
+      const { drivers, issues } = buildInboxEmailDrivers([
+        builtInEmailDrivers(inbound, path => resolver.resolve(path)),
+        ...stash,
+        { emailDrivers: options.email?.drivers },
+      ])
+      if (issues.length) throw new Error(`[${MODULE_NAME}] Invalid inbox email drivers:\n- ${issues.join('\n- ')}`)
+      builtDrivers = drivers
+      return drivers
+    }
+    nuxt.hook('modules:done', () => {
+      emailDriversOf()
+    })
+    defineVirtualRegistry(nuxt, {
+      filename: '#inbox/email-drivers',
+      target: 'server',
+      collect: emailDriversOf,
+      contents: emailDriversTemplate,
+    })
+    // Where received files go: NuxtHub Blob when the app has it, else they are only named on the message.
+    defineVirtualRegistry(nuxt, {
+      filename: '#inbox/blob',
+      target: 'server',
+      collect: () => !!(nuxt.options as unknown as { hub?: { blob?: unknown } }).hub?.blob,
+      contents: hasBlob => hasBlob ? `export { blob } from '@nuxthub/blob'\n` : 'export const blob = null\n',
+    })
+    addNitroPlugin(resolver.resolve('./runtime/server/plugins/email-drivers'))
+
     const types = JSON.stringify(resolver.resolve('./types'))
     addTypeTemplate({
       filename: 'types/inbox-registry.d.ts',
@@ -211,6 +274,16 @@ declare module '#inbox/server-registry' {
   import type { InboxChannelAdapter, InboxChannelInfo } from ${types}
   export const channels: Record<string, InboxChannelInfo>
   export const adapters: Record<string, InboxChannelAdapter>
+}
+declare module '#inbox/email-drivers' {
+  import type { InboxEmailDriver } from ${types}
+  export const drivers: Record<string, InboxEmailDriver>
+}
+declare module '#inbox/blob' {
+  export const blob: {
+    put(pathname: string, body: Uint8Array, options?: { contentType?: string }): Promise<{ pathname: string }>
+    del(pathnames: string | string[]): Promise<void>
+  } | null
 }
 `,
     }, { nitro: true, nuxt: true })
@@ -242,6 +315,7 @@ declare module '#inbox/server-registry' {
       { method: 'post', path: 'channels', file: 'admin/channels.post' },
       { method: 'patch', path: 'channels/:id', file: 'admin/channel.patch' },
       { method: 'delete', path: 'channels/:id', file: 'admin/channel.delete' },
+      { method: 'get', path: 'email', file: 'admin/email.get' },
       { method: 'get', path: 'audit', file: 'admin/audit.get' },
       { method: 'get', path: 'contacts/:id/export', file: 'admin/contact-export.get' },
       { method: 'post', path: 'contacts/:id/erase', file: 'admin/contact-erase.post' },
@@ -249,11 +323,16 @@ declare module '#inbox/server-registry' {
 
     // Webhooks are registered at the providers, the documented exception to the `/api/<module>` rule.
     addModuleRoutes(resolver, [
-      { method: 'post', path: 'email', file: 'webhooks/email.post' },
+      // The `webhook` inbound email driver (on unless `email.inbound.webhook` is `false`).
+      ...(inbound.webhook !== false ? [{ method: 'post' as const, path: 'email', file: 'webhooks/email.post' }] : []),
       { method: 'get', path: 'meta', file: 'webhooks/meta.get' },
       { method: 'post', path: 'meta', file: 'webhooks/meta.post' },
       { method: 'post', path: ':channel', file: 'webhooks/channel.post' },
     ], { base: '/api/inbox/webhooks' })
+    // The webhooks of the inbound email drivers with a `handler` (Resend, a host's own).
+    addModuleRoutes(resolver, [
+      { method: 'post', path: ':driver', file: 'email/driver.post' },
+    ], { base: '/api/inbox/email' })
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)

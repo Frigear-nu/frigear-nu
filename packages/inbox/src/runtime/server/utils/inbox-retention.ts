@@ -10,7 +10,8 @@ import { inboxThreadSearchText } from './inbox-search'
 const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
- * Blanks the messages of threads (D1-sized chunks) and closes them: bodies, attachments, cc recipients and provider ids
+ * Blanks the messages of threads (D1-sized chunks) and closes them: bodies, attachments (and the files an email driver
+ * stored), cc recipients and provider ids
  * (`erased:<message id>`) go, the subject and preview too. The threads stay, as a record that something was answered.
  * The provider ids are tombstoned first, so a replayed webhook does not bring a message back (for good with
  * `permanent`, as an erase does).
@@ -18,6 +19,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
 export async function inboxAnonymiseThreads(threadIds: string[], now = new Date(), options: InboxTombstoneOptions = {}): Promise<void> {
   await inboxTombstoneThreads(threadIds, now, options)
   for (const chunk of chunkParams(threadIds)) {
+    await inboxDeleteEmailFiles({ threadIds: chunk })
     await db.update(schema.inboxMessages)
       .set({ body: '', attachments: [], cc: null, externalId: sql`'erased:' || ${schema.inboxMessages.id}` })
       .where(inArray(schema.inboxMessages.threadId, chunk))
@@ -51,6 +53,7 @@ async function senderContactIds(threadIds: string[]): Promise<string[]> {
 async function deleteThreads(threadIds: string[], now: Date): Promise<void> {
   await inboxTombstoneThreads(threadIds, now)
   for (const chunk of chunkParams(threadIds)) {
+    await inboxDeleteEmailFiles({ threadIds: chunk })
     await db.delete(schema.inboxMessages).where(inArray(schema.inboxMessages.threadId, chunk))
     await db.delete(schema.inboxThreads).where(inArray(schema.inboxThreads.id, chunk))
   }
@@ -224,6 +227,7 @@ export async function inboxContactScope(contact: InboxContactRow): Promise<Inbox
 async function blankForeignMessages(messageIds: string[], threadIds: string[], now: Date): Promise<void> {
   await inboxTombstoneMessages(messageIds, now, { permanent: true })
   for (const chunk of chunkParams(messageIds)) {
+    await inboxDeleteEmailFiles({ messageIds: chunk })
     await db.update(schema.inboxMessages)
       .set({ body: '', attachments: [], cc: null, externalId: sql`'erased:' || ${schema.inboxMessages.id}` })
       .where(inArray(schema.inboxMessages.id, chunk))

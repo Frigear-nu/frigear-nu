@@ -404,9 +404,17 @@ export default defineNuxtConfig({
       { code: 'en', language: 'en-GB', name: 'English', file: 'en.json' },
     ],
   },
-  // Secrets come from NUXT_INBOX_EMAIL_WEBHOOK_SECRET, NUXT_INBOX_META_APP_SECRET, NUXT_INBOX_META_VERIFY_TOKEN and
-  // NUXT_INBOX_SECRETS_<REF> (see .env.example); without them those webhooks answer 501.
+  // Secrets come from NUXT_INBOX_EMAIL_WEBHOOK_SECRET, NUXT_INBOX_RESEND_WEBHOOK_SECRET, NUXT_INBOX_RESEND_API_KEY,
+  // NUXT_INBOX_META_APP_SECRET, NUXT_INBOX_META_VERIFY_TOKEN and NUXT_INBOX_SECRETS_<REF> (see .env.example); without
+  // them those webhooks answer 501.
   inbox: {
+    email: {
+      // The domains the inbox receives all mail for (comma separated). NUXT_INBOX_DOMAINS also sets them at run time.
+      domains: (process.env.NUXT_INBOX_DOMAINS ?? '').split(',').map(domain => domain.trim()).filter(Boolean),
+      // Inbound email: the signed JSON webhook, Cloudflare Email Routing to this Worker (route each inbox domain's
+      // catch-all to it) and Resend's inbound webhook. Each stays idle until its routing or secret is set up.
+      inbound: { webhook: true, cloudflare: true, resend: true },
+    },
     // Mailboxes created on the first request when their key does not exist, never changed afterwards: set them with
     // NUXT_INBOX_MAILBOXES (JSON, see .env.example), or create them at /admin/inbox/settings.
     mailboxes: [],

@@ -2,7 +2,8 @@
 import type { TableColumn } from '@nuxt/ui'
 import { channels } from '#inbox/registry'
 import { inboxApi } from '../../utils/api'
-import type { InboxChannelAccountDto, InboxMailboxDto } from '../../../types'
+import { isOnInboxDomain } from '../../utils/email-routing'
+import type { InboxChannelAccountDto, InboxEmailSettingsDto, InboxMailboxDto } from '../../../types'
 import { computed, errorMessage, h, resolveComponent, tableUi, useFetch, useInboxChannelActions, useInboxLinks, useInboxMailboxActions, useInboxTranslate, useModuleT } from '#imports'
 
 defineOptions({ name: 'InboxAdminSettingsPage' })
@@ -15,7 +16,20 @@ const channelActions = useInboxChannelActions()
 
 const { data: mailboxes, status: mailboxStatus, error: mailboxError, refresh: refreshMailboxes } = await useFetch<InboxMailboxDto[]>(inboxApi.admin.mailboxes, { key: 'inbox:mailboxes', default: () => [] })
 const { data: accounts, status: accountStatus, error: accountError, refresh: refreshAccounts } = await useFetch<InboxChannelAccountDto[]>(inboxApi.admin.channels, { default: () => [] })
+const { data: emailSettings } = await useFetch<InboxEmailSettingsDto>(inboxApi.admin.email, { default: () => ({ domains: [], drivers: [] }) })
 const channelsForbidden = computed(() => accountError.value?.statusCode === 401 || accountError.value?.statusCode === 403)
+
+/**
+ * Mailboxes that are answered by email (an email or contact form channel) without an email address on an inbox domain:
+ * their replies have no reply address, so answers thread by their subject only.
+ */
+const withoutInboxAddress = computed(() => {
+  const domains = emailSettings.value?.domains ?? []
+  if (!domains.length || !accounts.value?.length) return []
+  const answeredByEmail = new Set(accounts.value.filter(account => account.channel === 'email' || account.channel === 'form').map(account => account.mailboxId))
+  const onDomain = new Set(accounts.value.filter(account => account.channel === 'email' && account.enabled && isOnInboxDomain(account.address, domains)).map(account => account.mailboxId))
+  return (mailboxes.value ?? []).filter(mailbox => answeredByEmail.has(mailbox.id) && !onDomain.has(mailbox.id))
+})
 
 async function refreshAll() {
   await Promise.all([refreshMailboxes(), refreshAccounts()])
@@ -129,6 +143,15 @@ const accountColumns = computed<TableColumn<InboxChannelAccountDto>[]>(() => [
         </template>
       </UTable>
     </TableCard>
+
+    <UAlert
+      v-if="withoutInboxAddress.length"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-mail-warning"
+      :title="t('settings.noInboxAddress', 'Some mailboxes have no address on an inbox domain')"
+      :description="t('settings.noInboxAddressDescription', '{names} answer by email without a reply address on {domains}, so answers only find their thread by the subject. Connect an email address on one of these domains.', { names: withoutInboxAddress.map(mailbox => tr(mailbox.name) || mailbox.key).join(', '), domains: (emailSettings?.domains ?? []).join(', ') })"
+    />
 
     <TableCard
       :title="t('settings.channels', 'Channels')"
