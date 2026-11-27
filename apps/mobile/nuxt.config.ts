@@ -55,6 +55,12 @@ export default defineNuxtConfig({
   // Guests on a guarded page go to the public home, which signs them in and sends them back (`?redirect=`).
   authorization: { redirectTo: '/' },
 
+  // Home is a short "what's next": the next shift (nothing without one), then the upcoming events (modules/home-events.ts).
+  // Every other crew, shifts, teams and operations item stays on the Crew tab's crew home.
+  dashboard: {
+    homeTab: { items: ['shifts.next'] },
+  },
+
   eslint: {
     config: {
       stylistic: true,
@@ -88,7 +94,8 @@ export default defineNuxtConfig({
     // orders put them in place. Shifts adds a tab of its own, left out here: its pages open from the Crew tab.
     tabs: [
       { id: 'home', order: 0 },
-      { id: 'crew', order: 1 },
+      // A shift (`/shifts/:id`, opened from Home's next shift) belongs to the Crew tab.
+      { id: 'crew', order: 1, match: ['/dashboard/crew', '/dashboard/crew/**', '/shifts/**'] },
       { id: 'shifts', enabled: false },
       { id: 'help-center', order: 2 },
       { id: 'account', to: '/account', label: 'Account', labelKey: 'app.tabs.account', icon: 'i-lucide-circle-user-round', sfSymbol: 'person.crop.circle', sfSymbolActive: 'person.crop.circle.fill', requiresAuth: true, order: 3 },
