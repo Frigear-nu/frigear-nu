@@ -34,6 +34,7 @@ vi.stubGlobal('sendVerificationLink', magicLink.sendVerificationLink)
 vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
 vi.stubGlobal('assertAuthSameOrigin', () => {})
 vi.stubGlobal('enforceAuthRateLimit', async () => {})
+vi.stubGlobal('notifyAuthUserCreated', async () => {})
 vi.stubGlobal('readValidatedBody', async (event: { body: unknown }, parse: (body: unknown) => unknown) => parse(event.body))
 vi.stubGlobal('hashPassword', async (password: string) => `hashed:${password}`)
 vi.stubGlobal('startAuthSession', async (_event: unknown, user: { id: number }) => {
