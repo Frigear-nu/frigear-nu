@@ -31,6 +31,7 @@
     "mobile:sync": "pnpm --filter ./apps/mobile run cap:sync",
     "mobile:ios": "pnpm --filter ./apps/mobile run ios:run",
     "mobile:ios:device": "pnpm --filter ./apps/mobile run ios:device",
+    "mobile:ios:prod": "pnpm --filter ./apps/mobile run ios:prod",
     "mobile:android": "pnpm --filter ./apps/mobile run android:run",
     "mobile:assets": "pnpm --filter ./apps/mobile run assets"
   },

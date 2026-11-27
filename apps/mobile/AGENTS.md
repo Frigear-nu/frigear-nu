@@ -31,7 +31,22 @@ ios/, android/                  native projects (`pnpm mobile:native`), committe
 - Scopes: the access token carries only the permissions of its scopes, so `identity.ts` asks for what the tabs use. A
   module page that gets `403` from the API usually needs one more scope there.
 - `NUXT_PUBLIC_*` values are baked in by `nuxt generate`: rebuild (`pnpm mobile:sync`) after changing `.env`. Release
-  builds point at `https://frigear-nu.frigear.workers.dev`.
+  builds point at `https://frigear-nu.frigear.workers.dev` and use the client id of the app registered on that website
+  (`NUXT_PUBLIC_AUTHENTICATION_CLIENT_CLIENT_ID`), set in the release environment. Never commit that id or a real
+  `.env`; `identity.ts` keeps `mobile`, the website's configured client for development.
+- For a phone build against production, create `apps/mobile/.env.production` (gitignored by `.env.*`) with the release
+  issuer, API base and the production client id, then run `pnpm mobile:ios:prod` (`nuxt generate --dotenv
+  .env.production`, `cap sync ios`, opens Xcode):
+
+  ```
+  NUXT_PUBLIC_AUTHENTICATION_CLIENT_ISSUER=https://frigear-nu.frigear.workers.dev
+  NUXT_PUBLIC_AUTHENTICATION_CLIENT_API_BASE=https://frigear-nu.frigear.workers.dev
+  NUXT_PUBLIC_AUTHENTICATION_CLIENT_CLIENT_ID=<the production app's client id>
+  ```
+
+  Run `pnpm mobile:sync` (or `mobile:ios`) afterwards to go back to the development build.
+- Home (`dashboard.homeTab.items`) shows only the next shift and the upcoming events (`modules/home-events.ts`, in the
+  `dashboard.home` widget area); everything else about crew and shifts is on the Crew tab.
 - Capacitor only links the native code of this app's own dependencies: plugins go in `apps/mobile/package.json`.
   `pnpm mobile:doctor` lists missing ones.
 - Run `pnpm mobile:sync` after every web change and every install (Swift Package Manager paths point into

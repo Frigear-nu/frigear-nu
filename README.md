@@ -48,7 +48,7 @@ are not part of this workspace: they use the published versions.
 
 - [@frigear-nu/website](./apps/website) - the main website application
 - [@frigear-nu/docs](./apps/docs) - the documentation application
-- [@frigear-nu/mobile-app](./apps/mobile) - the Frigear app for iOS and Android (Capacitor): the website's dashboard, crew, shifts, help center and account, signed in at the website; everything else opens there
+- [@frigear-nu/mobile-app](./apps/mobile) - the Frigear app for iOS and Android (Capacitor): the website's dashboard, crew, shifts, help center and account, signed in at the website; everything else opens there. Release builds use the production app's client id from the release environment
 
 
 ## Packages
