@@ -96,6 +96,11 @@ export type InboxSendResult = {
   externalId?: string | null
   /** The email addresses the channel copied (`Cc`), stored on the reply. Invalid addresses are dropped. */
   cc?: string[] | null
+  /**
+   * The `Message-ID` a reply sent by email went out with, when the sender reported it (Notify's `cloudflare-binding`
+   * driver does). Stored as `email:out:<id>` (it wins over `externalId`), so an answer to it threads by its headers.
+   */
+  messageId?: string | null
 } | undefined
 
 /** A channel adapter, the default export of the file `extendInbox` names. */
@@ -175,7 +180,17 @@ export type InboxEmailAccountConfig = {
    * verified with the email provider Notify sends through. Defaults to `false`.
    */
   sendFromAddress?: boolean
+  /**
+   * A driver that fetches this address's mail itself: `gmail` (a Google Workspace mailbox, as this address) or `imap`
+   * (with `imap`). Unset for mail that is pushed to the inbox (Cloudflare, Resend, the JSON webhook).
+   */
+  inbound?: 'gmail' | 'imap'
+  /** The IMAP connection of `inbound: 'imap'`; the password is the account's `secretRef`. */
+  imap?: { host: string, port?: number, secure?: boolean, user?: string, mailbox?: string, authservIds?: string[] }
 }
+
+/** A Notify email driver inbox replies can go out through (`inbox.email.outbound`). */
+export type InboxOutboundEmailDriver = 'log' | 'resend' | 'ses' | 'cloudflare' | 'cloudflare-binding'
 
 // --- DTOs --------------------------------------------------------------------------------------------------------------
 
@@ -411,10 +426,45 @@ export type ModuleOptions = {
      * - `cloudflare`: Cloudflare Email Routing to this Worker (the `cloudflare:email` hook of the `cloudflare-module`
      *   preset).
      * - `resend`: Resend's `email.received` webhook, `POST /api/inbox/email/resend`.
+     * - `gmail`: Google Workspace mailboxes read through the Gmail API (push notifications through Pub/Sub,
+     *   `POST /api/inbox/email/gmail`), for email accounts with `config.inbound: 'gmail'`.
+     * - `imap`: IMAP mailboxes polled by the `inbox:imap` task, for email accounts with `config.inbound: 'imap'`.
      */
     inbound?: {
       webhook?: boolean
-      cloudflare?: boolean
+      cloudflare?: boolean | {
+        /**
+         * The authserv-ids of the `Authentication-Results` to trust (`NUXT_INBOX_CLOUDFLARE_AUTHSERV_IDS`, comma
+         * separated). Defaults to `['mx.cloudflare.net']`.
+         */
+        authservIds?: string[]
+        /**
+         * Install a Worker entry that awaits the `cloudflare:email` hook, so an unknown recipient is bounced (Nitro 2's
+         * entry runs it after Cloudflare accepted the email). Only on the `cloudflare-module` preset with its own entry.
+         * Defaults to `true`.
+         */
+        entry?: boolean
+      }
+      gmail?: boolean | {
+        /** The service account's `client_email` (`NUXT_INBOX_GMAIL_CLIENT_EMAIL`). */
+        clientEmail?: string
+        /** The service account's `private_key`, PEM (`NUXT_INBOX_GMAIL_PRIVATE_KEY`). */
+        privateKey?: string
+        /** The Pub/Sub topic Gmail publishes to, `projects/<project>/topics/<topic>` (`NUXT_INBOX_GMAIL_TOPIC`). */
+        topic?: string
+        /** The audience of the push subscription's OIDC token (`NUXT_INBOX_GMAIL_AUDIENCE`), e.g. the push URL. */
+        audience?: string
+        /** The service account the push subscription signs as; checked when set (`NUXT_INBOX_GMAIL_PUSH_SERVICE_ACCOUNT`). */
+        pushServiceAccount?: string
+        /** Defaults to `https://gmail.googleapis.com`. */
+        apiBase?: string
+        /** Cron of the `inbox:gmail` task (watch renewal and catch-up). Defaults to `'15 4 * * *'`; `false` for none. */
+        cron?: string | false
+      }
+      imap?: boolean | {
+        /** Cron of the `inbox:imap` task (the poll). Defaults to every five minutes; `false` for none. */
+        cron?: string | false
+      }
       resend?: boolean | {
         /** The webhook's signing secret, `whsec_...` (`NUXT_INBOX_RESEND_WEBHOOK_SECRET`). */
         webhookSecret?: string
@@ -426,6 +476,12 @@ export type ModuleOptions = {
     }
     /** Inbound email drivers of the host, next to the built-in ones and those of other modules (`extendInbox`). */
     drivers?: InboxEmailDriverDefinition[]
+    /**
+     * The Notify email driver replies go out through instead of Notify's own (`NUXT_INBOX_EMAIL_OUTBOUND`), with
+     * Notify's settings: `cloudflare-binding` sends through a Workers `send_email` binding with a Message-ID of the
+     * inbox's own, so answers thread by their headers. Other Notify mail is unchanged. Defaults to Notify's driver.
+     */
+    outbound?: InboxOutboundEmailDriver
   }
   meta?: {
     /** The Meta app secret: checks `X-Hub-Signature-256` (`NUXT_INBOX_META_APP_SECRET`). */
@@ -465,7 +521,11 @@ export type PublicModuleOptions = {
 /** The server-only runtime config (`runtimeConfig.inbox`). */
 export type InboxRuntimeConfig = {
   retention: { days: number | false, mode: InboxRetentionMode, batch: number, tombstoneDays: number }
-  email: { webhookSecret: string }
+  email: { webhookSecret: string, outbound: string }
+  /** The authserv-ids Cloudflare Email Routing's `Authentication-Results` are trusted with (comma separated). */
+  cloudflare: { authservIds: string }
+  /** The Gmail driver: the service account (domain-wide delegation), the Pub/Sub topic and the push token's audience. */
+  gmail: { clientEmail: string, privateKey: string, topic: string, audience: string, pushServiceAccount: string, apiBase: string }
   /** The inbox domains: `NUXT_INBOX_DOMAINS`, a comma separated list (read with `inboxDomains()`). */
   domains: string | string[]
   resend: { webhookSecret: string, apiKey: string, apiBase: string }

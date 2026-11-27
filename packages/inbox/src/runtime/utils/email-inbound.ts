@@ -1,8 +1,8 @@
 import type { Address, Email as ParsedEmail, Header } from 'postal-mime'
 import { hmacSha256Hex, timingSafeEqual } from '@frigear-nu/module-kit/crypto'
-import { htmlToText, INBOX_MAX_BODY } from './payloads'
+import { emailRecipients, htmlToText, INBOX_MAX_BODY } from './payloads'
 import type { InboxEmailPayload } from './payloads'
-import { emailDomainOf } from './email-routing'
+import { emailDomainOf, parsePlusAddress } from './email-routing'
 
 // The built-in inbound email drivers' mappings: a parsed MIME message (Cloudflare Email Routing) and a received email of
 // the Resend API, both into the provider-agnostic `InboxEmailPayload`, and the Svix signature of Resend's webhooks.
@@ -62,6 +62,14 @@ export type InboxMimeAttachment = { filename: string, contentType: string, conte
 
 /** The authserv-id Cloudflare Email Routing writes its `Authentication-Results` with. */
 export const CLOUDFLARE_AUTHSERV_IDS = ['mx.cloudflare.net']
+/** The authserv-id Gmail writes its `Authentication-Results` with. */
+export const GMAIL_AUTHSERV_IDS = ['mx.google.com']
+
+/** Authserv-ids from a comma separated list or an array (`NUXT_INBOX_CLOUDFLARE_AUTHSERV_IDS`), lower case, once each. */
+export function parseAuthservIds(value: unknown): string[] {
+  const list = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : []
+  return [...new Set(list.filter((item): item is string => typeof item === 'string').map(item => item.trim().toLowerCase()).filter(item => /^[\w.-]+$/.test(item)))]
+}
 
 /**
  * A MIME message parsed by `postal-mime` as an email payload. `fallbackMessageId` is used when the message has no
@@ -98,6 +106,16 @@ export function parsedEmailToPayload(email: ParsedEmail, options: { fallbackMess
     },
     attachments,
   }
+}
+
+/**
+ * The recipients of a message fetched from one account's mailbox (Gmail, IMAP): the account's address, and the
+ * addresses of `To`/`Cc` that are it or a plus address of it (a reply address names its thread). Other recipients are
+ * left out: their own mailboxes take the message in.
+ */
+export function mailboxRecipients(payload: InboxEmailPayload, accountAddress: string): string[] {
+  const own = accountAddress.trim().toLowerCase()
+  return [...new Set([...emailRecipients(payload).filter(address => parsePlusAddress(address).base === own), own])]
 }
 
 // --- Resend -----------------------------------------------------------------------------------------------------------

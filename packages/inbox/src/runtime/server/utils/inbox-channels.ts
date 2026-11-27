@@ -4,8 +4,8 @@ import { and, asc, desc, eq } from 'drizzle-orm'
 import { apiError } from '@frigear-nu/module-kit/server'
 import { isEmailAddress, metaSendRequest, metaSentId, normaliseEmail, replyCc } from '../../utils/payloads'
 import type { InboxMetaChannel } from '../../utils/payloads'
-import { formatFromAddress, inboxPlusAddress } from '../../utils/email-routing'
-import type { InboxChannelAccountDto, InboxContactDetails, InboxMailboxDto, InboxSendContext, InboxThreadDto } from '../../../types'
+import { formatFromAddress, INBOX_OUTBOUND_EMAIL_DRIVERS, inboxPlusAddress, normaliseMessageId } from '../../utils/email-routing'
+import type { InboxChannelAccountDto, InboxContactDetails, InboxMailboxDto, InboxOutboundEmailDriver, InboxSendContext, InboxThreadDto } from '../../../types'
 
 // Helpers of the built-in channel adapters (`runtime/channels/*`).
 
@@ -88,12 +88,13 @@ export async function inboxReplyHeaders(threadId: string): Promise<Record<string
  * would, with the `In-Reply-To` and `References` of their latest email (`inboxReplyHeaders`). `from` replaces
  * Notify's sender (`inboxEmailFrom`).
  */
-export async function inboxSendEmailReply(input: { thread: InboxThreadDto, contact: InboxContactDetails, body: string, replyTo?: string, from?: string }): Promise<{ cc: string[] }> {
+export async function inboxSendEmailReply(input: { thread: InboxThreadDto, contact: InboxContactDetails, body: string, replyTo?: string, from?: string }): Promise<{ cc: string[], messageId: string | null }> {
   const to = inboxReplyAddress(input.contact)
   if (!to) throw apiError(409, 'no_reply_address', 'The contact left no valid email address to reply to.')
   const cc = await inboxReplyCc(input.thread.id, [to, input.replyTo, input.from])
   const headers = await inboxReplyHeaders(input.thread.id)
-  await dispatchEmailNotification({
+  const driver = inboxOutboundEmailDriver()
+  const sent = await dispatchEmailNotification({
     to,
     ...(cc.length ? { cc } : {}),
     ...(input.from ? { from: input.from } : {}),
@@ -103,8 +104,17 @@ export async function inboxSendEmailReply(input: { thread: InboxThreadDto, conta
     ...(input.replyTo ? { replyTo: input.replyTo } : {}),
     ...(Object.keys(headers).length ? { headers } : {}),
     meta: { inboxThreadId: input.thread.id },
-  })
-  return { cc }
+  }, driver ? { driver } : {})
+  return { cc, messageId: normaliseMessageId(sent?.messageId) }
+}
+
+/**
+ * The Notify email driver inbox replies go out through (`inbox.email.outbound`, `NUXT_INBOX_EMAIL_OUTBOUND`), or
+ * `undefined` for Notify's own (`NUXT_NOTIFY_EMAIL_DRIVER`). Only a built-in Notify driver name counts.
+ */
+export function inboxOutboundEmailDriver(event?: H3Event): InboxOutboundEmailDriver | undefined {
+  const name = inboxConfig(event).email.outbound
+  return (INBOX_OUTBOUND_EMAIL_DRIVERS as readonly string[]).includes(name) ? name as InboxOutboundEmailDriver : undefined
 }
 
 /**

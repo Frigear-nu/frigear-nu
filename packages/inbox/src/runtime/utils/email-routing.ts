@@ -134,6 +134,20 @@ export function messageIdExternalIds(channel: string, id: string): string[] {
   return [`${channel}:<${id}>`, `${channel}:${id}`]
 }
 
+/** The `externalId` of a reply the inbox sent by email with its own Message-ID (whatever the thread's channel). */
+export function outboundEmailExternalId(id: string): string {
+  return `email:out:${id}`
+}
+
+/**
+ * Every stored `externalId` a Message-ID an email answers may have, in the order they are looked up: an inbound message
+ * of the channel (`messageIdExternalIds`), then, on email, a reply the inbox sent with that Message-ID
+ * (`email:out:<id>`).
+ */
+export function referenceExternalIds(channel: string, id: string): string[] {
+  return [...messageIdExternalIds(channel, id), ...(channel === 'email' ? [outboundEmailExternalId(id)] : [])]
+}
+
 /**
  * The thread ids a reply may join, in the order they are tried: the reply address (`threadHint`), then the threads of
  * the stored messages it answers (`referencedThreads`, in the order of `replyMessageIds`), then the subject marker.
@@ -155,3 +169,6 @@ export function formatFromAddress(name: string | null | undefined, address: stri
   const display = safeDisplayName(name)
   return display ? `"${display}" <${address}>` : address
 }
+
+/** The Notify email drivers inbox replies can go out through instead of Notify's own (`inbox.email.outbound`). */
+export const INBOX_OUTBOUND_EMAIL_DRIVERS = ['log', 'resend', 'ses', 'cloudflare', 'cloudflare-binding'] as const

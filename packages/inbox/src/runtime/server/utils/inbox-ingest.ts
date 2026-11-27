@@ -5,7 +5,7 @@ import { newId } from '@frigear-nu/module-kit/id'
 import { inboxThreadSearchText } from './inbox-search'
 import type { InboxInboundMessage, InboxMessageDto, InboxThreadDto, InboxThreadStatus } from '../../../types'
 import { toInboxMessageDto, toInboxThreadDto } from './inbox-dto'
-import { INBOX_MAX_REFERENCES, messageIdExternalIds, threadCandidates } from '../../utils/email-routing'
+import { INBOX_MAX_REFERENCES, messageIdExternalIds, outboundEmailExternalId, referenceExternalIds, threadCandidates } from '../../utils/email-routing'
 import type { InboxChannelAccountRow, InboxContactRow, InboxThreadRow } from './inbox-dto'
 
 export type InboxReceiveResult
@@ -92,7 +92,16 @@ async function referencedThreads(account: InboxChannelAccountRow, references: re
   const rows = await db.select({ externalId: schema.inboxMessages.externalId, threadId: schema.inboxMessages.threadId }).from(schema.inboxMessages)
     .where(and(eq(schema.inboxMessages.channelAccountId, account.id), inArray(schema.inboxMessages.externalId, candidates)))
   const byExternalId = new Map(rows.map(row => [row.externalId, row.threadId]))
-  return ids.flatMap(id => messageIdExternalIds(account.channel, id).map(externalId => byExternalId.get(externalId)).filter((threadId): threadId is string => !!threadId))
+  // Our own replies with a Message-ID of ours (`email:out:<id>`), in any thread of this mailbox: a contact form thread is
+  // answered by email from another account than the one the answer comes back to.
+  if (account.channel === 'email') {
+    const outgoing = ids.map(outboundEmailExternalId)
+    const sent = await db.select({ externalId: schema.inboxMessages.externalId, threadId: schema.inboxMessages.threadId }).from(schema.inboxMessages)
+      .innerJoin(schema.inboxThreads, eq(schema.inboxThreads.id, schema.inboxMessages.threadId))
+      .where(and(eq(schema.inboxThreads.mailboxId, account.mailboxId), eq(schema.inboxMessages.direction, 'out'), inArray(schema.inboxMessages.externalId, outgoing)))
+    for (const row of sent) byExternalId.set(row.externalId, row.threadId)
+  }
+  return ids.flatMap(id => referenceExternalIds(account.channel, id).map(externalId => byExternalId.get(externalId)).filter((threadId): threadId is string => !!threadId))
 }
 
 /**
