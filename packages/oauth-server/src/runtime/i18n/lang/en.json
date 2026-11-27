@@ -178,7 +178,9 @@
       },
       "accountGroup": "Your account",
       "unavailable": "Not available to your account",
-      "unavailableHint": "The application will not get these."
+      "unavailableHint": "The application will not get these.",
+      "showAll": "Show all {count}",
+      "showFewer": "Show fewer"
     },
     "permissions": {
       "read": "See which applications you can sign in to",

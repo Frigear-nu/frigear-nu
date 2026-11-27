@@ -85,6 +85,23 @@ const scopeGroups = computed<ScopeGroup[]>(() => {
   }))
 })
 
+// A long request would push Allow/Deny far below the fold: show the first few, the rest behind "Show all".
+const SCOPE_PREVIEW_LIMIT = 10
+const showAllScopes = ref(false)
+const scopeCount = computed(() => scopeGroups.value.reduce((sum, group) => sum + group.items.length, 0))
+const visibleScopeGroups = computed<ScopeGroup[]>(() => {
+  if (showAllScopes.value || scopeCount.value <= SCOPE_PREVIEW_LIMIT) return scopeGroups.value
+  let left = SCOPE_PREVIEW_LIMIT
+  const visible: ScopeGroup[] = []
+  for (const group of scopeGroups.value) {
+    if (left <= 0) break
+    const items = group.items.slice(0, left)
+    left -= items.length
+    if (items.length) visible.push({ ...group, items })
+  }
+  return visible
+})
+
 const pending = ref<'approve' | 'deny' | 'switch' | null>(null)
 // Set once a native app's redirect is ready: iOS only opens a custom scheme from a tap, not after a fetch.
 const appRedirectUrl = ref<string | null>(null)
@@ -249,7 +266,7 @@ async function switchAccount() {
             {{ t('authorize.wants', '{name} wants to:', { name: application.name }) }}
           </p>
           <section
-            v-for="group in scopeGroups"
+            v-for="group in visibleScopeGroups"
             :key="group.key"
             class="flex flex-col gap-2"
             :aria-label="group.title"
@@ -286,6 +303,19 @@ async function switchAccount() {
               </li>
             </ul>
           </section>
+          <UButton
+            v-if="scopeCount > SCOPE_PREVIEW_LIMIT"
+            color="neutral"
+            variant="link"
+            size="sm"
+            class="self-start px-0"
+            :trailing-icon="showAllScopes ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+            :label="showAllScopes
+              ? t('authorize.showFewer', 'Show fewer')
+              : t('authorize.showAll', 'Show all {count}', { count: scopeCount })"
+            :aria-expanded="showAllScopes"
+            @click="showAllScopes = !showAllScopes"
+          />
           <section
             v-if="unavailableItems.length"
             class="flex flex-col gap-2"
