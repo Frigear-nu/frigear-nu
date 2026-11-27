@@ -1,6 +1,7 @@
 import { db, schema } from '@nuxthub/db'
 import { z } from 'zod'
 import { apiError, conflict, created } from '@frigear-nu/module-kit/server'
+import type { AuthStoredUser } from '@frigear-nu/auth/utils'
 import { usersAccess } from '../../../access'
 import { emailField, localeField, nameField, phoneField } from '../../schemas'
 
@@ -43,6 +44,9 @@ export default defineEventHandler(async (event) => {
   if (!user) {
     throw apiError(500, 'internal_error', 'Failed to create the user.')
   }
+
+  // `auth:user:created` (`source: 'admin'`): other modules set up what they keep for new accounts.
+  await notifyAuthUserCreated({ event, user: user as AuthStoredUser, source: 'admin' })
 
   // The user has no password: the emailed single-use invite link (which also verifies the address) signs them in. In
   // Auth's resource mode people sign in at the issuer, which matches them to this user by their verified email, so no
