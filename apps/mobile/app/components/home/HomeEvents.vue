@@ -24,8 +24,15 @@ const hostPath = useHostPath()
 // the background once it is five minutes old.
 const { data: events, loading, error, refresh } = await useCachedFetch<EventSummary[]>('/api/events', { key: 'home-events', ttl: 5 * 60_000 })
 
+// `GET /api/events` lists every published event, past ones too (the website's `useEvents` groups them). Home shows the
+// ongoing and upcoming ones: an event without an end lasts a day, as there.
+const isCurrent = (event: EventSummary, now: number) => {
+  const end = event.endsAt ? Date.parse(event.endsAt) : Date.parse(event.startsAt) + 24 * 3600_000
+  return end > now
+}
+
 // Only a list: without an API base the request can answer with the app's own HTML, which is no list of events.
-const items = computed(() => (Array.isArray(events.value) ? events.value : []).map(event => ({
+const items = computed(() => (Array.isArray(events.value) ? events.value : []).filter(event => isCurrent(event, Date.now())).map(event => ({
   ...event,
   title: translate(event.name, locale.value),
   place: event.location ? translate(event.location, locale.value) : '',
