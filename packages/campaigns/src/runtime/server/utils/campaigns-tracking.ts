@@ -56,7 +56,7 @@ export async function campaignsRecordOpen(event: H3Event, token: string): Promis
 export async function campaignsUnsubscribeDelivery(event: H3Event, delivery: CampaignDeliveryRow): Promise<CampaignUnsubscribeResultDto> {
   const campaign = await findCampaign(delivery.campaignId)
   if (!campaign) throw notFound('This message no longer exists.')
-  if (campaign.kind === 'message') {
+  if (campaign.kind === 'people') {
     if (!delivery.userId) throw notFound('This message no longer exists.')
     try {
       await saveNotificationChannels(delivery.userId, { [CAMPAIGNS_TOPICS.message]: { [delivery.channel]: false } })

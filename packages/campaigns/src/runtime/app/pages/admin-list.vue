@@ -181,7 +181,7 @@ function openCampaign(campaign: CampaignDto) {
   const to = links.adminCampaign(campaign.id)
   if (to) void navigateTo(to)
 }
-const createForList = () => list.value && campaignActions.create('newsletter', { listIds: [list.value.id] })
+const createForList = () => list.value && campaignActions.create('lists', { listIds: [list.value.id] })
 
 // --- Embed ----------------------------------------------------------------------------------------------------------
 const origin = useRequestURL().origin

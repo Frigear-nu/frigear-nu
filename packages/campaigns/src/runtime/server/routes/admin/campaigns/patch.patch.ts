@@ -13,6 +13,6 @@ export default defineEventHandler(async (event): Promise<CampaignDto> => {
   await authorize(event, campaignsAccess.permissions.manage, row)
   campaignsRequireDraft(row)
   if (patch.important || row.important) await authorize(event, campaignsAccess.permissions['send-important'], row)
-  if (row.kind === 'newsletter' && patch.audience) await campaignsCheckLists(patch.audience.listIds ?? [])
+  if (row.kind === 'lists' && patch.audience) await campaignsCheckLists(patch.audience.listIds ?? [])
   return toCampaignDto(await updateCampaign(row, patch))
 })

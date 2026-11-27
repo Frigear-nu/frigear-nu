@@ -114,7 +114,7 @@ export function campaignNotifyOutcome(
 
 /** The channels a kind of campaign may use: push only reaches users. */
 export function campaignKindChannels(kind: CampaignKind): CampaignSendChannel[] {
-  return kind === 'newsletter' ? ['email', 'sms'] : ['email', 'sms', 'push']
+  return kind === 'lists' ? ['email', 'sms'] : ['email', 'sms', 'push']
 }
 
 const hasText = (value: Translated | null | undefined) => translatedTexts(value).some(text => !!text.trim())
@@ -134,7 +134,7 @@ export function campaignSendIssues(campaign: {
   const allowed = campaignKindChannels(campaign.kind)
   if (!campaign.channels.length) issues.push({ path: ['channels'], message: 'Pick at least one channel.' })
   for (const channel of campaign.channels) {
-    if (!allowed.includes(channel)) issues.push({ path: ['channels'], message: `A ${campaign.kind} cannot be sent by ${channel}.` })
+    if (!allowed.includes(channel)) issues.push({ path: ['channels'], message: `A campaign to ${campaign.kind} cannot be sent by ${channel}.` })
   }
   const { content } = campaign
   if (campaign.channels.includes('email') && (!hasText(content.email?.subject) || !hasText(content.email?.body))) {
@@ -147,10 +147,10 @@ export function campaignSendIssues(campaign: {
     issues.push({ path: ['content', 'push'], message: 'Write the title and text of the push notification.' })
   }
   const { audience } = campaign
-  if (campaign.kind === 'newsletter') {
+  if (campaign.kind === 'lists') {
     if (!audience.listIds?.length) issues.push({ path: ['audience', 'listIds'], message: 'Pick the lists to send to.' })
     if (audience.grants?.length || audience.userIds?.length) issues.push({ path: ['audience'], message: 'A campaign to lists goes to their subscribers only.' })
-    if (campaign.important) issues.push({ path: ['important'], message: 'Only a message to users can be important.' })
+    if (campaign.important) issues.push({ path: ['important'], message: 'Only a campaign to people can be important.' })
   }
   else {
     if (!audience.grants?.length && !audience.userIds?.length) issues.push({ path: ['audience'], message: 'Name the people or groups to send to.' })

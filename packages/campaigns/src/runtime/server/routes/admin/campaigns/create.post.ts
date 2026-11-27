@@ -9,7 +9,7 @@ export default defineEventHandler(async (event): Promise<CampaignDto> => {
   const principal = await authorize(event, campaignsAccess.permissions.manage)
   const input = await readValidatedBody(event, campaignCreateInput.parse)
   if (input.important) await authorize(event, campaignsAccess.permissions['send-important'])
-  if (input.kind === 'newsletter') await campaignsCheckLists(input.audience.listIds ?? [])
+  if (input.kind === 'lists') await campaignsCheckLists(input.audience.listIds ?? [])
   const row = await createCampaign(input, principal.user ? Number(principal.user.id) : null)
   return created(event, toCampaignDto(row))
 })

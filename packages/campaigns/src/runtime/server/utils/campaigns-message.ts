@@ -11,11 +11,11 @@ import { translate } from '../../utils'
 type FooterTexts = { footer: string, unsubscribe: string, preferences: string, smsStop: string }
 
 const FOOTERS: Record<CampaignKind, Record<'en' | 'da', FooterTexts>> = {
-  newsletter: {
+  lists: {
     en: { footer: 'You get this because you signed up for it.', unsubscribe: 'Unsubscribe', preferences: 'Your subscriptions', smsStop: 'Unsubscribe' },
     da: { footer: 'Du får dette, fordi du har tilmeldt dig.', unsubscribe: 'Afmeld', preferences: 'Dine tilmeldinger', smsStop: 'Afmeld' },
   },
-  message: {
+  people: {
     en: { footer: 'You get this because you have an account here.', unsubscribe: 'Stop these emails', preferences: 'Notification settings', smsStop: 'Stop' },
     da: { footer: 'Du får dette, fordi du har en konto her.', unsubscribe: 'Stop disse e-mails', preferences: 'Indstillinger for notifikationer', smsStop: 'Stop' },
   },

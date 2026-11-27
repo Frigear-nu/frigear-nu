@@ -35,7 +35,7 @@ const { data: lists } = useLazyFetch<CampaignListDto[]>(campaignsApi.admin.lists
 const listNames = computed(() => new Map((lists.value ?? []).map(list => [list.id, tr(list.name)])))
 
 const statusLabel = (value: string) => t(`campaign.statuses.${value}`, { draft: 'Draft', scheduled: 'Scheduled', sending: 'Sending', sent: 'Sent', cancelled: 'Cancelled' }[value] ?? value)
-const kindLabel = (value: string) => t(`campaign.kinds.${value}`, value === 'message' ? 'To people' : 'To lists')
+const kindLabel = (value: string) => t(`campaign.kinds.${value}`, value === 'people' ? 'To people' : 'To lists')
 const channelLabel = (channel: string) => t(`campaign.channels.${channel}`, { email: 'Email', sms: 'SMS', push: 'Push' }[channel] ?? channel)
 const statusOptions = computed(() => [
   { value: 'all', label: t('campaign.allStatuses', 'All statuses') },
@@ -47,13 +47,13 @@ const listOptions = computed(() => [
 ])
 const kindOptions = computed(() => [
   { value: 'all', label: t('campaign.allKinds', 'All kinds') },
-  { value: 'newsletter', label: kindLabel('newsletter') },
-  { value: 'message', label: kindLabel('message') },
+  { value: 'lists', label: kindLabel('lists') },
+  { value: 'people', label: kindLabel('people') },
 ])
 
 function audienceSummary(campaign: CampaignDto): string {
   const { audience } = campaign
-  if (campaign.kind === 'newsletter') {
+  if (campaign.kind === 'lists') {
     const names = (audience.listIds ?? []).map(id => listNames.value.get(id) ?? '').filter(Boolean)
     if (names.length) return names.join(', ')
     const count = audience.listIds?.length ?? 0

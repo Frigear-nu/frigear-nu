@@ -223,10 +223,10 @@ export type CampaignMySubscriptionsDto = {
 // --- Campaigns -------------------------------------------------------------------------------------------------------
 
 /**
- * `newsletter` ("To lists"): to the subscribers of lists (email, SMS). `message` ("To people"): to users (email, SMS,
+ * `lists` ("To lists"): to the subscribers of lists (email, SMS). `people` ("To people"): to users (email, SMS,
  * push).
  */
-export type CampaignKind = 'newsletter' | 'message'
+export type CampaignKind = 'lists' | 'people'
 
 /** The channels a campaign goes out on: push only for messages to users. */
 export type CampaignSendChannel = 'email' | 'sms' | 'push'
