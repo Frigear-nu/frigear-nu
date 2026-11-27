@@ -45,7 +45,7 @@ const ready = computed(() => !issues.value.length)
 
 // --- Labels ---------------------------------------------------------------------------------------------------------
 const statusLabel = (value: string) => t(`campaign.statuses.${value}`, { draft: 'Draft', scheduled: 'Scheduled', sending: 'Sending', sent: 'Sent', cancelled: 'Cancelled' }[value] ?? value)
-const kindLabel = (value: string) => t(`campaign.kinds.${value}`, value === 'message' ? 'To people' : 'To lists')
+const kindLabel = (value: string) => t(`campaign.kinds.${value}`, value === 'people' ? 'To people' : 'To lists')
 const channelLabel = (channel: string) => t(`campaign.channels.${channel}`, { email: 'Email', sms: 'SMS', push: 'Push' }[channel] ?? channel)
 const deliveryStatusLabel = (value: string) => t(`campaign.deliveryStatuses.${value}`, { queued: 'Waiting', sending: 'Sending', sent: 'Sent', skipped: 'Skipped', failed: 'Failed' }[value] ?? value)
 const skipReasonLabel = (value: string) => t(`campaign.skipReasons.${value}`, {
@@ -81,7 +81,7 @@ const summary = computed<DescriptionItem[]>(() => {
     ...(value.cancelledAt ? [{ key: 'cancelledAt', label: t('campaign.cancelledAt', 'Cancelled'), value: dateOf(value.cancelledAt) }] : []),
     { key: 'trackClicks', label: t('campaign.fields.trackClicks', 'Count clicks'), value: onOff(value.trackClicks) },
     ...(value.channels.includes('email') ? [{ key: 'trackOpens', label: t('campaign.fields.trackOpens', 'Count opens'), value: onOff(value.trackOpens) }] : []),
-    ...(value.kind === 'message' ? [{ key: 'important', label: t('campaign.fields.important', 'Important message'), value: value.important ? t('campaign.importantYes', 'Yes: it reaches people also on channels they turned off') : t('campaign.importantNo', 'No') }] : []),
+    ...(value.kind === 'people' ? [{ key: 'important', label: t('campaign.fields.important', 'Important message'), value: value.important ? t('campaign.importantYes', 'Yes: it reaches people also on channels they turned off') : t('campaign.importantNo', 'No') }] : []),
     { key: 'createdAt', label: t('campaign.createdAt', 'Created'), value: dateOf(value.createdAt) },
   ]
 })
@@ -92,7 +92,7 @@ const audienceLists = computed(() => (campaign.value?.audience.listIds ?? []).ma
   const list = (lists.value ?? []).find(entry => entry.id === listId)
   return { id: listId, name: list ? tr(list.name) : listId, to: links.adminList(listId) }
 }))
-const userIds = computed(() => campaign.value?.kind === 'message' ? (campaign.value.audience.userIds ?? []) : [])
+const userIds = computed(() => campaign.value?.kind === 'people' ? (campaign.value.audience.userIds ?? []) : [])
 const { data: people, status: peopleStatus } = useLazyFetch<CampaignUserLookupDto[]>(campaignsApi.admin.users, {
   key: `campaigns:campaign:${id.value}:people`,
   query: computed(() => ({ ids: userIds.value.join(',') })),
@@ -402,13 +402,13 @@ const deliveryColumns = computed<TableColumn<CampaignDeliveryDto>[]>(() => [
 
       <SectionCard
         :title="t('campaign.audience', 'Audience')"
-        :description="campaign.kind === 'newsletter'
+        :description="campaign.kind === 'lists'
           ? t('campaign.audienceLists', 'The active subscribers of these lists, each once per channel.')
           : t('campaign.audienceMessage', 'These people and everyone in these groups, each once.')"
       >
         <div class="flex flex-col gap-4">
           <div
-            v-if="campaign.kind === 'newsletter'"
+            v-if="campaign.kind === 'lists'"
             class="flex flex-wrap gap-2"
           >
             <template v-if="audienceLists.length">
@@ -465,7 +465,7 @@ const deliveryColumns = computed<TableColumn<CampaignDeliveryDto>[]>(() => [
             class="flex flex-col gap-2 border-t border-default pt-4"
             data-campaign-preview
           >
-            <span class="text-highlighted text-sm font-medium">{{ campaign.kind === 'message' && campaign.status === 'scheduled' ? t('campaign.previewTitleFixed', 'Who it goes to, fixed when it was scheduled') : t('campaign.previewTitle', 'Who it reaches now') }}</span>
+            <span class="text-highlighted text-sm font-medium">{{ campaign.kind === 'people' && campaign.status === 'scheduled' ? t('campaign.previewTitleFixed', 'Who it goes to, fixed when it was scheduled') : t('campaign.previewTitle', 'Who it reaches now') }}</span>
             <UAlert
               v-if="previewError"
               color="warning"

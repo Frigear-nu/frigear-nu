@@ -52,7 +52,7 @@ async function campaignsPrepareSend(event: H3Event, row: CampaignRow, now: boole
   const issues = campaignSendIssues(row)
   if (issues.length) throw validationError(issues)
   let recipientUserIds: string[] | null = null
-  if (row.kind === 'message') recipientUserIds = await campaignsResolveUserAudience(event, row.audience)
+  if (row.kind === 'people') recipientUserIds = await campaignsResolveUserAudience(event, row.audience)
   else {
     await campaignsCheckLists(row.audience.listIds ?? [])
     // Sent now to lists nobody is on: say so. A scheduled one may still gain subscribers.
@@ -152,7 +152,7 @@ async function campaignsMaterialize(row: CampaignRow, pages: number): Promise<nu
   for (let page = 0; page < pages; page++) {
     let rows: DeliveryInsert[] = []
     let next: string | null
-    if (row.kind === 'message') {
+    if (row.kind === 'people') {
       const ids = row.recipientUserIds ?? []
       const start = Number(cursor ?? 0)
       const slice = ids.slice(start, start + MATERIALIZE_PAGE)
@@ -253,7 +253,7 @@ async function recipientLinks(ctx: CampaignContext, delivery: CampaignDeliveryRo
     },
     unsubscribeUrl: campaignsPageUrlAt(origin, 'unsubscribe', locale, { token }),
     oneClickUrl: `${origin}${campaignsApi.unsubscribe(token)}`,
-    preferencesUrl: campaignsPageUrlAt(origin, row.kind === 'newsletter' ? 'account' : 'notifications', locale),
+    preferencesUrl: campaignsPageUrlAt(origin, row.kind === 'lists' ? 'account' : 'notifications', locale),
     pixelUrl: row.trackOpens && delivery.channel === 'email' ? `${origin}${campaignsApi.open(token)}` : null,
   }
 }
@@ -384,7 +384,7 @@ export async function campaignsDeliverPass(options: { now?: Date, batchSize?: nu
     if (!ctx) contexts.set(campaign.id, ctx = campaignContext(campaign))
     let outcome: Outcome
     try {
-      outcome = campaign.kind === 'newsletter' ? await sendListDelivery(await ctx, delivery) : await sendMessageDelivery(await ctx, delivery)
+      outcome = campaign.kind === 'lists' ? await sendListDelivery(await ctx, delivery) : await sendMessageDelivery(await ctx, delivery)
     }
     catch (error) {
       console.error(`[campaigns] delivery ${delivery.id} failed`, error)

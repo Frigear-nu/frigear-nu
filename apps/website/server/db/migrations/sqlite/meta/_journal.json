@@ -225,6 +225,13 @@
       "when": 1795744365792,
       "tag": "0031_campaigns_signup_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1795746682209,
+      "tag": "0032_campaigns_kind_names",
+      "breakpoints": true
     }
   ]
 }

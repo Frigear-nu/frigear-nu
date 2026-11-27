@@ -38,8 +38,8 @@ const { data: selectedUsers } = useLazyFetch<CampaignUserLookupDto[]>(campaignsA
 })
 
 const kinds = computed(() => [
-  { value: 'newsletter', label: t('campaign.kinds.newsletter', 'To lists'), description: t('campaign.kinds.newsletterHelp', 'To the subscribers of lists, by email or SMS.') },
-  { value: 'message', label: t('campaign.kinds.message', 'To people'), description: t('campaign.kinds.messageHelp', 'To users picked by name, role, team or operation, by email, SMS or push.') },
+  { value: 'lists', label: t('campaign.kinds.lists', 'To lists'), description: t('campaign.kinds.listsHelp', 'To the subscribers of lists, by email or SMS.') },
+  { value: 'people', label: t('campaign.kinds.people', 'To people'), description: t('campaign.kinds.peopleHelp', 'To users picked by name, role, team or operation, by email, SMS or push.') },
 ])
 const channelLabel = (channel: string) => t(`campaign.channels.${channel}`, { email: 'Email', sms: 'SMS', push: 'Push' }[channel] ?? channel)
 const channelItems = computed(() => campaignKindChannels(state.kind).map(value => ({ value, label: channelLabel(value) })))
@@ -47,13 +47,13 @@ watch(() => state.kind, (kind) => {
   const allowed = campaignKindChannels(kind)
   state.channels = state.channels.filter(channel => allowed.includes(channel))
   if (!state.channels.length) state.channels = ['email']
-  if (kind === 'newsletter') state.important = false
+  if (kind === 'lists') state.important = false
 })
 
 const sendKinds = grantFields.map(field => field.kind).filter(kind => !(CAMPAIGN_EXCLUDED_GRANT_KINDS as readonly string[]).includes(kind))
 // In the script, not the template: vue-tsc misreads the markdown sample inside an attribute.
 const emailBodyHelp = computed(() => t('campaign.fields.emailBodyHelp', 'Markdown: **bold**, _italics_, [links](https://…) and blank lines between paragraphs. An unsubscribe link is added at the end.'))
-const showImportant = computed(() => state.kind === 'message' && (can.value.sendImportant || state.important))
+const showImportant = computed(() => state.kind === 'people' && (can.value.sendImportant || state.important))
 
 // Important overrides people's choices: ask before turning it on.
 async function toggleImportant(value: boolean) {
@@ -126,7 +126,7 @@ async function save(event: FormSubmitEvent<CampaignFormState>) {
       <UFormField
         name="channels"
         :label="t('campaign.fields.channels', 'Channels')"
-        :description="state.kind === 'newsletter'
+        :description="state.kind === 'lists'
           ? t('campaign.fields.channelsListsHelp', 'Each subscriber gets it on the channels they subscribed with.')
           : t('campaign.fields.channelsMessageHelp', 'People get it on the channels they keep on for messages; SMS is off until they turn it on.')"
         required
@@ -139,7 +139,7 @@ async function save(event: FormSubmitEvent<CampaignFormState>) {
       </UFormField>
 
       <UFormField
-        v-if="state.kind === 'newsletter'"
+        v-if="state.kind === 'lists'"
         name="listIds"
         :label="t('campaign.fields.lists', 'Lists')"
         :description="t('campaign.fields.listsHelp', 'Everyone subscribed to one of these gets it once per channel, even when they are on several.')"

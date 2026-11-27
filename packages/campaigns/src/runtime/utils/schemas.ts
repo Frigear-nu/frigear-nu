@@ -143,7 +143,7 @@ export const campaignTokenParams = z.object({ token: z.string().trim().min(1).ma
 
 export const CAMPAIGN_SEND_CHANNELS = ['email', 'sms', 'push'] as const satisfies readonly CampaignSendChannel[]
 
-export const campaignKindSchema = z.enum(['newsletter', 'message'])
+export const campaignKindSchema = z.enum(['lists', 'people'])
 
 const sendChannelList = z.array(z.enum(CAMPAIGN_SEND_CHANNELS)).min(1).max(3)
   .refine(value => new Set(value).size === value.length, 'Pick each channel once.')

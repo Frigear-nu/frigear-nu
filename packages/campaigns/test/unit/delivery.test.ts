@@ -87,11 +87,11 @@ describe('claims', () => {
 })
 
 describe('send issues', () => {
-  const ready = { kind: 'newsletter' as const, channels: ['email' as const], audience: { listIds: ['cml_1'] }, content: { email: { subject: 'Hi', body: 'Text' } }, important: false }
+  const ready = { kind: 'lists' as const, channels: ['email' as const], audience: { listIds: ['cml_1'] }, content: { email: { subject: 'Hi', body: 'Text' } }, important: false }
 
   it('is empty for a campaign that is ready', () => {
     expect(campaignSendIssues(ready)).toEqual([])
-    expect(campaignSendIssues({ ...ready, kind: 'message', channels: ['push'], audience: { userIds: ['1'] }, content: { push: { title: 'T', body: 'B' } }, important: true })).toEqual([])
+    expect(campaignSendIssues({ ...ready, kind: 'people', channels: ['push'], audience: { userIds: ['1'] }, content: { push: { title: 'T', body: 'B' } }, important: true })).toEqual([])
   })
 
   it('names what is missing or not allowed', () => {
@@ -100,8 +100,8 @@ describe('send issues', () => {
     expect(paths({ ...ready, content: { email: { subject: 'Hi', body: ' ' } } })).toContain('content.email')
     expect(paths({ ...ready, audience: { userIds: ['1'] } })).toEqual(expect.arrayContaining(['audience.listIds', 'audience']))
     expect(paths({ ...ready, important: true })).toContain('important')
-    expect(paths({ ...ready, kind: 'message', audience: {} })).toContain('audience')
-    expect(campaignKindChannels('newsletter')).toEqual(['email', 'sms'])
+    expect(paths({ ...ready, kind: 'people', audience: {} })).toContain('audience')
+    expect(campaignKindChannels('lists')).toEqual(['email', 'sms'])
   })
 })
 
@@ -135,7 +135,7 @@ describe('messages', () => {
   }
 
   it('builds the email in the recipient\'s language, escaped, with tracked links, headers and footer', () => {
-    const email = buildCampaignsEmail({ kind: 'newsletter', content, locale: 'da', fallbackLocale: null, links, meta: {} })
+    const email = buildCampaignsEmail({ kind: 'lists', content, locale: 'da', fallbackLocale: null, links, meta: {} })
     expect(email.subject).toBe('Nyt')
     expect(email.body).toContain('href="https://s.test/l/abc/cmd_1.sig"')
     expect(email.body).not.toContain('example.org')
@@ -148,15 +148,15 @@ describe('messages', () => {
   })
 
   it('adds the open pixel only when given one', () => {
-    const email = buildCampaignsEmail({ kind: 'message', content, locale: 'en', fallbackLocale: null, links: { ...links, pixelUrl: 'https://site.test/api/campaigns/o/cmd_1.sig' }, meta: {} })
+    const email = buildCampaignsEmail({ kind: 'people', content, locale: 'en', fallbackLocale: null, links: { ...links, pixelUrl: 'https://site.test/api/campaigns/o/cmd_1.sig' }, meta: {} })
     expect(email.body).toContain('<img src="https://site.test/api/campaigns/o/cmd_1.sig"')
     expect(email.template?.props?.pixelUrl).toBe('https://site.test/api/campaigns/o/cmd_1.sig')
   })
 
   it('builds the SMS and push with the tracked link', () => {
-    expect(buildCampaignsSms({ kind: 'newsletter', content, locale: 'en', fallbackLocale: null, links, meta: {} }))
+    expect(buildCampaignsSms({ kind: 'lists', content, locale: 'en', fallbackLocale: null, links, meta: {} }))
       .toBe(`Read https://s.test/l/abc/cmd_1.sig now\n\nUnsubscribe: ${links.unsubscribeUrl}`)
-    expect(buildCampaignsPush({ kind: 'message', content, locale: 'en', fallbackLocale: null, links, meta: {} }))
+    expect(buildCampaignsPush({ kind: 'people', content, locale: 'en', fallbackLocale: null, links, meta: {} }))
       .toEqual({ title: 'T', body: 'B', url: 'https://s.test/l/abc/cmd_1.sig' })
   })
 })

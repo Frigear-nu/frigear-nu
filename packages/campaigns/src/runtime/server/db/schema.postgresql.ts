@@ -101,14 +101,14 @@ export const campaignSubscriptions = pgTable('campaign_subscriptions', {
 ])
 
 /**
- * A campaign: to the subscribers of lists (`kind: 'newsletter'`, email and SMS), or to people, that is
- * users (`kind: 'message'`, email, SMS and push, following their `campaigns.message` choices unless `important`).
+ * A campaign: to the subscribers of lists (`kind: 'lists'`, email and SMS), or to people, that is
+ * users (`kind: 'people'`, email, SMS and push, following their `campaigns.message` choices unless `important`).
  */
 export const campaigns = pgTable('campaigns', {
   /** `cmp_` + random id. */
   id: text().primaryKey(),
-  /** `newsletter` (to list subscribers) or `message` (to users). */
-  kind: text().$type<'newsletter' | 'message'>().notNull(),
+  /** `lists` (to list subscribers) or `people` (to users). */
+  kind: text().$type<'lists' | 'people'>().notNull(),
   /** Staff-facing name; never sent. */
   name: text().notNull(),
   channels: jsonb().$type<CampaignSendChannel[]>().notNull(),

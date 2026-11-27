@@ -159,7 +159,7 @@ function cleanTranslated(value: Translated | null | undefined): Translated | und
   return entries.length ? Object.fromEntries(entries) : undefined
 }
 
-export const emptyCampaignForm = (kind: CampaignKind = 'newsletter', listIds: string[] = []): CampaignFormState => ({
+export const emptyCampaignForm = (kind: CampaignKind = 'lists', listIds: string[] = []): CampaignFormState => ({
   kind,
   name: '',
   channels: ['email'],
@@ -212,7 +212,7 @@ export function campaignFormBody(state: CampaignFormState) {
   const pushTitle = cleanTranslated(state.pushTitle)
   const pushBody = cleanTranslated(state.pushBody)
   if (channels.includes('push') && pushTitle && pushBody) content.push = { title: pushTitle, body: pushBody, url: state.pushUrl.trim() || null }
-  const audience: CampaignAudience = state.kind === 'newsletter'
+  const audience: CampaignAudience = state.kind === 'lists'
     ? { listIds: [...state.listIds] }
     : { userIds: state.userIds.map(String), grants: state.grants }
   return {
@@ -222,7 +222,7 @@ export function campaignFormBody(state: CampaignFormState) {
     content,
     trackClicks: state.trackClicks,
     trackOpens: channels.includes('email') && state.trackOpens,
-    important: state.kind === 'message' && state.important,
+    important: state.kind === 'people' && state.important,
   }
 }
 

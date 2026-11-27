@@ -332,10 +332,10 @@
       "importantTitle": "Send som vigtig besked?",
       "importantYes": "Ja: den når folk også på kanaler, de har slået fra",
       "kinds": {
-        "message": "Til personer",
-        "messageHelp": "Til brugere valgt efter navn, rolle, team eller operation, med e-mail, SMS eller push.",
-        "newsletter": "Til lister",
-        "newsletterHelp": "Til abonnenterne på lister, med e-mail eller SMS."
+        "people": "Til personer",
+        "peopleHelp": "Til brugere valgt efter navn, rolle, team eller operation, med e-mail, SMS eller push.",
+        "lists": "Til lister",
+        "listsHelp": "Til abonnenterne på lister, med e-mail eller SMS."
       },
       "language": "Sprog",
       "linkClicks": "Klik",
@@ -438,7 +438,7 @@
         "push": "{count} med push"
       },
       "issues": {
-        "newsletter": {
+        "lists": {
           "channels": "Vælg mindst én kanal, en liste kan bruge: e-mail eller SMS.",
           "content_email": "Skriv e-mailens emne og tekst.",
           "content_sms": "Skriv SMS'ens tekst.",
@@ -446,7 +446,7 @@
           "audience": "En kampagne til lister går kun til deres abonnenter.",
           "important": "Kun en kampagne til personer kan være vigtig."
         },
-        "message": {
+        "people": {
           "channels": "Vælg mindst én kanal.",
           "content_email": "Skriv e-mailens emne og tekst.",
           "content_sms": "Skriv SMS'ens tekst.",

@@ -349,10 +349,10 @@
       "empty": "No campaigns yet",
       "emptyDescription": "Write to the subscribers of your lists, or to people you pick by name, role or team.",
       "kinds": {
-        "newsletter": "To lists",
-        "newsletterHelp": "To the subscribers of lists, by email or SMS.",
-        "message": "To people",
-        "messageHelp": "To users picked by name, role, team or operation, by email, SMS or push."
+        "lists": "To lists",
+        "listsHelp": "To the subscribers of lists, by email or SMS.",
+        "people": "To people",
+        "peopleHelp": "To users picked by name, role, team or operation, by email, SMS or push."
       },
       "importantTitle": "Send as an important message?",
       "importantDescription": "An important message reaches people on every channel you pick, also on the channels they turned off for messages. Use it only for what they must know, such as safety information or a changed time.",
@@ -438,7 +438,7 @@
         "push": "{count} by push"
       },
       "issues": {
-        "newsletter": {
+        "lists": {
           "channels": "Pick at least one channel a list can use: email or SMS.",
           "content_email": "Write the subject and text of the email.",
           "content_sms": "Write the text of the SMS.",
@@ -446,7 +446,7 @@
           "audience": "A campaign to lists goes to their subscribers only.",
           "important": "Only a campaign to people can be important."
         },
-        "message": {
+        "people": {
           "channels": "Pick at least one channel.",
           "content_email": "Write the subject and text of the email.",
           "content_sms": "Write the text of the SMS.",

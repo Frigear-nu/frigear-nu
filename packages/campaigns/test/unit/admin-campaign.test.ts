@@ -18,7 +18,7 @@ const t = (_key: string, fallback: string) => fallback
 
 const campaign = (extra: Partial<CampaignDto> = {}): CampaignDto => ({
   id: 'cmp_1',
-  kind: 'message',
+  kind: 'people',
   name: 'Gate change',
   channels: ['email', 'push'],
   audience: { userIds: ['3', '7'], grants: [{ kind: 'role', role: 'crew' }] },
@@ -89,7 +89,7 @@ describe('campaign form', () => {
 
   it('keeps only the picked channels\' texts, drops empty ones and fits the audience to the kind', () => {
     const state = {
-      ...emptyCampaignForm('newsletter'),
+      ...emptyCampaignForm('lists'),
       name: '  Weekly  ',
       channels: ['email', 'push'] as const,
       listIds: ['cml_1'],
@@ -113,20 +113,20 @@ describe('campaign form', () => {
 
   it('validates a channel\'s texts together, and allows an unfinished draft', () => {
     const schema = campaignFormSchema(t)
-    expect(schema.safeParse({ ...emptyCampaignForm('message'), name: 'Draft' }).success).toBe(true)
-    const half = schema.safeParse({ ...emptyCampaignForm('message'), name: 'Draft', emailSubject: 'Hello' })
+    expect(schema.safeParse({ ...emptyCampaignForm('people'), name: 'Draft' }).success).toBe(true)
+    const half = schema.safeParse({ ...emptyCampaignForm('people'), name: 'Draft', emailSubject: 'Hello' })
     expect(half.success).toBe(false)
     expect(half.error?.issues.map(issue => issue.path.join('.'))).toEqual(['emailBody'])
-    const push = schema.safeParse({ ...emptyCampaignForm('newsletter'), name: 'News', channels: ['push'] })
+    const push = schema.safeParse({ ...emptyCampaignForm('lists'), name: 'News', channels: ['push'] })
     expect(push.error?.issues.map(issue => issue.path.join('.'))).toEqual(['channels'])
-    expect(schema.safeParse({ ...emptyCampaignForm('message'), name: ' ' }).success).toBe(false)
-    expect(schema.safeParse({ ...emptyCampaignForm('message'), name: 'x', pushUrl: 'javascript:alert(1)' }).success).toBe(false)
+    expect(schema.safeParse({ ...emptyCampaignForm('people'), name: ' ' }).success).toBe(false)
+    expect(schema.safeParse({ ...emptyCampaignForm('people'), name: 'x', pushUrl: 'javascript:alert(1)' }).success).toBe(false)
   })
 
   it('copies a campaign as a new draft body', () => {
     const source = campaign({ status: 'sent', counts: { email: { total: 1, queued: 0, sent: 1, skipped: 0, failed: 0, opened: 0, clicked: 0, clicks: 0 } } })
     const body = campaignDuplicateBody(source, 'Gate change (copy)')
-    expect(body).toMatchObject({ kind: 'message', name: 'Gate change (copy)', locale: 'en', important: false })
+    expect(body).toMatchObject({ kind: 'people', name: 'Gate change (copy)', locale: 'en', important: false })
     expect(body).not.toHaveProperty('status')
     expect(body.audience).not.toBe(source.audience)
   })

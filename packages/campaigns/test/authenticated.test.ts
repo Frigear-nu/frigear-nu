@@ -398,7 +398,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
     }
 
     const toListsInput = (extra: Record<string, unknown> = {}) => ({
-      kind: 'newsletter',
+      kind: 'lists',
       name: 'Weekly issue',
       channels: ['email'],
       audience: { listIds: [weekly.id] },
@@ -420,7 +420,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
 
     it('creates a draft, previews its audience and refuses changes once sent', async () => {
       const draft = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, toListsInput({ name: 'Draft only' }))
-      expect(draft).toMatchObject({ status: 'draft', kind: 'newsletter', trackClicks: true, trackOpens: false, important: false })
+      expect(draft).toMatchObject({ status: 'draft', kind: 'lists', trackClicks: true, trackOpens: false, important: false })
       expect(draft.id).toMatch(/^cmp_[0-9a-f]{32}$/)
       expect(await as(admin).json<CampaignPreviewDto>('GET', campaignsApi.admin.preview(draft.id))).toEqual({ recipients: 2, channels: { email: 2 } })
       const renamed = await as(admin).json<CampaignDto>('PATCH', campaignsApi.admin.campaign(draft.id), { name: 'Renamed' })
@@ -539,7 +539,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
       const quiet = await registerUser('Quiet')
       await as(quiet).json('PATCH', '/api/preferences/notifications', { topics: { 'campaigns.message': { email: false } } })
       const message = {
-        kind: 'message',
+        kind: 'people',
         name: 'Heads up',
         channels: ['email'],
         audience: { userIds: [String(keen.id), String(quiet.id)] },
@@ -582,7 +582,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
     })
 
     it('refuses a message whose audience lists nobody', async () => {
-      const draft = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, { kind: 'message', name: 'Nobody', audience: { userIds: ['nobody'] }, content: { email: { subject: 'S', body: 'B' } } })
+      const draft = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, { kind: 'people', name: 'Nobody', audience: { userIds: ['nobody'] }, content: { email: { subject: 'S', body: 'B' } } })
       await expectApiError(as(admin).fetch('POST', campaignsApi.admin.send(draft.id)), 400, 'audience_not_resolved')
     })
 
@@ -601,7 +601,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
     })
 
     it('guards the campaign routes: cookie, token, scope, and `campaigns:pii` for deliveries', async () => {
-      const [first] = (await as(admin).json<{ items: CampaignDto[] }>('GET', `${campaignsApi.admin.campaigns}?status=sent&kind=newsletter`)).items
+      const [first] = (await as(admin).json<{ items: CampaignDto[] }>('GET', `${campaignsApi.admin.campaigns}?status=sent&kind=lists`)).items
       expect(first).toBeTruthy()
       await expectApiError(anonymous.fetch('GET', campaignsApi.admin.campaigns), 401)
       await expectApiError(as(member).fetch('GET', campaignsApi.admin.campaigns), 403, 'forbidden')
@@ -631,7 +631,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
     })
 
     it('counts skipped deliveries by reason', async () => {
-      const { items } = await as(admin).json<{ items: CampaignDto[] }>('GET', `${campaignsApi.admin.campaigns}?status=sent&kind=message`)
+      const { items } = await as(admin).json<{ items: CampaignDto[] }>('GET', `${campaignsApi.admin.campaigns}?status=sent&kind=people`)
       const all = await Promise.all(items.map(item => as(admin).json<CampaignStatsDto>('GET', campaignsApi.admin.stats(item.id))))
       const stats = all.find(entry => (entry.counts.email?.skipped ?? 0) > 0)!
       // The plain message skipped the user who turned email off for messages.
@@ -656,9 +656,9 @@ describe('campaigns (authenticated, database-backed)', async () => {
     })
 
     it('renders the campaign pages, with the send actions and the recipients only for those allowed', async () => {
-      const [sent] = (await as(admin).json<{ items: CampaignDto[] }>('GET', `${campaignsApi.admin.campaigns}?status=sent&kind=newsletter`)).items
+      const [sent] = (await as(admin).json<{ items: CampaignDto[] }>('GET', `${campaignsApi.admin.campaigns}?status=sent&kind=lists`)).items
       const draft = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, toListsInput({ name: 'Page draft' }))
-      const message = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, { kind: 'message', name: 'Page message', audience: { userIds: [String(sender.id)] }, channels: ['email', 'push'] })
+      const message = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, { kind: 'people', name: 'Page message', audience: { userIds: [String(sender.id)] }, channels: ['email', 'push'] })
       const render = async (session: Session, path: string) => {
         const response = await fetch(path, { headers: { cookie: session.cookie } })
         const html = await response.text()
@@ -691,7 +691,7 @@ describe('campaigns (authenticated, database-backed)', async () => {
     })
 
     it('prunes the per-recipient rows after `retentionDays`, keeping the counts', async () => {
-      const [sent] = (await as(admin).json<{ items: CampaignDto[] }>('GET', `${campaignsApi.admin.campaigns}?status=sent&kind=newsletter`)).items
+      const [sent] = (await as(admin).json<{ items: CampaignDto[] }>('GET', `${campaignsApi.admin.campaigns}?status=sent&kind=lists`)).items
       const before = await as(admin).json<CampaignStatsDto>('GET', campaignsApi.admin.stats(sent!.id))
       await $fetch('/api/test/retention', { method: 'POST', body: { now: new Date(Date.now() + 400 * 86_400_000).toISOString() } })
       expect((await getDeliveries()).deliveries.filter(row => row.campaignId === sent!.id)).toHaveLength(0)

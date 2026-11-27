@@ -69,7 +69,7 @@ Information om GDPR.
   Vi bruger dine oplysninger til følgende formål:
 
   - Til medlemsadministration
-  - Til nyhedsbreve (hvis du har givet samtykke)
+  - Til lister og nyhedsbreve (hvis du har givet samtykke)
   - Til planlægning af og invitationer til events
   - Til opkrævning af kontingent
   - Til overholdelse af juridiske forpligtelser
