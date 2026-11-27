@@ -92,6 +92,13 @@
       "when": 1795381553854,
       "tag": "0012_users_search_text",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1795785221855,
+      "tag": "0013_oauth_scope_service",
+      "breakpoints": true
     }
   ]
 }

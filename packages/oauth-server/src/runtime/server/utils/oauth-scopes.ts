@@ -53,7 +53,7 @@ async function loadCatalog(): Promise<OAuthScopeCatalog> {
   const database: Record<string, OAuthDbScope> = {}
   for (const row of rows) {
     if (Object.hasOwn(named, row.name) || isOidcScope(row.name)) continue
-    named[row.name] = { name: row.name, label: row.label ?? undefined, description: row.description ?? undefined, icon: row.icon ?? undefined, permissions: row.permissions, version: row.version }
+    named[row.name] = { name: row.name, label: row.label ?? undefined, description: row.description ?? undefined, icon: row.icon ?? undefined, service: row.service ?? undefined, permissions: row.permissions, version: row.version }
     versions[row.name] = row.version
     database[row.name] = row
   }
@@ -171,6 +171,7 @@ export const oauthScopeInputSchema = z.object({
   label: z.string().trim().max(120).nullish(),
   description: z.string().trim().max(500).nullish(),
   icon: z.string().trim().max(120).nullish(),
+  service: z.string().trim().max(60).nullish(),
   permissions: permissionList,
   isActive: z.boolean().optional(),
 })
@@ -238,7 +239,7 @@ export function toAdminOAuthScopeDto(scope: OAuthDbScope): AdminOAuthScopeDto {
     label: scope.label,
     description: scope.description,
     icon: scope.icon,
-    service: null,
+    service: scope.service,
     permissions: scope.permissions,
     version: scope.version,
     isActive: scope.isActive,
@@ -291,6 +292,7 @@ export async function createOAuthScope(input: OAuthScopeInput): Promise<OAuthDbS
     label: input.label ?? null,
     description: input.description ?? null,
     icon: input.icon ?? null,
+    service: input.service || null,
     permissions: [...new Set(input.permissions)],
     isActive: input.isActive ?? true,
   }
@@ -328,6 +330,7 @@ export async function updateOAuthScope(name: string, patch: Partial<Omit<OAuthSc
     ...(patch.label !== undefined && { label: patch.label }),
     ...(patch.description !== undefined && { description: patch.description }),
     ...(patch.icon !== undefined && { icon: patch.icon }),
+    ...(patch.service !== undefined && { service: patch.service || null }),
     ...(patch.isActive !== undefined && { isActive: patch.isActive }),
     permissions,
     version,

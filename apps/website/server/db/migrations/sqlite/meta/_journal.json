@@ -232,6 +232,13 @@
       "when": 1795746682209,
       "tag": "0032_campaigns_kind_names",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1795785338394,
+      "tag": "0033_oauth_scope_service",
+      "breakpoints": true
     }
   ]
 }

@@ -53,6 +53,8 @@ export type OAuthDbScope = {
   label: string | null
   description: string | null
   icon: string | null
+  /** The service it belongs to, e.g. `Inventory`; `null` = the account itself. */
+  service: string | null
   /** Permissions or wildcards; never sensitive or `sessionOnly` ones. */
   permissions: string[]
   /** Bumped whenever the permissions it expands to grow: users are asked to consent again. */
@@ -84,6 +86,8 @@ export type OAuthScopeInput = {
   label?: string | null
   description?: string | null
   icon?: string | null
+  /** The service it belongs to; `null` = the account itself. */
+  service?: string | null
   permissions: string[]
   isActive?: boolean
 }
