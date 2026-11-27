@@ -23,7 +23,16 @@
     "cloudflare:web:deploy-preview": "npx wrangler --cwd ./apps/website d1 migrations apply DB --remote --config .output/server/wrangler.json && npx wrangler --cwd ./apps/website preview --config .output/server/wrangler.json --name \"${CLOUDFLARE_PREVIEW_NAME:?CLOUDFLARE_PREVIEW_NAME env var is required}\" --json > \"${PREVIEW_OUTPUT_FILE:?PREVIEW_OUTPUT_FILE env var is required}\"",
     "cloudflare:d1:preview:create": "bash scripts/cloudflare-preview-db.sh create",
     "cloudflare:d1:preview:delete": "bash scripts/cloudflare-preview-db.sh delete",
-    "clean": "pnpm -r --parallel clean --if-present && rm -rf node_modules .data"
+    "clean": "pnpm -r --parallel clean --if-present && rm -rf node_modules .data",
+    "dev:mobile": "pnpm --filter ./apps/mobile dev",
+    "mobile:native": "pnpm --filter ./apps/mobile run native",
+    "mobile:doctor": "pnpm --filter ./apps/mobile run doctor",
+    "mobile:watch": "pnpm --filter ./apps/mobile run watch",
+    "mobile:sync": "pnpm --filter ./apps/mobile run cap:sync",
+    "mobile:ios": "pnpm --filter ./apps/mobile run ios:run",
+    "mobile:ios:device": "pnpm --filter ./apps/mobile run ios:device",
+    "mobile:android": "pnpm --filter ./apps/mobile run android:run",
+    "mobile:assets": "pnpm --filter ./apps/mobile run assets"
   },
   "bin": {
     "frigear-nu": "./packages/cli/bin/cli.mjs"

@@ -1,0 +1,36 @@
+{
+  "app": {
+    "tabs": {
+      "account": "Account"
+    },
+    "home": {
+      "title": "Welcome to Frigear",
+      "description": "Volunteer with us, see what is coming up and keep track of your shifts.",
+      "signIn": "Sign in",
+      "createAccount": "Create account",
+      "confirmEmail": {
+        "title": "Confirm your email, then sign in",
+        "description": "We sent you a link. Open it to confirm your address, then come back and sign in."
+      },
+      "signInFailed": "Signing in did not work. Try again.",
+      "events": {
+        "title": "Upcoming events",
+        "empty": "No events are coming up right now.",
+        "error": "The events could not be loaded.",
+        "retry": "Try again",
+        "membersOnly": "Members"
+      },
+      "contact": {
+        "title": "Contact us",
+        "description": "Questions about volunteering, a partnership or a payment? Write to us."
+      }
+    },
+    "signOut": {
+      "label": "Sign out",
+      "confirm": {
+        "title": "Sign out?",
+        "description": "You need to sign in again to use the app."
+      }
+    }
+  }
+}
