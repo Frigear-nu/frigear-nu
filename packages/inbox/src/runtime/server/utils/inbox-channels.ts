@@ -1,26 +1,59 @@
+import type { H3Event } from 'h3'
 import { db, schema } from '@nuxthub/db'
 import { and, asc, desc, eq } from 'drizzle-orm'
 import { apiError } from '@frigear-nu/module-kit/server'
 import { isEmailAddress, metaSendRequest, metaSentId, normaliseEmail, replyCc } from '../../utils/payloads'
 import type { InboxMetaChannel } from '../../utils/payloads'
-import type { InboxChannelAccountDto, InboxContactDetails, InboxSendContext, InboxThreadDto } from '../../../types'
+import { formatFromAddress, INBOX_OUTBOUND_EMAIL_DRIVERS, inboxPlusAddress, normaliseMessageId } from '../../utils/email-routing'
+import type { InboxChannelAccountDto, InboxContactDetails, InboxMailboxDto, InboxOutboundEmailDriver, InboxSendContext, InboxThreadDto } from '../../../types'
 
 // Helpers of the built-in channel adapters (`runtime/channels/*`).
 
+type EmailAccountRef = Pick<InboxChannelAccountDto, 'channel' | 'address' | 'config'>
+
 /** The `Reply-To` of an email account: `config.replyTo`, else its own address. */
-export function inboxReplyToAddress(account: InboxChannelAccountDto | null): string | undefined {
+export function inboxReplyToAddress(account: EmailAccountRef | null): string | undefined {
   if (!account) return undefined
   const replyTo = typeof account.config.replyTo === 'string' ? account.config.replyTo : undefined
   return replyTo || (account.channel === 'email' ? account.address : undefined)
 }
 
-/** The address a mailbox is answered at: its first enabled email account, for threads that did not come in by email. */
-export async function inboxMailboxEmailAddress(mailboxId: string): Promise<string | undefined> {
-  const [row] = await db.select({ address: schema.inboxChannelAccounts.address, config: schema.inboxChannelAccounts.config }).from(schema.inboxChannelAccounts)
+/**
+ * The `Reply-To` of a reply in a thread: the thread's reply address (`support+ibt_...@inbox.example.org`) when
+ * `address` is on an inbox domain, so the answer finds its thread whatever its subject; `address` itself otherwise.
+ */
+export function inboxThreadReplyTo(address: string | undefined, threadId: string, event?: H3Event): string | undefined {
+  if (!address) return undefined
+  return inboxIsOnDomain(address, event) ? inboxPlusAddress(address, threadId) : address
+}
+
+/**
+ * The email account a mailbox is answered from, for threads that did not come in by email: its first enabled email
+ * account on an inbox domain, else its first enabled email account.
+ */
+export async function inboxMailboxEmailAccount(mailboxId: string, event?: H3Event): Promise<EmailAccountRef | undefined> {
+  const rows = await db.select({ channel: schema.inboxChannelAccounts.channel, address: schema.inboxChannelAccounts.address, config: schema.inboxChannelAccounts.config }).from(schema.inboxChannelAccounts)
     .where(and(eq(schema.inboxChannelAccounts.mailboxId, mailboxId), eq(schema.inboxChannelAccounts.channel, 'email'), eq(schema.inboxChannelAccounts.enabled, true)))
-    .orderBy(asc(schema.inboxChannelAccounts.createdAt)).limit(1)
-  if (!row) return undefined
-  return (typeof row.config?.replyTo === 'string' && row.config.replyTo) || row.address
+    .orderBy(asc(schema.inboxChannelAccounts.createdAt))
+  const accounts = rows.map(row => ({ ...row, config: (row.config ?? {}) as Record<string, unknown> }))
+  return accounts.find(account => inboxIsOnDomain(account.address, event)) ?? accounts[0]
+}
+
+/** The address a mailbox is answered at: the `Reply-To` of its email account (`inboxMailboxEmailAccount`). */
+export async function inboxMailboxEmailAddress(mailboxId: string, event?: H3Event): Promise<string | undefined> {
+  return inboxReplyToAddress((await inboxMailboxEmailAccount(mailboxId, event)) ?? null)
+}
+
+/**
+ * The `From` of a reply sent from an email account: `"<Mailbox name>" <address>` when the account has
+ * `config.sendFromAddress`, else `undefined` (Notify's `from`, the platform's address).
+ */
+export function inboxEmailFrom(account: EmailAccountRef | null | undefined, mailbox: Pick<InboxMailboxDto, 'name' | 'key'>): string | undefined {
+  if (!account || account.channel !== 'email' || account.config.sendFromAddress !== true) return undefined
+  const address = normaliseEmail(account.address)
+  if (!isEmailAddress(address)) return undefined
+  const name = typeof mailbox.name === 'string' ? mailbox.name : mailbox.name.en ?? Object.values(mailbox.name)[0]
+  return formatFromAddress(name || mailbox.key, address)
 }
 
 /** The subject of a reply: `Re: <subject> [ibt_...]`, so an answer threads back by its subject. */
@@ -41,31 +74,55 @@ export function inboxReplyAddress(contact: Pick<InboxContactDetails, 'email' | '
 }
 
 /**
+ * The threading headers of a reply: `In-Reply-To` and `References` naming the latest email the person sent in the
+ * thread, so their mail client files the reply with it. None for a thread without an inbound email.
+ */
+export async function inboxReplyHeaders(threadId: string): Promise<Record<string, string>> {
+  const messageId = await inboxLatestInboundMessageId(threadId)
+  return messageId ? { 'In-Reply-To': messageId, 'References': messageId } : {}
+}
+
+/**
  * Sends a reply by email to the contact (`409 no_reply_address` when they left no valid address, see
  * `inboxReplyAddress`), copying the people their last authenticated email copied (`inboxReplyCc`), as a reply-all
- * would.
+ * would, with the `In-Reply-To` and `References` of their latest email (`inboxReplyHeaders`). `from` replaces
+ * Notify's sender (`inboxEmailFrom`).
  */
-export async function inboxSendEmailReply(input: { thread: InboxThreadDto, contact: InboxContactDetails, body: string, replyTo?: string }): Promise<{ cc: string[] }> {
+export async function inboxSendEmailReply(input: { thread: InboxThreadDto, contact: InboxContactDetails, body: string, replyTo?: string, from?: string }): Promise<{ cc: string[], messageId: string | null }> {
   const to = inboxReplyAddress(input.contact)
   if (!to) throw apiError(409, 'no_reply_address', 'The contact left no valid email address to reply to.')
-  const cc = await inboxReplyCc(input.thread.id, [to, input.replyTo])
-  await dispatchEmailNotification({
+  const cc = await inboxReplyCc(input.thread.id, [to, input.replyTo, input.from])
+  const headers = await inboxReplyHeaders(input.thread.id)
+  const driver = inboxOutboundEmailDriver()
+  const sent = await dispatchEmailNotification({
     to,
     ...(cc.length ? { cc } : {}),
+    ...(input.from ? { from: input.from } : {}),
     subject: inboxReplySubject(input.thread),
     body: inboxTextToHtml(input.body),
     text: input.body,
     ...(input.replyTo ? { replyTo: input.replyTo } : {}),
+    ...(Object.keys(headers).length ? { headers } : {}),
     meta: { inboxThreadId: input.thread.id },
-  })
-  return { cc }
+  }, driver ? { driver } : {})
+  return { cc, messageId: normaliseMessageId(sent?.messageId) }
+}
+
+/**
+ * The Notify email driver inbox replies go out through (`inbox.email.outbound`, `NUXT_INBOX_EMAIL_OUTBOUND`), or
+ * `undefined` for Notify's own (`NUXT_NOTIFY_EMAIL_DRIVER`). Only a built-in Notify driver name counts.
+ */
+export function inboxOutboundEmailDriver(event?: H3Event): InboxOutboundEmailDriver | undefined {
+  const name = inboxConfig(event).email.outbound
+  return (INBOX_OUTBOUND_EMAIL_DRIVERS as readonly string[]).includes(name) ? name as InboxOutboundEmailDriver : undefined
 }
 
 /**
  * The `Cc` of an email reply in a thread: the cc recipients stored with the thread's latest authenticated inbound
  * message (what the person's last verified email copied: the cc of an email with a forged sender is never sent to),
- * without our own addresses: every email account's address and `config.replyTo`, the
- * notify sender, and `exclude` (the recipient and the reply's `Reply-To`). Empty when the person copied nobody.
+ * without our own addresses: every email account's address and `config.replyTo`, any address on an inbox domain (a
+ * reply address), the notify sender, and `exclude` (the recipient, the reply's `Reply-To` and `From`). Empty when the
+ * person copied nobody.
  */
 export async function inboxReplyCc(threadId: string, exclude: ReadonlyArray<string | null | undefined>): Promise<string[]> {
   const [latest] = await db.select({ cc: schema.inboxMessages.cc }).from(schema.inboxMessages)
@@ -79,7 +136,7 @@ export async function inboxReplyCc(threadId: string, exclude: ReadonlyArray<stri
     ...exclude,
     from,
     ...accounts.flatMap(account => [account.address, typeof account.config?.replyTo === 'string' ? account.config.replyTo : null]),
-  ])
+  ]).filter(email => !inboxIsOnDomain(email))
 }
 
 /**

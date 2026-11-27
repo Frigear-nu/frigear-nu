@@ -71,8 +71,9 @@
     "@nuxt/schema": "catalog:",
     "@nuxt/test-utils": "catalog:",
     "eslint": "catalog:",
-    "typescript": "catalog:",
     "nuxt": "catalog:",
+    "postal-mime": "^2.7.6",
+    "typescript": "catalog:",
     "vitest": "catalog:",
     "vue-tsc": "catalog:"
   }

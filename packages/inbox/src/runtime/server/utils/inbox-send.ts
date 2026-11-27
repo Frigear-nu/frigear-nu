@@ -7,6 +7,7 @@ import type { InboxMessageDto, InboxThreadDto, InboxThreadStatus } from '../../.
 import { toInboxChannelAccountDto, toInboxContactDetails, toInboxMailboxDto, toInboxMessageDto, toInboxThreadDto } from './inbox-dto'
 import type { InboxThreadRow } from './inbox-dto'
 import { inboxCcList } from '../../utils/payloads'
+import { normaliseMessageId, outboundEmailExternalId } from '../../utils/email-routing'
 
 /** Changes a thread's status and fires `inbox:thread:status-changed`; the same status is a no-op. */
 export async function inboxSetStatus(event: H3Event, thread: InboxThreadRow, to: InboxThreadStatus): Promise<InboxThreadRow> {
@@ -46,7 +47,10 @@ export async function inboxReply(event: H3Event, thread: InboxThreadRow, input: 
       contact: toInboxContactDetails(contact),
       message: { id, body: input.body, attachments: [] },
     })
-    externalId = result?.externalId ? `${thread.channel}:out:${result.externalId}` : null
+    // An email's own Message-ID is stored as `email:out:<id>` whatever the thread's channel (a contact form thread is
+    // answered by email), so an answer naming it in `In-Reply-To`/`References` finds the thread.
+    const messageId = normaliseMessageId(result?.messageId)
+    externalId = messageId ? outboundEmailExternalId(messageId) : result?.externalId ? `${thread.channel}:out:${result.externalId}` : null
     // Who the reply copied, checked again: a channel may be the host's own.
     cc = inboxCcList(result?.cc)
   }

@@ -1,9 +1,15 @@
 import type { EmailDriver } from '../../../types'
-import { assertOk, hasHeaders, requireConfig, resolveFrom, toArray, type EmailConfig } from './shared'
+import { assertOk, hasHeaders, parseFromAddress, requireConfig, resolveFrom, toArray, type EmailConfig } from './shared'
 
 export interface CloudflareConfig extends EmailConfig {
   accountId?: string
   apiToken?: string
+}
+
+/** A sender as Cloudflare's REST API takes it: the bare address, or `{ address, name }` with a display name. */
+export function cloudflareFrom(from: string): string | { address: string, name: string } {
+  const parsed = parseFromAddress(from)
+  return parsed.name ? { address: parsed.address, name: parsed.name } : parsed.address
 }
 
 export const createCloudflareDriver = (config: CloudflareConfig): EmailDriver => async (n) => {
@@ -15,7 +21,8 @@ export const createCloudflareDriver = (config: CloudflareConfig): EmailDriver =>
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: resolveFrom(config),
+      // The REST API documents a bare address or `{ address, name }`, not the `"Name" <address>` form.
+      from: cloudflareFrom(resolveFrom(config, n)),
       to: toArray(n.to),
       cc: n.cc ? toArray(n.cc) : undefined,
       subject: n.subject,

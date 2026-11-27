@@ -13,7 +13,7 @@ export const createResendDriver = (config: ResendConfig): EmailDriver => async (
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: resolveFrom(config),
+      from: resolveFrom(config, n),
       to: toArray(n.to),
       cc: n.cc ? toArray(n.cc) : undefined,
       subject: n.subject,

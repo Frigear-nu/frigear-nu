@@ -1,12 +1,13 @@
 // Build-time utils and pure helpers, safe to import from another module's `setup()` (no `@nuxt/kit` import) as well as
 // from the Vue app and Nitro code.
 import type { Nuxt } from '@nuxt/schema'
-import type { InboxChannelAdapter, InboxChannelDefinition, InboxExtension } from '../../types'
+import type { InboxChannelAdapter, InboxChannelDefinition, InboxEmailDriver, InboxExtension } from '../../types'
 
 export * from './api'
 export * from './signature'
 export * from './payloads'
-export { buildInboxRegistry, INBOX_CHANNEL_ID } from './registry'
+export * from './email-routing'
+export { buildInboxEmailDrivers, buildInboxRegistry, INBOX_CHANNEL_ID } from './registry'
 export type { BuiltInboxRegistry } from './registry'
 
 export type {
@@ -22,6 +23,10 @@ export type {
   InboxContactDetails,
   InboxContactDto,
   InboxContactExportDto,
+  InboxEmailAccountConfig,
+  InboxEmailDriver,
+  InboxEmailDriverDefinition,
+  InboxEmailSettingsDto,
   InboxExtension,
   InboxInboundContext,
   InboxInboundMessage,
@@ -86,12 +91,32 @@ type InboxExtensions = { inbox?: { _extensions?: InboxExtension[] } | false }
  */
 export const defineInboxChannel = (adapter: InboxChannelAdapter): InboxChannelAdapter => adapter
 
+/**
+ * Types an inbound email driver: the default export of the server file an `emailDrivers` registration names. Hand
+ * what it receives to `inboxIngestEmail(event, payload)` (auto-imported in server code), which routes it to the
+ * mailboxes and stores it.
+ *
+ * ```ts
+ * export default defineInboxEmailDriver({
+ *   name: 'acme',
+ *   // Mounted at POST /api/inbox/email/acme.
+ *   async handler(event) {
+ *     const body = await inboxReadRawBody(event)
+ *     // ...verify the provider's signature over `body`, then map it:
+ *     return (await inboxIngestEmail(event, toInboxEmailPayload(JSON.parse(body)))).response
+ *   },
+ * })
+ * ```
+ */
+export const defineInboxEmailDriver = (driver: InboxEmailDriver): InboxEmailDriver => driver
+
 /** Types a channel registration (for registrations kept in their own file). */
 export const defineInboxChannelRegistration = (channel: InboxChannelDefinition): InboxChannelDefinition => channel
 
 /**
- * Registers channels from a module's `setup()`. Order between modules does not matter: the inbox reads them once every
- * module is done. A channel with an id that exists already replaces it; an invalid one fails the build.
+ * Registers channels (and inbound email drivers, `emailDrivers`) from a module's `setup()`. Order between modules does
+ * not matter: the inbox reads them once every module is done. A channel with an id (a driver with a name) that exists
+ * already replaces it; an invalid one fails the build.
  *
  * ```ts
  * import { extendInbox } from '@frigear-nu/inbox/utils'
@@ -106,5 +131,5 @@ export function extendInbox(nuxt: Nuxt, extension: InboxExtension): void {
   if (options.inbox === false) return
   options.inbox ||= {}
   const list = options.inbox._extensions ||= []
-  list.push({ channels: [...(extension.channels ?? [])] })
+  list.push({ channels: [...(extension.channels ?? [])], emailDrivers: [...(extension.emailDrivers ?? [])] })
 }

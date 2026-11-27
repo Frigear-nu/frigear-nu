@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { InboxAttachment, InboxInboundMessage } from '../../types'
+import { replyMessageIds } from './email-routing'
 
 // Webhook payloads, parsed into `InboxInboundMessage`s. Pure functions, so they are unit tested without a server.
 
@@ -40,6 +41,15 @@ export const inboxEmailPayload = z.object({
    * starts a new thread: a forged sender cannot write into someone else's conversation.
    */
   authenticated: z.boolean().optional(),
+  /** The `In-Reply-To` header: the Message-ID the email answers. Threads a reply that lost its subject marker. */
+  inReplyTo: z.string().max(998).nullish(),
+  /** The `References` header, as one value or a list of Message-IDs (oldest first, as in the header). */
+  references: z.union([z.string().max(20_000), z.array(z.string().max(998)).max(200)]).nullish(),
+  /**
+   * Other headers, by name. Only `In-Reply-To` and `References` are read, when the fields above are not given; the rest
+   * is not stored.
+   */
+  headers: z.record(z.string().max(200), z.union([z.string().max(20_000), z.array(z.string().max(20_000))])).optional(),
 })
 export type InboxEmailPayload = z.infer<typeof inboxEmailPayload>
 
@@ -138,11 +148,27 @@ export function replyCc(stored: readonly string[] | null | undefined, own: Reado
   return inboxCcList(stored).filter(email => !skip.has(email))
 }
 
-/** An email payload as an inbound message for the account at `address`. */
-export function emailToInbound(payload: InboxEmailPayload, accountAddress: string): InboxInboundMessage {
+/** A header of the payload's `headers`, by name in any case (the first value of a list). */
+function payloadHeader(payload: InboxEmailPayload, name: string): string | undefined {
+  const key = Object.keys(payload.headers ?? {}).find(item => item.toLowerCase() === name)
+  const value = key ? payload.headers![key] : undefined
+  return Array.isArray(value) ? value.join(' ') : value
+}
+
+/** The Message-IDs an email payload answers, most telling first (`In-Reply-To`, then `References` newest first). */
+export function emailReplyIds(payload: InboxEmailPayload): string[] {
+  return replyMessageIds(payload.inReplyTo ?? payloadHeader(payload, 'in-reply-to'), payload.references ?? payloadHeader(payload, 'references'))
+}
+
+/**
+ * An email payload as an inbound message for the account at `address`. `threadHint` is the thread the recipient
+ * address named (`support+ibt_...@`), see `routeEmailRecipient`.
+ */
+export function emailToInbound(payload: InboxEmailPayload, accountAddress: string, threadHint?: string | null): InboxInboundMessage {
   const from = emailOf(payload.from)
   const email = normaliseEmail(from)
   const body = payload.text?.trim() || (payload.html ? htmlToText(payload.html) : '')
+  const references = emailReplyIds(payload)
   return {
     address: accountAddress,
     contact: { externalId: email, email, name: nameOf(payload.from) ?? displayNameOf(from) },
@@ -153,6 +179,8 @@ export function emailToInbound(payload: InboxEmailPayload, accountAddress: strin
     attachments: (payload.attachments ?? []).map(file => ({ filename: file.filename, contentType: file.contentType, size: file.size, url: file.url })),
     cc: emailCc(payload, accountAddress),
     threadId: threadIdFromSubject(payload.subject),
+    ...(threadHint ? { threadHint } : {}),
+    ...(references.length ? { references } : {}),
   }
 }
 
