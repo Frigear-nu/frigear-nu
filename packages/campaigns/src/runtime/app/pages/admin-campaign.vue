@@ -465,7 +465,7 @@ const deliveryColumns = computed<TableColumn<CampaignDeliveryDto>[]>(() => [
             class="flex flex-col gap-2 border-t border-default pt-4"
             data-campaign-preview
           >
-            <span class="text-highlighted text-sm font-medium">{{ t('campaign.previewTitle', 'Who it reaches now') }}</span>
+            <span class="text-highlighted text-sm font-medium">{{ campaign.kind === 'message' && campaign.status === 'scheduled' ? t('campaign.previewTitleFixed', 'Who it goes to, fixed when it was scheduled') : t('campaign.previewTitle', 'Who it reaches now') }}</span>
             <UAlert
               v-if="previewError"
               color="warning"

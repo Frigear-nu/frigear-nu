@@ -67,7 +67,8 @@ export async function campaignsAudienceContactsPage(row: CampaignRow, afterConta
  */
 export async function campaignsPreview(event: H3Event, row: CampaignRow): Promise<CampaignPreviewDto> {
   if (row.kind === 'message') {
-    const ids = await campaignsResolveUserAudience(event, row.audience)
+    // Once scheduled, a message goes to the people resolved then, not whoever matches its groups now.
+    const ids = row.status !== 'draft' && row.recipientUserIds ? row.recipientUserIds : await campaignsResolveUserAudience(event, row.audience)
     return { recipients: ids.length, channels: Object.fromEntries(row.channels.map(channel => [channel, ids.length])) }
   }
   const s = schema.campaignSubscriptions

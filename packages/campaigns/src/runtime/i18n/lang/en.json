@@ -118,7 +118,11 @@
         "slugRequired": "Give the newsletter a URL name.",
         "slugInvalid": "Use lowercase letters, digits and dashes.",
         "channelsRequired": "Pick at least one channel."
-      }
+      },
+      "sentTitle": "Sent to this list",
+      "sentDescription": "The campaigns that go or went to this list, newest first. Each keeps its texts and who got it.",
+      "sentEmpty": "Nothing sent to this list yet",
+      "sentEmptyDescription": "Campaigns to this list show up here, with what was sent and how it went."
     },
     "signup": {
       "name": "Name",
@@ -278,6 +282,7 @@
       "noPeople": "Nobody picked by name.",
       "noGroups": "No groups.",
       "previewTitle": "Who it reaches now",
+      "previewTitleFixed": "Who it goes to, fixed when it was scheduled",
       "previewFailed": "Could not count who it reaches",
       "content": "Content",
       "contentDescription": "What recipients get. Each gets their own language when it is written, else the campaign's.",
@@ -418,7 +423,8 @@
           "audience": "Name the people or groups to send to.",
           "audience_listIds": "A message goes to users; send a newsletter to reach list subscribers."
         }
-      }
+      },
+      "allLists": "All lists"
     },
     "heading": {
       "campaigns": "Campaigns",

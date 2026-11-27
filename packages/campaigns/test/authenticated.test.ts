@@ -435,6 +435,21 @@ describe('campaigns (authenticated, database-backed)', async () => {
       await expectApiError(as(admin).fetch('POST', campaignsApi.admin.campaigns, newsletterInput({ audience: { listIds: ['cml_missing'] } })), 400, 'validation_failed')
     })
 
+    it('filters the campaigns by the list they go to', async () => {
+      const other = await as(admin).json<CampaignListDto>('POST', campaignsApi.admin.lists, { slug: 'other-list', name: 'Other', doubleOptIn: false })
+      const toWeekly = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, newsletterInput({ name: 'To weekly' }))
+      const toBoth = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, newsletterInput({ name: 'To both', audience: { listIds: [other.id, weekly.id] } }))
+      const toOther = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, newsletterInput({ name: 'To other', audience: { listIds: [other.id] } }))
+      const ids = async (listId: string) => (await as(admin).json<{ items: CampaignDto[] }>('GET', `${campaignsApi.admin.campaigns}?listId=${listId}&pageSize=100`)).items.map(item => item.id)
+      expect(await ids(other.id)).toEqual(expect.arrayContaining([toBoth.id, toOther.id]))
+      expect(await ids(other.id)).not.toContain(toWeekly.id)
+      expect(await ids(weekly.id)).toEqual(expect.arrayContaining([toWeekly.id, toBoth.id]))
+      expect(await ids(weekly.id)).not.toContain(toOther.id)
+      await expectApiError(as(admin).fetch('GET', `${campaignsApi.admin.campaigns}?listId=${encodeURIComponent('%')}`), 400)
+      for (const campaign of [toWeekly, toBoth, toOther]) await as(admin).fetch('DELETE', campaignsApi.admin.campaign(campaign.id))
+      await as(admin).fetch('DELETE', campaignsApi.admin.list(other.id))
+    })
+
     it('sends a newsletter with tracked links, unsubscribe headers and footer; clicks count, opens only with trackOpens', async () => {
       const campaign = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.campaigns, newsletterInput())
       const sent = await as(admin).json<CampaignDto>('POST', campaignsApi.admin.send(campaign.id))

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
 import type { Page } from '@frigear-nu/module-kit/server'
-import type { CampaignListDto, CampaignSubscriberDto } from '../../../types'
+import type { CampaignDto, CampaignListDto, CampaignSubscriberDto } from '../../../types'
 import { campaignsApi } from '../../utils/api'
 import { campaignEmbedSnippet } from '../../utils/links'
+import { CAMPAIGN_STATUS_COLORS, campaignTotals } from '../utils/admin-campaign'
 import { campaignListFormBody, campaignListFormSchema, campaignListToForm } from '../utils/admin-list'
 import type { CampaignListFormState } from '../utils/admin-list'
-import { $fetch, computed, emptyCell, errorMessage, h, navigateTo, reactive, ref, resolveComponent, tableUi, useAction, useCampaignListActions, useCampaignsLinks, useCampaignsLocale, useCampaignsTranslate, useCopyToClipboard, useFetch, useFormat, useModuleT, useRequestURL, useRoute, watch } from '#imports'
+import { $fetch, computed, emptyCell, errorMessage, h, navigateTo, numericColumn, reactive, ref, resolveComponent, tableUi, useAction, useCampaignActions, useCampaignListActions, useCampaignsLinks, useCampaignsLocale, useCampaignsTranslate, useCopyToClipboard, useFetch, useFormat, useModuleT, useRequestURL, useRoute, watch } from '#imports'
 
 defineOptions({ name: 'CampaignsAdminListPage' })
 
@@ -102,6 +103,56 @@ const subscriberColumns = computed<TableColumn<CampaignSubscriberDto>[]>(() => [
     cell: ({ row }) => row.original.confirmedAt ? h('span', { class: 'tabular-nums' }, format.dateTime(row.original.confirmedAt)) : emptyCell(),
   },
 ])
+
+// --- Sent to this list: its campaigns, newest first ------------------------------------------------------------------
+const campaignActions = useCampaignActions()
+const sentPage = ref(1)
+const sentPageSize = ref(10)
+const sentQuery = computed(() => ({ listId: id.value, page: sentPage.value, pageSize: sentPageSize.value, sort: 'createdAt', order: 'desc' }))
+const { data: sent, status: sentStatus, error: sentError } = await useFetch<Page<CampaignDto>>(
+  campaignsApi.admin.campaigns,
+  { key: `campaigns:list:${id.value}:sent`, query: sentQuery, watch: [sentQuery] },
+)
+const sentLoading = computed(() => sentStatus.value === 'pending' && !sent.value)
+const sentRefreshing = computed(() => sentStatus.value === 'pending' && !!sent.value)
+
+const campaignStatusLabel = (value: string) => t(`campaign.statuses.${value}`, { draft: 'Draft', scheduled: 'Scheduled', sending: 'Sending', sent: 'Sent', cancelled: 'Cancelled' }[value] ?? value)
+const campaignWhen = (campaign: CampaignDto) => ({
+  draft: campaign.updatedAt,
+  scheduled: campaign.scheduledAt,
+  sending: campaign.startedAt,
+  sent: campaign.finishedAt,
+  cancelled: campaign.cancelledAt,
+}[campaign.status])
+const campaignCount = (campaign: CampaignDto, key: 'sent' | 'opened' | 'clicked') => {
+  const totals = campaignTotals(campaign.counts)
+  if (!totals || (key === 'opened' && !campaign.trackOpens) || (key === 'clicked' && !campaign.trackClicks)) return emptyCell()
+  return String(totals[key])
+}
+const sentColumns = computed<TableColumn<CampaignDto>[]>(() => [
+  { id: 'name', header: t('campaign.fields.name', 'Name'), cell: ({ row }) => h('span', { class: 'font-medium text-highlighted' }, row.original.name) },
+  {
+    id: 'status',
+    header: t('campaign.status', 'Status'),
+    cell: ({ row }) => h(StatusBadge, { status: row.original.status, label: campaignStatusLabel(row.original.status), colors: CAMPAIGN_STATUS_COLORS }),
+  },
+  {
+    id: 'when',
+    header: t('campaign.when', 'When'),
+    cell: ({ row }) => {
+      const at = campaignWhen(row.original)
+      return at ? h('span', { class: 'tabular-nums' }, format.dateTime(at)) : emptyCell()
+    },
+  },
+  { id: 'sent', header: t('campaign.stats.sent', 'Sent'), meta: numericColumn, cell: ({ row }) => campaignCount(row.original, 'sent') },
+  { id: 'opened', header: t('campaign.stats.opened', 'Opened'), meta: numericColumn, cell: ({ row }) => campaignCount(row.original, 'opened') },
+  { id: 'clicked', header: t('campaign.stats.clicked', 'Clicked'), meta: numericColumn, cell: ({ row }) => campaignCount(row.original, 'clicked') },
+])
+function openCampaign(campaign: CampaignDto) {
+  const to = links.adminCampaign(campaign.id)
+  if (to) void navigateTo(to)
+}
+const createForList = () => list.value && campaignActions.create('newsletter', { listIds: [list.value.id] })
 
 // --- Embed ----------------------------------------------------------------------------------------------------------
 const origin = useRequestURL().origin
@@ -240,6 +291,56 @@ const contentSnippet = computed(() => list.value ? `::newsletter-signup{list="${
           </div>
         </template>
       </SectionCard>
+
+      <TableCard
+        :title="t('admin.sentTitle', 'Sent to this list')"
+        :description="t('admin.sentDescription', 'The campaigns that go or went to this list, newest first. Each keeps its texts and who got it.')"
+        :loading="sentLoading"
+        :refreshing="sentRefreshing"
+      >
+        <template #actions>
+          <UButton
+            icon="i-lucide-plus"
+            color="neutral"
+            variant="outline"
+            :label="t('campaign.create', 'Create campaign')"
+            @click="createForList"
+          />
+        </template>
+        <UAlert
+          v-if="sentError"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-circle-alert"
+          :title="t('campaign.loadFailed', 'Campaigns could not be loaded')"
+          :description="errorMessage(sentError, '')"
+          class="m-4"
+        />
+        <UTable
+          v-else
+          :data="sent?.items ?? []"
+          :columns="sentColumns"
+          :ui="tableUi()"
+          data-list-campaigns-table
+          @select="(_: Event, row: { original: CampaignDto }) => openCampaign(row.original)"
+        >
+          <template #empty>
+            <UEmpty
+              variant="naked"
+              icon="i-lucide-send"
+              :title="t('admin.sentEmpty', 'Nothing sent to this list yet')"
+              :description="t('admin.sentEmptyDescription', 'Campaigns to this list show up here, with what was sent and how it went.')"
+            />
+          </template>
+        </UTable>
+        <template #footer>
+          <TablePagination
+            v-model:page="sentPage"
+            v-model:page-size="sentPageSize"
+            :total="sent?.total ?? 0"
+          />
+        </template>
+      </TableCard>
 
       <TableCard
         :title="t('admin.subscribersTitle', 'Subscribers')"

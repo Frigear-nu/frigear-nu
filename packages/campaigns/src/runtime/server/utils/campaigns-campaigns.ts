@@ -54,6 +54,8 @@ export const campaignsListQuery = pageQuery({
   filters: {
     status: z.enum(['all', 'draft', 'scheduled', 'sending', 'sent', 'cancelled']).default('all'),
     kind: z.enum(['all', 'newsletter', 'message']).default('all'),
+    /** Only the campaigns whose audience names this newsletter (`all`: any). */
+    listId: z.string().trim().min(1).max(64).regex(/^[\w-]+$/).default('all'),
   },
 })
 
@@ -62,6 +64,9 @@ export async function listCampaigns(query: z.output<typeof campaignsListQuery>):
   const conditions: SQL[] = []
   if (query.status !== 'all') conditions.push(eq(c.status, query.status))
   if (query.kind !== 'all') conditions.push(eq(c.kind, query.kind))
+  // The audience is JSON in both dialects; its text holds the id quoted (`"listIds":["cml_…"]`). Ids are letters, digits,
+  // `_` and `-`, so the pattern needs no escaping beyond what `_` already matches.
+  if (query.listId !== 'all') conditions.push(sql`cast(${c.audience} as text) like ${`%"${query.listId}"%`}`)
   if (query.q) conditions.push(likeContains(c.name, query.q))
   const where = conditions.length ? and(...conditions) : undefined
   const [total] = await db.select({ total: count() }).from(c).where(where)

@@ -14,7 +14,7 @@ defineOptions({ name: 'CampaignFormSlideover' })
 // Create and edit form of a campaign draft, opened with `useOverlay()` by `useCampaignActions()`: it closes with the
 // saved campaign, or `false` when cancelled. The kind is chosen once, on create. A newsletter goes to lists; a message
 // goes to people and groups (roles, teams, operations). Sending is a separate step on the campaign's page.
-const props = defineProps<{ campaign?: CampaignDto, kind?: CampaignKind }>()
+const props = defineProps<{ campaign?: CampaignDto, kind?: CampaignKind, /** A new newsletter's lists, picked to start with. */ listIds?: string[] }>()
 const emit = defineEmits<{ close: [saved: CampaignDto | false] }>()
 
 const t = useModuleT('campaigns')
@@ -24,7 +24,7 @@ const can = useCampaignsAccessState()
 const { busy, run } = useAction()
 
 const schema = campaignFormSchema(t)
-const state = reactive<CampaignFormState>(props.campaign ? campaignToForm(props.campaign) : emptyCampaignForm(props.kind))
+const state = reactive<CampaignFormState>(props.campaign ? campaignToForm(props.campaign) : emptyCampaignForm(props.kind, props.listIds))
 
 const { data: lists, status: listsStatus } = useLazyFetch<CampaignListDto[]>(campaignsApi.admin.lists, { key: 'campaigns:form:lists', default: () => [] })
 const listItems = computed(() => (lists.value ?? []).map(list => ({ value: list.id, label: tr(list.name), description: list.slug })))

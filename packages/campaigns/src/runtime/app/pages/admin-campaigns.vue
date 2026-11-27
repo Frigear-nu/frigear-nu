@@ -18,7 +18,7 @@ const actions = useCampaignActions()
 // Paginated on the server; page, search (name), status, kind and sort live in the URL. `all` stands for no filter.
 const { page, pageSize, search, query, filters, filtered, reset } = useTableQuery({
   sort: { id: 'createdAt', desc: true },
-  filters: { status: 'all', kind: 'all' },
+  filters: { status: 'all', kind: 'all', listId: 'all' },
 })
 const { data, status, error, refresh } = await useFetch<Page<CampaignDto>>(campaignsApi.admin.campaigns, { query })
 
@@ -40,6 +40,10 @@ const channelLabel = (channel: string) => t(`campaign.channels.${channel}`, { em
 const statusOptions = computed(() => [
   { value: 'all', label: t('campaign.allStatuses', 'All statuses') },
   ...CAMPAIGN_STATUSES.map(value => ({ value, label: statusLabel(value) })),
+])
+const listOptions = computed(() => [
+  { value: 'all', label: t('campaign.allLists', 'All newsletters') },
+  ...(lists.value ?? []).map(list => ({ value: list.id, label: tr(list.name) })),
 ])
 const kindOptions = computed(() => [
   { value: 'all', label: t('campaign.allKinds', 'All kinds') },
@@ -177,6 +181,13 @@ function open(campaign: CampaignDto) {
           :items="kindOptions"
           :aria-label="t('campaign.fields.kind', 'Kind')"
           class="w-40"
+        />
+        <USelect
+          v-if="listOptions.length > 2 || filters.listId !== 'all'"
+          v-model="filters.listId"
+          :items="listOptions"
+          :aria-label="t('campaign.fields.lists', 'Newsletters')"
+          class="w-48"
         />
         <UButton
           v-if="filtered"

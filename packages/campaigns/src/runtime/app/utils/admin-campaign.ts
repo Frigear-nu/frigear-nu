@@ -159,11 +159,11 @@ function cleanTranslated(value: Translated | null | undefined): Translated | und
   return entries.length ? Object.fromEntries(entries) : undefined
 }
 
-export const emptyCampaignForm = (kind: CampaignKind = 'newsletter'): CampaignFormState => ({
+export const emptyCampaignForm = (kind: CampaignKind = 'newsletter', listIds: string[] = []): CampaignFormState => ({
   kind,
   name: '',
   channels: ['email'],
-  listIds: [],
+  listIds: [...listIds],
   userIds: [],
   grants: [],
   emailSubject: undefined,

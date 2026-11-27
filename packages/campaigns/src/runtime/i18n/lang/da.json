@@ -118,7 +118,11 @@
         "slugRequired": "Giv nyhedsbrevet et URL-navn.",
         "slugInvalid": "Brug små bogstaver, tal og bindestreger.",
         "channelsRequired": "Vælg mindst én kanal."
-      }
+      },
+      "sentTitle": "Sendt til denne liste",
+      "sentDescription": "De kampagner, der sendes eller blev sendt til listen, nyeste først. Hver gemmer sine tekster og hvem der fik den.",
+      "sentEmpty": "Intet sendt til listen endnu",
+      "sentEmptyDescription": "Kampagner til listen vises her, med hvad der blev sendt, og hvordan det gik."
     },
     "signup": {
       "name": "Navn",
@@ -334,6 +338,7 @@
       "previewFailed": "Det kunne ikke tælles, hvem den når",
       "previewRecipients": "Personer",
       "previewTitle": "Hvem den når nu",
+      "previewTitleFixed": "Hvem den går til, fastlagt da den blev planlagt",
       "reachOne": "Den når {count} person nu: {channels}.",
       "reach": "Den når {count} personer nu: {channels}.",
       "reachesNobody": "Ingen ville få den: tjek modtagerne.",
@@ -418,7 +423,8 @@
           "audience": "Angiv de personer eller grupper, den skal sendes til.",
           "audience_listIds": "En besked går til brugere; send et nyhedsbrev for at nå abonnenter på listerne."
         }
-      }
+      },
+      "allLists": "Alle lister"
     },
     "heading": {
       "campaigns": "Kampagner",

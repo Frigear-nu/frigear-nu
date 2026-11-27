@@ -35,8 +35,9 @@ export function useCampaignActions() {
 
   const allowed = (campaign: CampaignDto) => campaignAvailableActions(campaign, can.value)
 
-  async function create(kind?: CampaignKind): Promise<CampaignDto | false> {
-    const saved = await overlay.create(CampaignFormSlideover, { destroyOnClose: true, props: { kind } }).open() as CampaignDto | false
+  /** Opens the create form; `listIds` starts a newsletter to those lists (from a newsletter's page). */
+  async function create(kind?: CampaignKind, options: { listIds?: string[] } = {}): Promise<CampaignDto | false> {
+    const saved = await overlay.create(CampaignFormSlideover, { destroyOnClose: true, props: { kind, listIds: options.listIds } }).open() as CampaignDto | false
     if (!saved) return false
     const to = links.adminCampaign(saved.id)
     if (to) await navigateTo(to)
