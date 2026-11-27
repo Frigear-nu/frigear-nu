@@ -102,7 +102,7 @@ async function withdraw(swap: ShiftSwapDto) {
       />
     </div>
     <UEmpty
-      v-else-if="error && error.statusCode !== 401"
+      v-else-if="error && error.statusCode !== 401 && !swaps.length"
       icon="i-lucide-circle-alert"
       :title="t('swaps.loadFailed', 'The swaps could not be loaded')"
       :description="errorMessage(error, '')"
@@ -119,6 +119,11 @@ async function withdraw(swap: ShiftSwapDto) {
       class="flex flex-col gap-3"
       data-shifts-swaps
     >
+      <!-- Offline or a failed refresh: the last data stays, with a quiet note. -->
+      <StaleDataNotice
+        :error="error"
+        :refresh="refresh"
+      />
       <SectionCard
         v-for="swap in swaps"
         :key="swap.id"

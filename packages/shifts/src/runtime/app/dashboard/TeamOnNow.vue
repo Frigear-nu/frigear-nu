@@ -52,6 +52,13 @@ const nameOf = (person: { name: string | null, userId: number }) => person.name 
     v-else
     :class="[surfaceClass, 'divide-default h-full divide-y px-4 text-sm [&>li]:py-3']"
   >
+    <!-- Offline or a failed refresh: the last data stays, with a quiet note. -->
+    <li v-if="error">
+      <StaleDataNotice
+        :error="error"
+        :refresh="refresh"
+      />
+    </li>
     <li
       v-for="team in teams"
       :key="team.teamId"

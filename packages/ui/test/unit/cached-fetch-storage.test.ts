@@ -72,6 +72,7 @@ function fakeNuxt() {
   vi.stubGlobal('markRaw', markRaw)
   vi.stubGlobal('toValue', toValue)
   vi.stubGlobal('computed', computed)
+  vi.stubGlobal('useRuntimeConfig', () => ({ public: {} }))
   vi.stubGlobal('useFetch', (url: string, options: Options) => asyncData(options.key!, () => {
     calls.push(url)
     return respond(url)
@@ -133,12 +134,12 @@ describe('useCachedFetch with a storage', () => {
     nuxt.respondWith(() => new Promise((resolve) => {
       release = resolve
     }))
-    const fetched = useCachedFetch<string[]>('/api/list', { key: 'list', ttl: 60 * 60_000 })
+    const fetched = useCachedFetch<string[]>('/api/list', { key: 'list', ttl: 60 * 60_000, instant: true })
     // Stale: on screen at once, nothing to wait for, while the request is out.
     expect(fetched.data.value).toEqual(['a'])
     expect(fetched.loading.value).toBe(false)
     expect(nuxt.calls).toEqual(['/api/list'])
-    // Awaiting it (a page) does not wait for the network either.
+    // With `instant` (the mobile app), awaiting it (a page) does not wait for the network either.
     await fetched
     expect(fetched.data.value).toEqual(['a'])
     release(['b'])

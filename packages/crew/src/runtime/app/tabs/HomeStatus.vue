@@ -67,6 +67,11 @@ const facts = (entry: MyCrewDto) => [
     class="flex flex-col gap-4"
     data-crew-status
   >
+    <!-- Offline or a failed refresh: the last data stays, with a quiet note. -->
+    <StaleDataNotice
+      :error="error"
+      :refresh="refresh"
+    />
     <div class="grid gap-4 md:grid-cols-2">
       <SectionCard
         v-for="entry in entries"

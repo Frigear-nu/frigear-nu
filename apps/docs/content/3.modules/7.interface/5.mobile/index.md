@@ -453,6 +453,10 @@ and shift widgets.
   server, whatever its `ttl`. Responses older than `maxAge` (default seven days) are deleted instead of shown.
 - **Per user.** The files belong to the signed-in user. Signing out, or signing in as someone else, deletes them, and
   so does a start with a different user. Nothing of one user is shown to another.
+- **No waiting for the network.** The module sets `runtimeConfig.public.cachedFetch.instant`, so an awaited cached
+  composable renders what it has at once instead of waiting for the refetch (the website keeps waiting). When the
+  refetch fails, for example offline, the module pages keep the data and show a muted "Could not refresh" line
+  (`StaleDataNotice`). Set `cachedFetch: { instant: false }` under `runtimeConfig.public` to wait as on the website.
 - **Never in the way.** Startup waits `timeout` ms at most (default `500`) for the disk. Anything read later fills only
   the keys that nothing fetched yet. A storage error turns the cache off for that run. Pending writes go to the disk
   when the app moves to the background.

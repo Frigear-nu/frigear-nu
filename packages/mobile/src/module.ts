@@ -261,6 +261,11 @@ export default defineNuxtModule<ModuleOptions>({
     }
     const publicConfig = nuxt.options.runtimeConfig.public as { mobile?: Partial<MobilePublicConfig> }
     publicConfig.mobile = defu(publicConfig.mobile, publicDefaults) as MobilePublicConfig
+    // `useCachedFetch` / `useCachedAsyncData` (`@frigear-nu/ui`): in the app, `await` resolves at once when there is
+    // something to show (a stale or restored response), so pages render without waiting for the network, also offline.
+    // The website keeps `useFetch`'s waiting. An app can set `runtimeConfig.public.cachedFetch.instant: false`.
+    const cachedFetchConfig = nuxt.options.runtimeConfig.public as { cachedFetch?: { instant?: boolean } }
+    cachedFetchConfig.cachedFetch = defu(cachedFetchConfig.cachedFetch, { instant: true })
 
     // Native plugins are optional peers: `#mobile/native` only imports the installed ones.
     const installed = (pkg: string) => isPackageInstalled(pkg, nuxt.options.rootDir, nuxt.options.modulesDir)

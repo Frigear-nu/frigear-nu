@@ -17,7 +17,7 @@ const format = useShiftsFormat()
 const links = useShiftsLinks()
 
 // The last response shows at once (also after a restart of the mobile app); every mount asks again in the background.
-const { data, error, loading } = useCachedFetch<MyShiftDto[]>(shiftsApi.me.shifts, {
+const { data, error, loading, refresh } = useCachedFetch<MyShiftDto[]>(shiftsApi.me.shifts, {
   key: 'shifts:dashboard:next',
   ttl: 0,
   lazy: true,
@@ -57,6 +57,11 @@ const running = computed(() => !!next.value && Date.parse(next.value.shift.start
     v-else
     :class="[surfaceClass, 'flex h-full flex-col gap-3 p-4']"
   >
+    <!-- Offline or a failed refresh: the last data stays, with a quiet note. -->
+    <StaleDataNotice
+      :error="error"
+      :refresh="refresh"
+    />
     <div class="flex flex-col gap-1">
       <div class="flex flex-wrap items-center gap-2">
         <span class="text-highlighted text-lg font-semibold">{{ format.range(next.shift.startsAt, next.shift.endsAt) }}</span>

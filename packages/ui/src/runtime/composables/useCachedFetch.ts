@@ -12,7 +12,7 @@ import {
   setPersistence,
   setScope,
 } from '../shared/cached-fetch-storage'
-import { computed, markRaw, toValue, useAsyncData, useFetch, useNuxtApp, useState } from '#imports'
+import { computed, markRaw, toValue, useAsyncData, useFetch, useNuxtApp, useRuntimeConfig, useState } from '#imports'
 
 export type { CachedFetchStorage, CachedFetchStorageOptions } from '../shared/cached-fetch-storage'
 
@@ -44,6 +44,13 @@ export type CachedFetchOptions<ResT, DataT = ResT> = Omit<UseFetchOptions<ResT, 
    * never be written to the device.
    */
   persist?: boolean
+  /**
+   * In the browser, `await` resolves at once when there is something to show (a stale remembered response, one restored
+   * from storage), instead of waiting for the refetch; the data updates when it lands. Default: the app's
+   * `runtimeConfig.public.cachedFetch.instant`, which `@frigear-nu/mobile` turns on, else `false`. The server always
+   * waits.
+   */
+  instant?: boolean
 }
 
 export type CachedFetchResult<DataT> = Omit<Awaited<AsyncData<DataT | undefined, NuxtError | undefined>>, 'pending'> & {
@@ -218,10 +225,18 @@ function cachedDataOptions<ResT, DataT>(
   }
 }
 
+/** Whether `await` resolves at once with something on screen: the option, else the app's default. */
+export function cachedFetchInstant(option: boolean | undefined): boolean {
+  if (option !== undefined) return option
+  const config = useRuntimeConfig().public as { cachedFetch?: { instant?: boolean } }
+  return config.cachedFetch?.instant === true
+}
+
 function cachedDataResult<DataT>(
   key: MaybeRefOrGetter<string>,
   cache: Ref<CachedFetchStore>,
   fetched: AsyncData<DataT | undefined, NuxtError | undefined> & Promise<unknown>,
+  instant: boolean,
 ): CachedFetchResult<DataT> & Promise<CachedFetchResult<DataT>> {
   const result: CachedFetchResult<DataT> = {
     data: fetched.data,
@@ -239,9 +254,10 @@ function cachedDataResult<DataT>(
     loading: computed(() => fetched.status.value === 'pending' && fetched.data.value === undefined),
   }
 
-  // With something on screen already (a remembered response being refreshed, one restored from storage), `await` does
-  // not wait for the request: the page renders with it and updates when the response lands. The server always waits.
-  const settled = !import.meta.server && fetched.data.value !== undefined ? Promise.resolve() : Promise.resolve(fetched)
+  // `instant`: with something on screen already (a remembered response being refreshed, one restored from storage),
+  // `await` does not wait for the request; the page renders with it and updates when the response lands. Otherwise (and
+  // always on the server) it waits for the request, as `useFetch` does.
+  const settled = instant && !import.meta.server && fetched.data.value !== undefined ? Promise.resolve() : Promise.resolve(fetched)
   return Object.assign(settled.then(() => result), result)
 }
 
@@ -257,8 +273,8 @@ function cachedDataResult<DataT>(
  * - `data` is `undefined` until the first response; there is no `default`, so a failed request never looks like an
  *   empty result. Check `error` (and `status`) and derive lists with `?? []`.
  * - `loading` is `true` only while nothing is on screen yet: render a skeleton for it, never the empty state.
- * - `await` it in pages so SSR renders with data; in a widget, use it without `await` and render from `loading`. In the
- *   browser, `await` waits only when there is nothing to show yet: a remembered response renders at once.
+ * - `await` it in pages so SSR renders with data; in a widget, use it without `await` and render from `loading`. It
+ *   waits for a refetch of a stale response, unless `instant` (on in the mobile app), which renders it at once.
  * - The cache belongs to the signed-in user: it is emptied when they sign out or another user signs in.
  *
  * ```ts
@@ -272,7 +288,7 @@ export function useCachedFetch<ResT, DataT = ResT>(
   request: string | Ref<string> | (() => string),
   options: CachedFetchOptions<ResT, DataT>,
 ): CachedFetchResult<DataT> & Promise<CachedFetchResult<DataT>> {
-  const { key, ttl, persist, transform, ...rest } = options
+  const { key, ttl, persist, instant, transform, ...rest } = options
   const { cache, nuxtOptions } = cachedDataOptions<ResT, DataT>(key, { ttl, persist, transform: transform as ((input: ResT) => DataT | Promise<DataT>) | undefined })
 
   const fetched = useFetch(request, {
@@ -281,7 +297,7 @@ export function useCachedFetch<ResT, DataT = ResT>(
     ...nuxtOptions,
   } as UseFetchOptions<ResT, DataT>) as unknown as AsyncData<DataT | undefined, NuxtError | undefined> & Promise<unknown>
 
-  return cachedDataResult(key, cache, fetched)
+  return cachedDataResult(key, cache, fetched, cachedFetchInstant(instant))
 }
 
 export type CachedAsyncDataOptions<ResT, DataT = ResT> = Omit<AsyncDataOptions<ResT, DataT>, 'default' | 'getCachedData'> & {
@@ -289,12 +305,14 @@ export type CachedAsyncDataOptions<ResT, DataT = ResT> = Omit<AsyncDataOptions<R
   ttl?: number
   /** As `useCachedFetch`'s `persist`: also written to the app's storage when it provides one. Default `true`. */
   persist?: boolean
+  /** As `useCachedFetch`'s `instant`: `await` resolves at once with something on screen. Default: the app's config. */
+  instant?: boolean
 }
 
 /**
  * `useCachedFetch` for data that is not one `useFetch` request: `useAsyncData` with a handler (several requests, a
  * response worked on before it is shown, `useRequestFetch`), remembered by `key` in the same cache, with the same
- * rules (`ttl`, `persist`, `loading`, no `default`, awaitable).
+ * rules (`ttl`, `persist`, `instant`, `loading`, no `default`, awaitable).
  *
  * ```ts
  * const { data, loading } = await useCachedAsyncData(() => `help-center:faqs:${slugs.value}`, async () => {
@@ -308,7 +326,7 @@ export function useCachedAsyncData<ResT, DataT = ResT>(
   handler: (nuxtApp: NuxtApp, ctx: AsyncDataHandlerContext) => Promise<ResT>,
   options: CachedAsyncDataOptions<ResT, DataT> = {},
 ): CachedFetchResult<DataT> & Promise<CachedFetchResult<DataT>> {
-  const { ttl, persist, transform, ...rest } = options
+  const { ttl, persist, instant, transform, ...rest } = options
   const { cache, nuxtOptions } = cachedDataOptions<ResT, DataT>(key, { ttl, persist, transform: transform as ((input: ResT) => DataT | Promise<DataT>) | undefined })
 
   const fetched = useAsyncData(key, handler, {
@@ -316,5 +334,5 @@ export function useCachedAsyncData<ResT, DataT = ResT>(
     ...nuxtOptions,
   } as AsyncDataOptions<ResT, DataT>) as unknown as AsyncData<DataT | undefined, NuxtError | undefined> & Promise<unknown>
 
-  return cachedDataResult(key, cache, fetched)
+  return cachedDataResult(key, cache, fetched, cachedFetchInstant(instant))
 }

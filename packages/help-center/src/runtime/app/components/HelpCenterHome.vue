@@ -100,6 +100,11 @@ const categoryName = (article: HelpArticleSummaryDto) => {
     </template>
 
     <div class="flex flex-col gap-6">
+      <!-- A failed refresh (offline): what was loaded stays, with a quiet note. -->
+      <StaleDataNotice
+        :error="categoriesError"
+        :refresh="refreshCategories"
+      />
       <UInput
         v-model="q"
         icon="i-lucide-search"

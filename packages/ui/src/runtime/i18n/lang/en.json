@@ -52,6 +52,8 @@
     "sortedDesc": "Sort by {column}, now descending",
     "range": "{from}–{to} of {total}",
     "noRows": "No rows",
-    "rowsPerPage": "Rows per page"
+    "rowsPerPage": "Rows per page",
+    "staleData": "Could not refresh. Showing the last saved data.",
+    "tryAgain": "Try again"
   }
 }

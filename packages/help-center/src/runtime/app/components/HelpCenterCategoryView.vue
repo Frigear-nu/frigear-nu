@@ -54,6 +54,11 @@ useSeoMeta({ title: () => current.value ? tr(current.value.name) : t('title', 'H
     :breadcrumb="breadcrumb"
   >
     <div class="flex flex-col gap-6">
+      <!-- A failed refresh (offline): what was loaded stays, with a quiet note. -->
+      <StaleDataNotice
+        :error="error"
+        :refresh="refresh"
+      />
       <UPageGrid
         v-if="children.length"
         data-test="help-center-subcategories"

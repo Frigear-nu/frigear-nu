@@ -13,7 +13,7 @@ const format = useShiftsFormat()
 const links = useShiftsLinks()
 
 // The last response shows at once (also after a restart of the mobile app); every mount asks again in the background.
-const { data, error, loading } = useCachedFetch<ShiftSwapDto[]>(shiftsApi.swaps, {
+const { data, error, loading, refresh } = useCachedFetch<ShiftSwapDto[]>(shiftsApi.swaps, {
   key: 'shifts:swaps',
   ttl: 0,
   lazy: true,
@@ -47,6 +47,12 @@ const shown = computed(() => swaps.value.slice(0, 3))
     v-else
     :class="[surfaceClass, 'flex h-full flex-col']"
   >
+    <!-- Offline or a failed refresh: the last data stays, with a quiet note. -->
+    <StaleDataNotice
+      :error="error"
+      :refresh="refresh"
+      class="px-4 pt-3"
+    />
     <p class="text-highlighted px-4 pt-3 text-sm font-semibold">
       {{ t('dashboard.swapsCount', '{count} open swaps you can take', { count: swaps.length }) }}
     </p>

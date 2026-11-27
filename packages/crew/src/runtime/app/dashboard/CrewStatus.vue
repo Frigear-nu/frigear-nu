@@ -14,7 +14,7 @@ const links = useCrewLinks()
 
 // Shared with the My crew tab: the last response shows at once (also after a restart of the mobile app) while every
 // mount asks again in the background (`ttl: 0`).
-const { data, error, loading } = useCachedFetch<MyCrewDto[]>(crewApi.me.crew, {
+const { data, error, loading, refresh } = useCachedFetch<MyCrewDto[]>(crewApi.me.crew, {
   key: CREW_ME_KEY,
   ttl: 0,
   lazy: true,
@@ -56,6 +56,12 @@ const color = (value: CrewStatus) => ({ approved: 'success', applied: 'info', wa
     v-else
     :class="[surfaceClass, 'flex h-full flex-col']"
   >
+    <!-- Offline or a failed refresh: the last data stays, with a quiet note. -->
+    <StaleDataNotice
+      :error="error"
+      :refresh="refresh"
+      class="px-4 pt-2.5"
+    />
     <ul class="divide-default flex-1 divide-y px-4 text-sm [&>li]:py-2.5">
       <li
         v-for="entry in entries"

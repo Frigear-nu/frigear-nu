@@ -28,6 +28,8 @@ function fakeNuxt() {
   vi.stubGlobal('markRaw', markRaw)
   vi.stubGlobal('toValue', toValue)
   vi.stubGlobal('computed', computed)
+  const runtimeConfig = { public: {} as { cachedFetch?: { instant?: boolean } } }
+  vi.stubGlobal('useRuntimeConfig', () => runtimeConfig)
   vi.stubGlobal('useFetch', (url: string, options: Options) => {
     const data = shallowRef<unknown>()
     const status = shallowRef('idle')
@@ -71,6 +73,7 @@ function fakeNuxt() {
   return {
     nuxtApp,
     calls,
+    runtimeConfig,
     respondWith(fn: (url: string) => Promise<unknown>) {
       respond = fn
     },
@@ -153,12 +156,40 @@ describe('useCachedFetch', () => {
     expect(again.status.value).toBe('pending')
     expect(again.data.value).toEqual(['a'])
     expect(again.loading.value).toBe(false)
-    // Something on screen: awaiting it does not wait for the request.
+    // By default `await` waits for the refetch, as `useFetch` does.
+    release(['b'])
     await again
+    expect(again.data.value).toEqual(['b'])
+    expect(nuxt.calls).toHaveLength(2)
+  })
+
+  it('with instant, await resolves at once while a stale response is on screen', async () => {
+    nuxt.respondWith(async () => ['a'])
+    await useCachedFetch<string[]>('/api/list', { key: 'list', ttl: 0 })
+    let release!: (value: unknown) => void
+    nuxt.respondWith(() => new Promise((resolve) => {
+      release = resolve
+    }))
+    const again = await useCachedFetch<string[]>('/api/list', { key: 'list', ttl: 0, instant: true })
     expect(again.data.value).toEqual(['a'])
+    expect(again.status.value).toBe('pending')
     release(['b'])
     await vi.waitFor(() => expect(again.data.value).toEqual(['b']))
-    expect(nuxt.calls).toHaveLength(2)
+  })
+
+  it('takes instant from the app config (the mobile module), and an option overrides it', async () => {
+    nuxt.runtimeConfig.public.cachedFetch = { instant: true }
+    nuxt.respondWith(async () => ['a'])
+    await useCachedFetch<string[]>('/api/list', { key: 'list', ttl: 0 })
+    nuxt.respondWith(() => new Promise(() => {}))
+    const instant = await useCachedFetch<string[]>('/api/list', { key: 'list', ttl: 0 })
+    expect(instant.status.value).toBe('pending')
+    // Opting out: waits (never settles here, since the request never answers).
+    const waits = await Promise.race([
+      useCachedFetch<string[]>('/api/list', { key: 'list', ttl: 0, instant: false }).then(() => 'settled'),
+      new Promise(resolve => setTimeout(resolve, 30, 'waiting')),
+    ])
+    expect(waits).toBe('waiting')
   })
 
   it('remembers the hydration payload for the next mount', async () => {
