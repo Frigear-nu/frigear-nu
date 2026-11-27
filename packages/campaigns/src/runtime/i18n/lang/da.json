@@ -175,7 +175,10 @@
       "noTokenDescription": "Åbn afmeldingslinket fra beskeden igen, eller kopiér hele linket ind i adresselinjen.",
       "invalid": "Linket virker ikke",
       "invalidDescription": "Åbn linket fra beskeden igen, eller kopiér hele linket ind i adresselinjen.",
-      "failed": "Du kunne ikke afmeldes"
+      "failed": "Du kunne ikke afmeldes",
+      "doneTopic": "Du får ikke flere af disse beskeder som {channel}",
+      "doneTopicDescription": "Du kan slå dem til igen under dine indstillinger for notifikationer.",
+      "channels": { "email": "e-mail", "sms": "sms", "push": "push-notifikation" }
     },
     "account": {
       "title": "Dine nyhedsbreve",

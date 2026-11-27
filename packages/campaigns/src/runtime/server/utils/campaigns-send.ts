@@ -56,10 +56,18 @@ const fill = (text: string, values: Record<string, string>) => text.replace(/\{(
 
 /** The absolute URL of one of the module's pages, in the person's locale, with `query`; `null` when the page is off. */
 export function campaignsPageUrl(event: H3Event, page: 'confirm' | 'unsubscribe' | 'account', locale: string | null | undefined, query: Record<string, string> = {}): string | null {
-  const config = useRuntimeConfig(event).public.campaigns as PublicModuleOptions | undefined
-  const path = config?.pages?.[page]
+  return campaignsPageUrlAt(configuredAuthSiteOrigin(event) ?? getRequestURL(event).origin, page, locale, query, event)
+}
+
+/**
+ * The absolute URL of one of the module's pages on `origin` (outside a request, such as the deliver task), or of
+ * preferences' notifications page (`notifications`); `null` when the page is off or not installed.
+ */
+export function campaignsPageUrlAt(origin: string, page: 'confirm' | 'unsubscribe' | 'account' | 'notifications', locale: string | null | undefined, query: Record<string, string> = {}, event?: H3Event): string | null {
+  const publicConfig = useRuntimeConfig(event).public as { campaigns?: PublicModuleOptions, preferences?: { pages?: { notifications?: string | null } } }
+  const config = publicConfig.campaigns
+  const path = page === 'notifications' ? publicConfig.preferences?.pages?.notifications : config?.pages?.[page]
   if (!path) return null
-  const origin = configuredAuthSiteOrigin(event) ?? getRequestURL(event).origin
   const search = new URLSearchParams(query).toString()
   return `${origin}${localizePath(path, locale ?? undefined, config?.i18n)}${search ? `?${search}` : ''}`
 }

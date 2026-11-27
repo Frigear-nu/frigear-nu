@@ -175,7 +175,10 @@
       "noTokenDescription": "Open the unsubscribe link from the message again, or copy all of it into the address bar.",
       "invalid": "This link does not work",
       "invalidDescription": "Open the link from the message again, or copy all of it into the address bar.",
-      "failed": "You could not be unsubscribed"
+      "failed": "You could not be unsubscribed",
+      "doneTopic": "You will not get these messages by {channel} any more",
+      "doneTopicDescription": "Turn them on again in your notification settings.",
+      "channels": { "email": "email", "sms": "SMS", "push": "push notification" }
     },
     "account": {
       "title": "Your newsletters",

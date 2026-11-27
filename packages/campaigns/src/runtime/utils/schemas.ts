@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { CampaignChannel } from '../../types'
+import type { CampaignChannel, CampaignSendChannel } from '../../types'
 
 // Request schemas shared by the routes and the admin forms. Plain zod, no server imports, so the app can use them.
 
@@ -126,3 +126,69 @@ export const campaignSlugParams = z.object({ slug: campaignSlugSchema })
 
 /** `token` router param: a confirmation or unsubscribe token. */
 export const campaignTokenParams = z.object({ token: z.string().trim().min(1).max(256) })
+
+// --- Campaigns -------------------------------------------------------------------------------------------------------
+
+export const CAMPAIGN_SEND_CHANNELS = ['email', 'sms', 'push'] as const satisfies readonly CampaignSendChannel[]
+
+export const campaignKindSchema = z.enum(['newsletter', 'message'])
+
+const sendChannelList = z.array(z.enum(CAMPAIGN_SEND_CHANNELS)).min(1).max(3)
+  .refine(value => new Set(value).size === value.length, 'Pick each channel once.')
+
+/** A grant of an audience: its kind is checked against the registered kinds when the campaign is sent. */
+const audienceGrant = z.looseObject({ kind: z.string().trim().min(1).max(64) })
+
+export const campaignAudienceInput = z.strictObject({
+  listIds: z.array(z.string().trim().min(1).max(64)).max(50).optional(),
+  grants: z.array(audienceGrant).max(50).optional(),
+  userIds: z.array(z.union([z.string(), z.number()]).transform(String).pipe(z.string().trim().min(1).max(64))).max(5000).optional(),
+})
+
+const optionalUrl = z.string().trim().max(2000).refine((value) => {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  }
+  catch {
+    return value.startsWith('/') && !value.startsWith('//')
+  }
+}, 'Use an http(s) URL or a path on this site.')
+
+export const campaignContentInput = z.strictObject({
+  email: z.strictObject({ subject: campaignTranslatedInput(200), body: campaignTranslatedInput(50_000) }).optional(),
+  sms: z.strictObject({ body: campaignTranslatedInput(1000) }).optional(),
+  push: z.strictObject({ title: campaignTranslatedInput(100), body: campaignTranslatedInput(300), url: optionalUrl.nullish() }).optional(),
+})
+
+const localeInput = z.string().trim().max(35).regex(/^[a-z]{2,3}(?:[-_][a-z0-9]{2,8})*$/i)
+
+/** `POST /api/admin/campaigns`: a draft. Whether it can be sent is checked on send (`campaignSendIssues`). */
+export const campaignCreateInput = z.object({
+  kind: campaignKindSchema,
+  name: z.string().trim().min(1).max(200),
+  channels: sendChannelList.default(['email']),
+  audience: campaignAudienceInput.default({}),
+  content: campaignContentInput.default({}),
+  locale: localeInput.nullish(),
+  trackClicks: z.boolean().default(true),
+  trackOpens: z.boolean().default(false),
+  important: z.boolean().default(false),
+})
+
+/** `PATCH /api/admin/campaigns/:id`: any of the create fields but `kind`, on a draft only. */
+export const campaignPatchInput = z.object({
+  name: z.string().trim().min(1).max(200).optional(),
+  channels: sendChannelList.optional(),
+  audience: campaignAudienceInput.optional(),
+  content: campaignContentInput.optional(),
+  locale: localeInput.nullable().optional(),
+  trackClicks: z.boolean().optional(),
+  trackOpens: z.boolean().optional(),
+  important: z.boolean().optional(),
+})
+
+/** `POST /api/admin/campaigns/:id/schedule`: when to send, in the future. */
+export const campaignScheduleInput = z.object({
+  scheduledAt: z.coerce.date().refine(value => value.getTime() > Date.now(), 'Pick a time in the future.'),
+})

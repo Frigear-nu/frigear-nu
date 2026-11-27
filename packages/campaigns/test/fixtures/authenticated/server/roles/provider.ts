@@ -6,10 +6,12 @@ import type { AuthRoleProvider } from '@frigear-nu/auth/utils'
 //   @admin.test   -> `admin` (everything campaigns grants to admin, `campaigns:pii` included)
 //   @manager.test -> `manager` (`campaigns:manage` only)
 //   @wild.test    -> `wild` (`campaigns:*`, which never covers `campaigns:pii`)
+//   @sender.test  -> `sender` (`campaigns:manage` and `campaigns:send`, not `campaigns:send-important`)
 const ROLES: Record<string, string[]> = {
   '@admin.test': ['admin'],
   '@manager.test': ['manager'],
   '@wild.test': ['wild'],
+  '@sender.test': ['sender'],
 }
 
 const provider: AuthRoleProvider = {

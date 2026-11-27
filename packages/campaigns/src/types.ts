@@ -63,6 +63,15 @@ export type ModuleOptions = {
    * (`NUXT_APP_SECRET`). Env `NUXT_CAMPAIGNS_SIGNING_KEY`.
    */
   signingKey?: string
+  /** Deliveries the `campaigns:deliver` task sends per run (every minute). Default `200`. */
+  batchSize?: number
+  /**
+   * Days the per-recipient rows of a finished campaign (`campaign_deliveries`, `campaign_clicks`) are kept; the counts
+   * stay on the campaign. `false` keeps them. Default `180`.
+   */
+  retentionDays?: number | false
+  /** Cron of the `campaigns:deliver` task. Default every minute (`* * * * *`); `false` registers it without a schedule. */
+  deliverCron?: string | false
 }
 
 /** Locale routing of `@nuxtjs/i18n`, so links in messages get the person's locale prefix. */
@@ -89,6 +98,8 @@ export type CampaignsRuntimeConfig = {
   corsOrigins: string[]
   captcha: CampaignCaptchaProvider | false
   signingKey: string
+  batchSize: number
+  retentionDays: number | false
 }
 
 // --- DTOs ------------------------------------------------------------------------------------------------------------
@@ -169,3 +180,128 @@ export type CampaignMySubscriptionsDto = {
   emailVerified: boolean
   lists: CampaignMyListDto[]
 }
+
+// --- Campaigns -------------------------------------------------------------------------------------------------------
+
+/** `newsletter`: to the subscribers of lists (email, SMS). `message`: to users (email, SMS, push). */
+export type CampaignKind = 'newsletter' | 'message'
+
+/** The channels a campaign goes out on: push only for messages to users. */
+export type CampaignSendChannel = 'email' | 'sms' | 'push'
+
+export type CampaignStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'cancelled'
+
+export type CampaignDeliveryStatus = 'queued' | 'sending' | 'sent' | 'skipped' | 'failed'
+
+/**
+ * Who a campaign goes to: `listIds` (a newsletter: the active subscribers of these lists, each person once per channel),
+ * or `grants` and/or `userIds` (a message: the members of the grants, `@frigear-nu/auth`, and these users).
+ */
+export type CampaignAudience = {
+  listIds?: string[]
+  grants?: Array<{ kind: string } & Record<string, unknown>>
+  userIds?: string[]
+}
+
+/** The text per channel. The email body is markdown (bold, italics, links, paragraphs), rendered and escaped server side. */
+export type CampaignContent = {
+  email?: { subject: Translated, body: Translated }
+  sms?: { body: Translated }
+  push?: { title: Translated, body: Translated, url?: string | null }
+}
+
+/** Deliveries of one channel by state, and how many recipients opened (with `trackOpens`) and clicked. */
+export type CampaignChannelCounts = {
+  total: number
+  queued: number
+  sent: number
+  skipped: number
+  failed: number
+  opened: number
+  clicked: number
+  /** Every counted click, a recipient clicking twice counts twice. */
+  clicks: number
+}
+
+export type CampaignCounts = Partial<Record<CampaignSendChannel, CampaignChannelCounts>>
+
+/** A campaign as staff see it (`/api/admin/campaigns`). */
+export type CampaignDto = {
+  id: string
+  kind: CampaignKind
+  name: string
+  channels: CampaignSendChannel[]
+  audience: CampaignAudience
+  content: CampaignContent
+  locale: string | null
+  trackClicks: boolean
+  trackOpens: boolean
+  important: boolean
+  status: CampaignStatus
+  scheduledAt: string | null
+  startedAt: string | null
+  finishedAt: string | null
+  cancelledAt: string | null
+  createdBy: number | null
+  sentBy: number | null
+  counts: CampaignCounts | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** `GET /api/admin/campaigns/:id/preview`: how many recipients each channel would reach now. */
+export type CampaignPreviewDto = {
+  /** Distinct people (contacts or users). */
+  recipients: number
+  channels: Partial<Record<CampaignSendChannel, number>>
+}
+
+/** One link of a campaign with its clicks. */
+export type CampaignLinkStatsDto = {
+  id: string
+  url: string
+  shortLinkId: string
+  position: number
+  /** Clicks attributed to a recipient (`campaign_clicks`). */
+  clicks: number
+  /** Recipients who clicked it. */
+  recipients: number
+}
+
+/** `GET /api/admin/campaigns/:id/stats`. */
+export type CampaignStatsDto = {
+  status: CampaignStatus
+  counts: CampaignCounts
+  links: CampaignLinkStatsDto[]
+}
+
+/** One delivery (`GET /api/admin/campaigns/:id/deliveries`, `campaigns:pii` only). */
+export type CampaignDeliveryDto = {
+  id: string
+  channel: CampaignSendChannel
+  status: CampaignDeliveryStatus
+  skipReason: string | null
+  attempts: number
+  sentAt: string | null
+  openedAt: string | null
+  clickedAt: string | null
+  clicks: number
+  error: string | null
+  recipient: {
+    userId: number | null
+    contactId: string | null
+    name: string | null
+    /** The contact's address on the channel; for users, read from their account at send time, so not shown here. */
+    address: string | null
+  }
+}
+
+/** What unsubscribing with the token of a message to a user answers: the user's `campaigns.message` channel is off. */
+export type CampaignTopicUnsubscribeDto = {
+  topic: 'campaigns.message'
+  channel: CampaignSendChannel
+  status: 'unsubscribed'
+}
+
+/** `POST /api/campaigns/unsubscribe/:token`: a subscription, or the notification topic of a message to a user. */
+export type CampaignUnsubscribeResultDto = CampaignSubscriptionResultDto | CampaignTopicUnsubscribeDto

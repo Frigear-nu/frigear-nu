@@ -15,8 +15,24 @@ const encoder = new TextEncoder()
 /** The id shapes an unsubscribe token may name: `<3 letters>_<32 hex>` (`cms_…` for a subscription). */
 const SUBJECT = /^[a-z]{3}_[0-9a-f]{32}$/
 
-/** The prefix of subscription ids, the subject of the unsubscribe tokens this module makes today. */
+/** The prefix of subscription ids: a token for one is in the confirmation message and the subscription's own links. */
 export const CAMPAIGN_SUBSCRIPTION_PREFIX = 'cms'
+
+/**
+ * The prefix of delivery ids: a token for one is in every campaign message, as the subject of its short links, in the
+ * open pixel and in its unsubscribe links.
+ */
+export const CAMPAIGN_DELIVERY_PREFIX = 'cmd'
+
+export type CampaignTokenKind = 'subscription' | 'delivery'
+
+/** What a (verified) token's subject names, by its prefix; `null` for anything else. */
+export function campaignTokenKind(subject: string | null | undefined): CampaignTokenKind | null {
+  if (!subject || !SUBJECT.test(subject)) return null
+  if (subject.startsWith(`${CAMPAIGN_SUBSCRIPTION_PREFIX}_`)) return 'subscription'
+  if (subject.startsWith(`${CAMPAIGN_DELIVERY_PREFIX}_`)) return 'delivery'
+  return null
+}
 
 /** SHA-256 (hex) of a confirmation token: what `campaign_subscriptions.confirmTokenHash` stores. */
 export function campaignsHashToken(token: string): Promise<string> {

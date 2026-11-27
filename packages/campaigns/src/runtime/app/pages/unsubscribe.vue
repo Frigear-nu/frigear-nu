@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CampaignSubscriptionResultDto } from '../../../types'
+import type { CampaignUnsubscribeResultDto } from '../../../types'
 import { campaignsApi } from '../../utils/api'
 import { $fetch, computed, errorMessage, ref, useCampaignsLinks, useCampaignsTranslate, useModuleT, useRoute, useSeoMeta } from '#imports'
 
@@ -15,7 +15,10 @@ useSeoMeta({ robots: 'noindex, nofollow' })
 
 const token = computed(() => typeof route.query.token === 'string' ? route.query.token : '')
 const busy = ref(false)
-const result = ref<CampaignSubscriptionResultDto>()
+const result = ref<CampaignUnsubscribeResultDto>()
+// The token of a message to a user turns a channel of their `campaigns.message` notifications off instead of a list.
+const topicResult = computed(() => result.value && 'topic' in result.value ? result.value : undefined)
+const listResult = computed(() => result.value && 'list' in result.value ? result.value : undefined)
 const failure = ref<unknown>()
 const failureCode = computed(() => (failure.value as { data?: { data?: { code?: string } } } | undefined)?.data?.data?.code)
 
@@ -23,7 +26,7 @@ async function unsubscribe() {
   busy.value = true
   failure.value = undefined
   try {
-    result.value = await $fetch<CampaignSubscriptionResultDto>(campaignsApi.unsubscribe(token.value), { method: 'POST' })
+    result.value = await $fetch<CampaignUnsubscribeResultDto>(campaignsApi.unsubscribe(token.value), { method: 'POST' })
   }
   catch (error) {
     failure.value = error
@@ -47,11 +50,19 @@ async function unsubscribe() {
         </p>
       </div>
       <UAlert
-        v-if="result"
+        v-if="topicResult"
         icon="i-lucide-circle-check"
         color="success"
         variant="subtle"
-        :title="t('unsubscribe.done', 'You are unsubscribed from {list}', { list: tr(result.list.name) })"
+        :title="t('unsubscribe.doneTopic', 'You will not get these messages by {channel} any more', { channel: t(`unsubscribe.channels.${topicResult.channel}`, topicResult.channel) })"
+        :description="t('unsubscribe.doneTopicDescription', 'Turn them on again in your notification settings.')"
+      />
+      <UAlert
+        v-else-if="listResult"
+        icon="i-lucide-circle-check"
+        color="success"
+        variant="subtle"
+        :title="t('unsubscribe.done', 'You are unsubscribed from {list}', { list: tr(listResult.list.name) })"
         :description="t('unsubscribe.doneDescription', 'You will not get it any more. You can sign up again at any time.')"
         :actions="links.account() ? [{ label: t('confirm.manage', 'Manage your newsletters'), to: links.account(), color: 'neutral', variant: 'outline' }] : []"
       />
