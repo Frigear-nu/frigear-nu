@@ -73,11 +73,13 @@ export async function consumeMagicLink(code: string) {
 /**
  * Emails a single-use sign-in link that also verifies the address. Resolves `false` when nothing was sent (cooldown).
  * With `invite: true` (staff created the account) the link stays valid for `authentication.settings.inviteTtl`
- * (7 days by default) instead of 2 hours.
+ * (7 days by default) instead of 2 hours. `redirect` is where following the link lands (e.g. the `?redirect=` the
+ * sign-up page was opened with): a path on this site only (`isInternalPath`), else `authentication.settings.afterLogin`.
  */
-export async function sendVerificationLink(event: H3Event, user: Pick<AuthStoredUser, 'id' | 'name' | 'email'>, options: { invite?: boolean } = {}) {
+export async function sendVerificationLink(event: H3Event, user: Pick<AuthStoredUser, 'id' | 'name' | 'email'>, options: { invite?: boolean, redirect?: string } = {}) {
   const ttlSeconds = options.invite ? inviteLinkTtlSeconds(event) : MAGIC_LINK_TTL_SECONDS
-  const link = await createMagicLink(event, { userId: user.id, redirectUrl: getAfterLoginPath(event), purpose: 'verify', ttlSeconds })
+  const redirectUrl = isInternalPath(options.redirect) ? options.redirect : getAfterLoginPath(event)
+  const link = await createMagicLink(event, { userId: user.id, redirectUrl, purpose: 'verify', ttlSeconds })
   if (!link) return false
   await dispatchAuthEmail('verify-email', user.email, { name: user.name, url: link.url })
   return true
