@@ -30,3 +30,19 @@ export async function navigateWhenReady(context: PageReadyContext, navigate: () 
     unhook()
   }
 }
+
+/**
+ * Resolves on the next `page:loading:end` (the page about to render has resolved its async `setup`), or after
+ * `timeout` (default 1000 ms). Register it before the navigation starts.
+ */
+export function nextPageLoaded(context: Pick<PageReadyContext, 'onPageLoaded' | 'timeout'>): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const done = () => {
+      clearTimeout(timer)
+      unhook()
+      resolve()
+    }
+    const unhook = context.onPageLoaded(done)
+    const timer = setTimeout(done, context.timeout ?? 1000)
+  })
+}
