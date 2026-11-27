@@ -5,9 +5,9 @@ import type { CampaignChannel, CampaignListPublicDto, CampaignSubscribeResponse,
 import { campaignsApi } from '../../utils/api'
 import { $fetch, computed, reactive, ref, resolveComponent, useCampaignsLocale, useCampaignsTranslate, useErrorToast, useLazyFetch, useModuleT, useRuntimeConfig, watch } from '#imports'
 
-defineOptions({ name: 'NewsletterSignup' })
+defineOptions({ name: 'ListSignup' })
 
-// The signup of a newsletter: `<NewsletterSignup list="slug" />`, or `::newsletter-signup{list="slug"}` in Nuxt Content.
+// The signup of a list: `<ListSignup list="slug" />`, or `::list-signup{list="slug"}` in Nuxt Content.
 // Shows the list's name, description and consent text, asks for an email address and/or a phone number (the channels
 // the list has), and posts to the subscribe route. With a captcha set on the module it shows forms' captcha widget.
 const props = withDefaults(defineProps<{
@@ -32,14 +32,14 @@ const captchaProvider = config?.captcha ?? null
 // Forms' widget, when forms is installed (it is required for a captcha).
 const FormCaptcha = captchaProvider ? resolveComponent('FormCaptcha') : null
 
-const { data: newsletter, status, error } = useLazyFetch<CampaignListPublicDto>(() => campaignsApi.list(props.list), { key: `campaigns:list:${props.list}` })
+const { data: list, status, error } = useLazyFetch<CampaignListPublicDto>(() => campaignsApi.list(props.list), { key: `campaigns:list:${props.list}` })
 
-const offersEmail = computed(() => newsletter.value?.channels.includes('email') ?? false)
-const offersSms = computed(() => newsletter.value?.channels.includes('sms') ?? false)
+const offersEmail = computed(() => list.value?.channels.includes('email') ?? false)
+const offersSms = computed(() => list.value?.channels.includes('sms') ?? false)
 
 type State = { name: string, email: string, phone: string, channels: CampaignChannel[], consent: boolean, captcha?: string }
 const state = reactive<State>({ name: '', email: '', phone: '', channels: [], consent: false, captcha: undefined })
-watch(newsletter, (value) => {
+watch(list, (value) => {
   if (value) state.channels = [...value.channels]
 }, { immediate: true })
 
@@ -56,7 +56,7 @@ const schema = computed(() => z.object({
   if (captchaProvider && !value.captcha) ctx.addIssue({ code: 'custom', path: ['captcha'], message: t('captchaRequired', 'Complete the captcha.') })
 }))
 
-const channelItems = computed(() => (newsletter.value?.channels ?? []).map(value => ({ value, label: tc(`channels.${value}`, value === 'sms' ? 'SMS' : 'Email') })))
+const channelItems = computed(() => (list.value?.channels ?? []).map(value => ({ value, label: tc(`channels.${value}`, value === 'sms' ? 'SMS' : 'Email') })))
 
 const busy = ref(false)
 const done = ref<CampaignSubscribeResponse>()
@@ -92,7 +92,7 @@ async function submit(event: FormSubmitEvent<State>) {
 <template>
   <div class="flex flex-col gap-4">
     <div
-      v-if="status === 'pending' && !newsletter"
+      v-if="status === 'pending' && !list"
       class="flex flex-col gap-3"
     >
       <USkeleton class="h-6 w-1/2" />
@@ -100,25 +100,25 @@ async function submit(event: FormSubmitEvent<State>) {
       <USkeleton class="h-10 w-32" />
     </div>
     <UAlert
-      v-else-if="error || !newsletter"
+      v-else-if="error || !list"
       color="neutral"
       variant="subtle"
       icon="i-lucide-circle-alert"
       :title="t('unavailable', 'This signup is not available')"
     />
     <template v-else>
-      <div v-if="title !== false || description || newsletter.description">
+      <div v-if="title !== false || description || list.description">
         <h3
           v-if="title !== false"
           class="text-highlighted text-lg font-semibold"
         >
-          {{ title || tr(newsletter.name) }}
+          {{ title || tr(list.name) }}
         </h3>
         <p
-          v-if="description || tr(newsletter.description)"
+          v-if="description || tr(list.description)"
           class="text-muted text-sm"
         >
-          {{ description || tr(newsletter.description) }}
+          {{ description || tr(list.description) }}
         </p>
       </div>
 
@@ -128,7 +128,7 @@ async function submit(event: FormSubmitEvent<State>) {
         variant="subtle"
         icon="i-lucide-mail-check"
         :title="done.confirm ? t('checkInbox', 'Check your inbox') : t('signedUp', 'You are signed up')"
-        :description="done.confirm ? t('checkInboxDescription', 'We sent you a link. Confirm, and the newsletter starts coming to you.') : t('signedUpDescription', 'Thank you for signing up.')"
+        :description="done.confirm ? t('checkInboxDescription', 'We sent you a link. Confirm, and your subscription starts.') : t('signedUpDescription', 'Thank you for signing up.')"
       />
 
       <UForm
@@ -151,7 +151,7 @@ async function submit(event: FormSubmitEvent<State>) {
         <UFormField
           v-if="channelItems.length > 1"
           name="channels"
-          :label="t('channels', 'Get it by')"
+          :label="t('channels', 'Get messages by')"
         >
           <UCheckboxGroup
             v-model="state.channels"
@@ -189,7 +189,7 @@ async function submit(event: FormSubmitEvent<State>) {
         <UFormField name="consent">
           <UCheckbox
             v-model="state.consent"
-            :label="tr(newsletter.consentText) || t('consentDefault', 'Yes, send me this newsletter.')"
+            :label="tr(list.consentText) || t('consentDefault', 'Yes, send me messages from this list.')"
           />
         </UFormField>
         <UFormField

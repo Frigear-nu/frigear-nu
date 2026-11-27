@@ -2,7 +2,7 @@ import type { NotificationTopic } from '@frigear-nu/notify/utils'
 
 // The notification topic campaigns registers with notify's `extendNotificationTopics`: the row of the account's
 // notifications page for messages staff send to users. Email and push by default; SMS is offered but off until the
-// person turns it on. Newsletters do not use it: they reach their subscribers, who unsubscribe per list.
+// person turns it on. Campaigns to lists do not use it: they reach their subscribers, who unsubscribe per list.
 
 export const CAMPAIGNS_TOPICS = { message: 'campaigns.message' } as const
 

@@ -35,14 +35,14 @@ const { data: lists } = useLazyFetch<CampaignListDto[]>(campaignsApi.admin.lists
 const listNames = computed(() => new Map((lists.value ?? []).map(list => [list.id, tr(list.name)])))
 
 const statusLabel = (value: string) => t(`campaign.statuses.${value}`, { draft: 'Draft', scheduled: 'Scheduled', sending: 'Sending', sent: 'Sent', cancelled: 'Cancelled' }[value] ?? value)
-const kindLabel = (value: string) => t(`campaign.kinds.${value}`, value === 'message' ? 'Message' : 'Newsletter')
+const kindLabel = (value: string) => t(`campaign.kinds.${value}`, value === 'message' ? 'To people' : 'To lists')
 const channelLabel = (channel: string) => t(`campaign.channels.${channel}`, { email: 'Email', sms: 'SMS', push: 'Push' }[channel] ?? channel)
 const statusOptions = computed(() => [
   { value: 'all', label: t('campaign.allStatuses', 'All statuses') },
   ...CAMPAIGN_STATUSES.map(value => ({ value, label: statusLabel(value) })),
 ])
 const listOptions = computed(() => [
-  { value: 'all', label: t('campaign.allLists', 'All newsletters') },
+  { value: 'all', label: t('campaign.allLists', 'All lists') },
   ...(lists.value ?? []).map(list => ({ value: list.id, label: tr(list.name) })),
 ])
 const kindOptions = computed(() => [
@@ -57,7 +57,7 @@ function audienceSummary(campaign: CampaignDto): string {
     const names = (audience.listIds ?? []).map(id => listNames.value.get(id) ?? '').filter(Boolean)
     if (names.length) return names.join(', ')
     const count = audience.listIds?.length ?? 0
-    return count ? t('campaign.listsCount', '{count} newsletters', { count }) : ''
+    return count ? t('campaign.listsCount', '{count} lists', { count }) : ''
   }
   const people = audience.userIds?.length ?? 0
   const groups = audience.grants?.length ?? 0
@@ -186,7 +186,7 @@ function open(campaign: CampaignDto) {
           v-if="listOptions.length > 2 || filters.listId !== 'all'"
           v-model="filters.listId"
           :items="listOptions"
-          :aria-label="t('campaign.fields.lists', 'Newsletters')"
+          :aria-label="t('campaign.fields.lists', 'Lists')"
           class="w-48"
         />
         <UButton
@@ -223,7 +223,7 @@ function open(campaign: CampaignDto) {
               variant="naked"
               icon="i-lucide-send"
               :title="t('campaign.empty', 'No campaigns yet')"
-              :description="t('campaign.emptyDescription', 'Write a newsletter to your subscribers or a message to your users.')"
+              :description="t('campaign.emptyDescription', 'Write to the subscribers of your lists, or to people you pick by name, role or team.')"
               :actions="can.manage ? [{ label: t('campaign.create', 'Create campaign'), icon: 'i-lucide-plus', onClick: () => actions.create() }] : []"
             />
           </template>

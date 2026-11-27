@@ -168,8 +168,8 @@ export async function campaignsSignup(event: H3Event, list: CampaignListRow, sig
   const channels = campaignSignupChannels(list, signup)
   if (!channels.length) {
     throw badRequest(list.channels.includes('email')
-      ? 'Give an email address to sign up for this newsletter.'
-      : 'Give a phone number to sign up for this newsletter.', { channels: list.channels })
+      ? 'Give an email address to sign up for this list.'
+      : 'Give a phone number to sign up for this list.', { channels: list.channels })
   }
   // The signing key must exist before anything is written: the confirmation carries an unsubscribe link.
   await campaignsRequireSigningKey(event)

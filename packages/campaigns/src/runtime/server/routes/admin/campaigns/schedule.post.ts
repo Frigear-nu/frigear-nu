@@ -4,7 +4,7 @@ import { campaignsAccess } from '../../../../access'
 import { campaignScheduleInput } from '../../../../utils/schemas'
 
 // `POST /api/admin/campaigns/:id/schedule` (`campaigns:send`; an important message `campaigns:send-important` too):
-// `{ scheduledAt }` in the future. The audience of a message is resolved now; a newsletter's lists are read when it
+// `{ scheduledAt }` in the future. The audience of a message is resolved now; the lists of a campaign to lists are read when it
 // goes out. Cancel it to stop it.
 export default defineEventHandler(async (event): Promise<CampaignDto> => {
   const principal = await authorize(event, campaignsAccess.permissions.send)

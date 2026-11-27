@@ -45,7 +45,7 @@ const ready = computed(() => !issues.value.length)
 
 // --- Labels ---------------------------------------------------------------------------------------------------------
 const statusLabel = (value: string) => t(`campaign.statuses.${value}`, { draft: 'Draft', scheduled: 'Scheduled', sending: 'Sending', sent: 'Sent', cancelled: 'Cancelled' }[value] ?? value)
-const kindLabel = (value: string) => t(`campaign.kinds.${value}`, value === 'message' ? 'Message' : 'Newsletter')
+const kindLabel = (value: string) => t(`campaign.kinds.${value}`, value === 'message' ? 'To people' : 'To lists')
 const channelLabel = (channel: string) => t(`campaign.channels.${channel}`, { email: 'Email', sms: 'SMS', push: 'Push' }[channel] ?? channel)
 const deliveryStatusLabel = (value: string) => t(`campaign.deliveryStatuses.${value}`, { queued: 'Waiting', sending: 'Sending', sent: 'Sent', skipped: 'Skipped', failed: 'Failed' }[value] ?? value)
 const skipReasonLabel = (value: string) => t(`campaign.skipReasons.${value}`, {
@@ -403,7 +403,7 @@ const deliveryColumns = computed<TableColumn<CampaignDeliveryDto>[]>(() => [
       <SectionCard
         :title="t('campaign.audience', 'Audience')"
         :description="campaign.kind === 'newsletter'
-          ? t('campaign.audienceNewsletter', 'The active subscribers of these newsletters, each once per channel.')
+          ? t('campaign.audienceLists', 'The active subscribers of these lists, each once per channel.')
           : t('campaign.audienceMessage', 'These people and everyone in these groups, each once.')"
       >
         <div class="flex flex-col gap-4">
@@ -426,7 +426,7 @@ const deliveryColumns = computed<TableColumn<CampaignDeliveryDto>[]>(() => [
             <span
               v-else
               class="text-dimmed text-sm"
-            >{{ t('campaign.noLists', 'No newsletters picked yet.') }}</span>
+            >{{ t('campaign.noLists', 'No lists picked yet.') }}</span>
           </div>
           <template v-else>
             <div class="flex flex-col gap-1">

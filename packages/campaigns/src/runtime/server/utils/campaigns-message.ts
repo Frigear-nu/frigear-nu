@@ -12,8 +12,8 @@ type FooterTexts = { footer: string, unsubscribe: string, preferences: string, s
 
 const FOOTERS: Record<CampaignKind, Record<'en' | 'da', FooterTexts>> = {
   newsletter: {
-    en: { footer: 'You get this because you signed up for it.', unsubscribe: 'Unsubscribe', preferences: 'Your newsletters', smsStop: 'Unsubscribe' },
-    da: { footer: 'Du får dette, fordi du har tilmeldt dig.', unsubscribe: 'Afmeld', preferences: 'Dine nyhedsbreve', smsStop: 'Afmeld' },
+    en: { footer: 'You get this because you signed up for it.', unsubscribe: 'Unsubscribe', preferences: 'Your subscriptions', smsStop: 'Unsubscribe' },
+    da: { footer: 'Du får dette, fordi du har tilmeldt dig.', unsubscribe: 'Afmeld', preferences: 'Dine tilmeldinger', smsStop: 'Afmeld' },
   },
   message: {
     en: { footer: 'You get this because you have an account here.', unsubscribe: 'Stop these emails', preferences: 'Notification settings', smsStop: 'Stop' },
@@ -31,7 +31,7 @@ export type CampaignsRecipientLinks = {
   unsubscribeUrl: string | null
   /** The one-click unsubscribe route with the token (`List-Unsubscribe`). */
   oneClickUrl: string
-  /** The newsletters page or the notification settings page. */
+  /** The subscriptions page or the notification settings page. */
   preferencesUrl: string | null
   /** The open pixel, only with `trackOpens`. */
   pixelUrl: string | null

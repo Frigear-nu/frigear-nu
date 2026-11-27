@@ -15,13 +15,13 @@ export const campaignsApi = {
   confirm: (token: string) => `/api/campaigns/confirm/${segment(token)}`,
   /**
    * `POST` (anonymous, RFC 8058 one-click): unsubscribes what the token was made for: a subscription, or (the token of a
-   * campaign message) its newsletters, or for a message to a user their `campaigns.message` channel.
+   * campaign message) its lists, or for a message to a user their `campaigns.message` channel.
    */
   unsubscribe: (token: string) => `/api/campaigns/unsubscribe/${segment(token)}`,
   /** `GET` (anonymous): the 1x1 image of a campaign email; marks it opened when the campaign has `trackOpens`. */
   open: (token: string) => `/api/campaigns/o/${segment(token)}`,
   me: {
-    /** `GET` the signed-in user's newsletters; `PATCH { lists: { [listId]: { email?, sms? } } }` changes them. */
+    /** `GET` the signed-in user's subscriptions; `PATCH { lists: { [listId]: { email?, sms? } } }` changes them. */
     subscriptions: '/api/campaigns/me/subscriptions',
   },
   admin: {

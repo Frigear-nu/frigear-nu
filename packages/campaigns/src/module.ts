@@ -56,7 +56,7 @@ export default defineNuxtModule<ModuleOptions>({
     '@nuxthub/core': { version: '>=0.10' },
     '@frigear-nu/module-kit': { version: '>=0.0.1' },
     '@frigear-nu/auth': { version: '>=0.0.1' },
-    // Signed-in users manage their own newsletters; their verified email links them to their contact.
+    // Signed-in users manage their own subscriptions; their verified email links them to their contact.
     '@frigear-nu/users': { version: '>=0.0.1' },
     // Every message (the confirmation email and SMS) goes through notify's dispatch, on the app's drivers.
     '@frigear-nu/notify': { version: '>=0.0.1' },
@@ -77,7 +77,7 @@ export default defineNuxtModule<ModuleOptions>({
   async setup(options, nuxt) {
     registerModule(MODULE_NAME, nuxt)
     const resolver = createResolver(import.meta.url)
-    // `campaigns:manage`, `:send`, `:send-important`, `campaigns:pii`, `campaigns:subscriptions` and the `newsletters`
+    // `campaigns:manage`, `:send`, `:send-important`, `campaigns:pii`, `campaigns:subscriptions` and the `subscriptions`
     // scope (`runtime/access.ts`).
     registerAccess(nuxt, campaignsAccess, { from: MODULE_NAME })
     registerTailwindSource(nuxt, resolver.resolve('./runtime/app'))
@@ -237,8 +237,8 @@ export default defineNuxtModule<ModuleOptions>({
       { name: 'useCampaignsAccess', from: resolver.resolve('./runtime/app/composables/useCampaignsAccess') },
     ])
     addComponentsDir({ path: resolver.resolve('./runtime/app/components') })
-    // Global, so Nuxt Content resolves `::newsletter-signup{list="…"}` too.
-    addComponent({ name: 'NewsletterSignup', filePath: resolver.resolve('./runtime/app/components/NewsletterSignup.vue'), global: true, priority: 1 })
+    // Global, so Nuxt Content resolves `::list-signup{list="…"}` too.
+    addComponent({ name: 'ListSignup', filePath: resolver.resolve('./runtime/app/components/ListSignup.vue'), global: true, priority: 1 })
 
     addModulePages(MODULE_NAME, resolver, [
       { name: 'campaigns-confirm', path: confirmPath, file: './runtime/app/pages/confirm.vue' },
@@ -252,7 +252,7 @@ export default defineNuxtModule<ModuleOptions>({
     // Only for signed-in people: a route rule `@frigear-nu/authorization` enforces.
     if (accountPath) guardPages(nuxt, [accountPath])
 
-    // The Campaigns item of the admin sidebar (Manage) and the Newsletters item of the account menu.
+    // The Campaigns item of the admin sidebar (Manage) and the Subscriptions item of the account menu.
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'admin.nav' })
   },
 })

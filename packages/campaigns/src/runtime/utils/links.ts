@@ -2,9 +2,9 @@
 
 /** The default path of each page; a module option moves or removes it. */
 export const CAMPAIGNS_DEFAULT_PAGES = {
-  confirm: '/newsletter/confirm',
-  unsubscribe: '/newsletter/unsubscribe',
-  account: '/account/newsletters',
+  confirm: '/subscriptions/confirm',
+  unsubscribe: '/subscriptions/unsubscribe',
+  account: '/account/subscriptions',
 } as const
 
 const escapeHtml = (value: string) =>

@@ -12,9 +12,9 @@ import { $fetch, computed, reactive, useAction, useCampaignsTranslate, useConfir
 defineOptions({ name: 'CampaignFormSlideover' })
 
 // Create and edit form of a campaign draft, opened with `useOverlay()` by `useCampaignActions()`: it closes with the
-// saved campaign, or `false` when cancelled. The kind is chosen once, on create. A newsletter goes to lists; a message
+// saved campaign, or `false` when cancelled. The kind is chosen once, on create. A campaign to lists goes to their subscribers; one to people
 // goes to people and groups (roles, teams, operations). Sending is a separate step on the campaign's page.
-const props = defineProps<{ campaign?: CampaignDto, kind?: CampaignKind, /** A new newsletter's lists, picked to start with. */ listIds?: string[] }>()
+const props = defineProps<{ campaign?: CampaignDto, kind?: CampaignKind, /** The lists of a new campaign to lists, picked to start with. */ listIds?: string[] }>()
 const emit = defineEmits<{ close: [saved: CampaignDto | false] }>()
 
 const t = useModuleT('campaigns')
@@ -38,8 +38,8 @@ const { data: selectedUsers } = useLazyFetch<CampaignUserLookupDto[]>(campaignsA
 })
 
 const kinds = computed(() => [
-  { value: 'newsletter', label: t('campaign.kinds.newsletter', 'Newsletter'), description: t('campaign.kinds.newsletterHelp', 'To the subscribers of newsletter lists, by email or SMS.') },
-  { value: 'message', label: t('campaign.kinds.message', 'Message'), description: t('campaign.kinds.messageHelp', 'To users picked by name, role, team or operation, by email, SMS or push.') },
+  { value: 'newsletter', label: t('campaign.kinds.newsletter', 'To lists'), description: t('campaign.kinds.newsletterHelp', 'To the subscribers of lists, by email or SMS.') },
+  { value: 'message', label: t('campaign.kinds.message', 'To people'), description: t('campaign.kinds.messageHelp', 'To users picked by name, role, team or operation, by email, SMS or push.') },
 ])
 const channelLabel = (channel: string) => t(`campaign.channels.${channel}`, { email: 'Email', sms: 'SMS', push: 'Push' }[channel] ?? channel)
 const channelItems = computed(() => campaignKindChannels(state.kind).map(value => ({ value, label: channelLabel(value) })))
@@ -127,7 +127,7 @@ async function save(event: FormSubmitEvent<CampaignFormState>) {
         name="channels"
         :label="t('campaign.fields.channels', 'Channels')"
         :description="state.kind === 'newsletter'
-          ? t('campaign.fields.channelsNewsletterHelp', 'Each subscriber gets it on the channels they subscribed with.')
+          ? t('campaign.fields.channelsListsHelp', 'Each subscriber gets it on the channels they subscribed with.')
           : t('campaign.fields.channelsMessageHelp', 'People get it on the channels they keep on for messages; SMS is off until they turn it on.')"
         required
       >
@@ -141,7 +141,7 @@ async function save(event: FormSubmitEvent<CampaignFormState>) {
       <UFormField
         v-if="state.kind === 'newsletter'"
         name="listIds"
-        :label="t('campaign.fields.lists', 'Newsletters')"
+        :label="t('campaign.fields.lists', 'Lists')"
         :description="t('campaign.fields.listsHelp', 'Everyone subscribed to one of these gets it once per channel, even when they are on several.')"
       >
         <USelectMenu
@@ -150,7 +150,7 @@ async function save(event: FormSubmitEvent<CampaignFormState>) {
           value-key="value"
           multiple
           :loading="listsStatus === 'pending'"
-          :placeholder="t('campaign.fields.listsPlaceholder', 'Pick newsletters')"
+          :placeholder="t('campaign.fields.listsPlaceholder', 'Pick lists')"
           class="w-full"
         />
       </UFormField>

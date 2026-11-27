@@ -6,7 +6,7 @@ import { $fetch, computed, errorMessage, reactive, tableUi, useCachedFetch, useC
 
 defineOptions({ name: 'CampaignsAccountPage' })
 
-// The signed-in user's newsletters. No container: under `/account/**` the `account` layout provides it. The heading
+// The signed-in user's subscriptions. No container: under `/account/**` the `account` layout provides it. The heading
 // comes from the same keys as the account menu item. Email can be turned on here (at once with a verified address,
 // after the confirmation email otherwise); SMS only off, since an SMS signup confirms the phone number.
 const t = useModuleT('campaigns.account')
@@ -29,7 +29,7 @@ const disabled = (list: CampaignMyListDto, channel: CampaignChannel) =>
   saving.has(list.id) || !list.channels.includes(channel) || (channel === 'sms' && !on(list, 'sms'))
 
 const columns = computed<TableColumn<CampaignMyListDto>[]>(() => [
-  { id: 'list', header: t('newsletter', 'Newsletter') },
+  { id: 'list', header: t('list', 'List') },
   { id: 'email', header: tc('channels.email', 'Email'), meta: { class: { th: 'w-40', td: 'w-40' } } },
   ...(offersSms.value ? [{ id: 'sms', header: tc('channels.sms', 'SMS'), meta: { class: { th: 'w-40', td: 'w-40' } } }] : []),
 ])
@@ -50,7 +50,7 @@ async function change(list: CampaignMyListDto, channel: CampaignChannel, value: 
     })
   }
   catch (e) {
-    showError(e, t('saveFailed', 'Could not change your newsletters'))
+    showError(e, t('saveFailed', 'Could not change your subscriptions'))
   }
   finally {
     saving.delete(list.id)
@@ -61,14 +61,14 @@ async function change(list: CampaignMyListDto, channel: CampaignChannel, value: 
 <template>
   <div class="flex flex-col gap-4">
     <PageHeading
-      :title="tm('label', 'Newsletters')"
-      :description="tm('description', 'Choose the newsletters you get.')"
+      :title="tm('label', 'Subscriptions')"
+      :description="tm('description', 'Choose the lists you are subscribed to.')"
     />
 
     <UEmpty
       v-if="error"
       icon="i-lucide-circle-alert"
-      :title="t('loadFailed', 'Your newsletters could not be loaded')"
+      :title="t('loadFailed', 'Your subscriptions could not be loaded')"
       :description="errorMessage(error, '')"
       :actions="[{ label: tc('tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
     />
@@ -79,12 +79,12 @@ async function change(list: CampaignMyListDto, channel: CampaignChannel, value: 
         color="neutral"
         variant="subtle"
         icon="i-lucide-mail"
-        :description="t('unverified', 'Your email address is not verified yet, so we send a confirmation link before the first newsletter.')"
+        :description="t('unverified', 'Your email address is not verified yet, so we send a confirmation link before the first message.')"
       />
 
       <TableCard
-        :title="t('title', 'Your newsletters')"
-        :description="t('description', 'Turn a newsletter on to get it, or off to stop it.')"
+        :title="t('title', 'Your subscriptions')"
+        :description="t('description', 'Turn a list on to get its messages, or off to stop them.')"
         :loading="loading"
       >
         <UTable
@@ -116,7 +116,7 @@ async function change(list: CampaignMyListDto, channel: CampaignChannel, value: 
                 :model-value="on(row.original, channel)"
                 :disabled="disabled(row.original, channel)"
                 :aria-label="`${tr(row.original.name)}: ${tc(`channels.${channel}`, channel)}`"
-                :title="channel === 'sms' && !on(row.original, 'sms') ? t('smsHint', 'Sign up for SMS with the newsletter\'s signup form.') : undefined"
+                :title="channel === 'sms' && !on(row.original, 'sms') ? t('smsHint', 'Sign up for SMS with the list\'s signup form.') : undefined"
                 @update:model-value="(value: boolean) => change(row.original, channel, value)"
               />
               <UBadge
@@ -131,8 +131,8 @@ async function change(list: CampaignMyListDto, channel: CampaignChannel, value: 
             <UEmpty
               variant="naked"
               icon="i-lucide-newspaper"
-              :title="t('empty', 'No newsletters yet')"
-              :description="t('emptyDescription', 'Newsletters you can sign up for will show up here.')"
+              :title="t('empty', 'No lists yet')"
+              :description="t('emptyDescription', 'Lists you can sign up for will show up here.')"
             />
           </template>
         </UTable>

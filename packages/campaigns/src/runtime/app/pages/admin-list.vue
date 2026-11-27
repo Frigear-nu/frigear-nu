@@ -42,7 +42,7 @@ async function save(event: FormSubmitEvent<CampaignListFormState>) {
   if (!list.value) return
   const saved = await run(
     () => $fetch<CampaignListDto>(campaignsApi.admin.list(list.value!.id), { method: 'PATCH', body: campaignListFormBody(event.data) }),
-    { success: t('admin.saved', 'Saved {name}', { name: tr(event.data.name) }), error: t('admin.saveFailed', 'Could not save the newsletter') },
+    { success: t('admin.saved', 'Saved {name}', { name: tr(event.data.name) }), error: t('admin.saveFailed', 'Could not save the list') },
   )
   if (saved) list.value = saved
 }
@@ -165,13 +165,13 @@ const snippet = computed(() => list.value
         name: t('signup.name', 'Name'),
         email: t('signup.email', 'Email'),
         phone: t('signup.phone', 'Phone number'),
-        consent: tr(list.value.consentText) || t('signup.consentDefault', 'Yes, send me this newsletter.'),
+        consent: tr(list.value.consentText) || t('signup.consentDefault', 'Yes, send me messages from this list.'),
         submit: t('signup.submit', 'Sign up'),
       },
     })
   : '')
-const componentSnippet = computed(() => list.value ? `<NewsletterSignup list="${list.value.slug}" />` : '')
-const contentSnippet = computed(() => list.value ? `::newsletter-signup{list="${list.value.slug}"}\n::` : '')
+const componentSnippet = computed(() => list.value ? `<ListSignup list="${list.value.slug}" />` : '')
+const contentSnippet = computed(() => list.value ? `::list-signup{list="${list.value.slug}"}\n::` : '')
 </script>
 
 <template>
@@ -180,7 +180,7 @@ const contentSnippet = computed(() => list.value ? `::newsletter-signup{list="${
       <PageHeading
         :title="name"
         :description="tr(list.description) || undefined"
-        :breadcrumb="[{ label: t('admin.title', 'Newsletters'), to: links.adminLists() }, { label: name }]"
+        :breadcrumb="[{ label: t('admin.title', 'Lists'), to: links.adminLists() }, { label: name }]"
       >
         <template #badge>
           <StatusBadge
@@ -199,7 +199,7 @@ const contentSnippet = computed(() => list.value ? `::newsletter-signup{list="${
 
       <SectionCard
         :title="t('admin.settings', 'Settings')"
-        :description="t('admin.settingsDescription', 'What the newsletter is called, how people get it and what they agree to.')"
+        :description="t('admin.settingsDescription', 'What the list is called, how its messages reach people and what they agree to.')"
       >
         <UForm
           id="campaign-list-settings"
@@ -221,7 +221,7 @@ const contentSnippet = computed(() => list.value ? `::newsletter-signup{list="${
           <FormRow
             name="slug"
             :label="t('admin.fields.slug', 'URL name')"
-            :description="t('admin.fields.slugHelp', 'Lowercase letters, digits and dashes. The signup names the newsletter by it, so changing it breaks signups that use the old one.')"
+            :description="t('admin.fields.slugHelp', 'Lowercase letters, digits and dashes. The signup names the list by it, so changing it breaks signups that use the old one.')"
             required
           >
             <UInput
@@ -244,7 +244,7 @@ const contentSnippet = computed(() => list.value ? `::newsletter-signup{list="${
           <FormRow
             name="channels"
             :label="t('admin.fields.channels', 'Channels')"
-            :description="t('admin.fields.channelsHelp', 'How people can get it. SMS goes through the SMS driver the app has set up.')"
+            :description="t('admin.fields.channelsHelp', 'How its messages can reach people. SMS goes through the SMS driver the app has set up.')"
             required
           >
             <UCheckboxGroup
@@ -286,7 +286,7 @@ const contentSnippet = computed(() => list.value ? `::newsletter-signup{list="${
               type="submit"
               form="campaign-list-settings"
               :loading="busy"
-              :label="t('admin.saveAction', 'Save newsletter')"
+              :label="t('admin.saveAction', 'Save list')"
             />
           </div>
         </template>
@@ -440,9 +440,9 @@ const contentSnippet = computed(() => list.value ? `::newsletter-signup{list="${
     <UEmpty
       v-else
       :icon="notFound ? 'i-lucide-search-x' : forbidden ? 'i-lucide-lock' : 'i-lucide-circle-alert'"
-      :title="notFound ? t('admin.notFound', 'Newsletter not found') : forbidden ? t('admin.forbidden', 'You do not have access to newsletters') : t('admin.loadFailed', 'Newsletters could not be loaded')"
+      :title="notFound ? t('admin.notFound', 'List not found') : forbidden ? t('admin.forbidden', 'You do not have access to lists') : t('admin.loadFailed', 'Lists could not be loaded')"
       :description="errorMessage(error, '')"
-      :actions="[{ label: t('admin.backToList', 'Back to newsletters'), icon: 'i-lucide-arrow-left', color: 'neutral', variant: 'outline', to: links.adminLists() }]"
+      :actions="[{ label: t('admin.backToList', 'Back to lists'), icon: 'i-lucide-arrow-left', color: 'neutral', variant: 'outline', to: links.adminLists() }]"
     />
   </div>
 </template>

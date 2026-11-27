@@ -39,6 +39,6 @@ export async function campaignsVerifyCaptcha(event: H3Event, token: string | und
   const { captcha } = campaignsConfig(event)
   if (!captcha) return
   if (!token) throw apiError(400, 'captcha_required', 'Complete the captcha to sign up.')
-  if (!verifier) throw notConfigured('The captcha of the newsletter signup is not set up: it needs @frigear-nu/forms.')
+  if (!verifier) throw notConfigured('The captcha of the list signup is not set up: it needs @frigear-nu/forms.')
   if (!await verifier(event, captcha, token)) throw apiError(400, 'captcha_failed', 'The captcha could not be verified. Please try again.')
 }

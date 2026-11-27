@@ -1,8 +1,8 @@
 # @frigear-nu/campaigns
 
-Newsletters people sign up to, also without an account: lists with double opt-in by email or SMS, a stored consent
-proof per subscription, one-click unsubscribe links, the `<NewsletterSignup>` component and the staff pages for the
-lists. Every message goes through [notify](../notify), on the drivers the app sets.
+Lists people sign up to, also without an account (the readers of your news, the volunteers of an event, the members
+of a club), with double opt-in by email or SMS, a stored consent proof per subscription, one-click unsubscribe links,
+the `<ListSignup>` component and the staff pages for the lists. Every message goes through [notify](../notify), on the drivers the app sets.
 
 - Tables `campaign_lists`, `campaign_contacts`, `campaign_subscriptions`, `campaigns`, `campaign_links`,
   `campaign_deliveries` and `campaign_clicks` (sqlite and postgresql).
@@ -11,11 +11,11 @@ lists. Every message goes through [notify](../notify), on the drivers the app se
   and `POST /api/campaigns/unsubscribe/:token` (RFC 8058 one-click).
 - `GET`/`PATCH /api/campaigns/me/subscriptions` for the signed-in user (`campaigns:subscriptions`).
 - Staff routes under `/api/admin/campaigns/lists` (`campaigns:manage`; addresses need `campaigns:pii`).
-- Pages `/newsletter/confirm`, `/newsletter/unsubscribe` (both act on a button, never on opening the link),
-  `/account/newsletters`, and with `@frigear-nu/admin` `/admin/campaigns`, `/admin/campaigns/:id`,
+- Pages `/subscriptions/confirm`, `/subscriptions/unsubscribe` (both act on a button, never on opening the link),
+  `/account/subscriptions`, and with `@frigear-nu/admin` `/admin/campaigns`, `/admin/campaigns/:id`,
   `/admin/campaigns/lists` and `/admin/campaigns/lists/:id` (one "Campaigns" item in the admin sidebar).
 - The `campaigns-confirm` and `campaigns-message` email templates (with `@frigear-nu/email-templates`).
-- Campaigns: newsletters to list subscribers (email, SMS) and messages to users (email, SMS, push; the
+- Campaigns to lists (their subscribers, by email or SMS) and to people (users, by email, SMS or push; the
   `campaigns.message` notify topic, or `important` past the user's choices). Staff routes under `/api/admin/campaigns`
   (drafts, preview, send, schedule, cancel, stats, deliveries with `campaigns:pii`, a people lookup for the form); the `campaigns:deliver` task sends
   them in batches every minute, with tracked short links (`@frigear-nu/short-links`), an optional open pixel

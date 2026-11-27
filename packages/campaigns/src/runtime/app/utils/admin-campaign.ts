@@ -73,7 +73,7 @@ export const CAMPAIGN_STATUSES = ['draft', 'scheduled', 'sending', 'sent', 'canc
 /** Badge colours past `statusColor`'s defaults (`scheduled` is already amber, `draft` and `cancelled` neutral). */
 export const CAMPAIGN_STATUS_COLORS = { sending: 'info', sent: 'success' } as const
 
-/** Grant kinds a message cannot go to: everyone is a newsletter's audience. */
+/** Grant kinds a message cannot go to: everyone is the audience of a campaign to lists. */
 export const CAMPAIGN_EXCLUDED_GRANT_KINDS = ['public', 'signed-in'] as const
 
 // --- Numbers ---------------------------------------------------------------------------------------------------------
@@ -132,7 +132,7 @@ export type CampaignFormState = {
   kind: CampaignKind
   name: string
   channels: CampaignSendChannel[]
-  /** A newsletter's lists. */
+  /** The lists of a campaign to lists. */
   listIds: string[]
   /** A message's people (user ids). */
   userIds: number[]
@@ -269,7 +269,7 @@ export function campaignFormSchema(t: T) {
   }).superRefine((state, ctx) => {
     const allowed = campaignKindChannels(state.kind)
     if (state.channels.some(channel => !allowed.includes(channel))) {
-      ctx.addIssue({ code: 'custom', path: ['channels'], message: t('campaign.form.channelsKind', 'A newsletter goes out by email and SMS only.') })
+      ctx.addIssue({ code: 'custom', path: ['channels'], message: t('campaign.form.channelsKind', 'A campaign to lists goes out by email and SMS only.') })
     }
     const pairs: Array<[CampaignSendChannel, Array<[keyof CampaignFormState, string]>]> = [
       ['email', [['emailSubject', t('campaign.form.emailSubjectRequired', 'Write the subject of the email.')], ['emailBody', t('campaign.form.emailBodyRequired', 'Write the text of the email.')]]],

@@ -46,7 +46,7 @@ async function unsubscribe() {
           {{ t('unsubscribe.title', 'Unsubscribe') }}
         </h1>
         <p class="text-sm text-muted">
-          {{ t('unsubscribe.description', 'Stop getting a newsletter.') }}
+          {{ t('unsubscribe.description', 'Stop getting messages from a list.') }}
         </p>
       </div>
       <UAlert
@@ -63,8 +63,8 @@ async function unsubscribe() {
         color="success"
         variant="subtle"
         :title="t('unsubscribe.done', 'You are unsubscribed from {list}', { list: tr(listResult.list.name) })"
-        :description="t('unsubscribe.doneDescription', 'You will not get it any more. You can sign up again at any time.')"
-        :actions="links.account() ? [{ label: t('confirm.manage', 'Manage your newsletters'), to: links.account(), color: 'neutral', variant: 'outline' }] : []"
+        :description="t('unsubscribe.doneDescription', 'You will not get its messages any more. You can sign up again at any time.')"
+        :actions="links.account() ? [{ label: t('confirm.manage', 'Manage your subscriptions'), to: links.account(), color: 'neutral', variant: 'outline' }] : []"
       />
       <UEmpty
         v-else-if="!token"
@@ -82,9 +82,9 @@ async function unsubscribe() {
           :title="failureCode === 'invalid_token' ? t('unsubscribe.invalid', 'This link does not work') : t('unsubscribe.failed', 'You could not be unsubscribed')"
           :description="failureCode === 'invalid_token' ? t('unsubscribe.invalidDescription', 'Open the link from the message again, or copy all of it into the address bar.') : errorMessage(failure, '')"
         />
-        <SectionCard :title="t('unsubscribe.cardTitle', 'Unsubscribe from this newsletter')">
+        <SectionCard :title="t('unsubscribe.cardTitle', 'Unsubscribe from this list')">
           <p class="text-muted text-sm">
-            {{ t('unsubscribe.explanation', 'You will stop getting it at this address or phone number.') }}
+            {{ t('unsubscribe.explanation', 'You will stop getting its messages at this address or phone number.') }}
           </p>
           <template #footer>
             <div class="flex justify-end gap-2">

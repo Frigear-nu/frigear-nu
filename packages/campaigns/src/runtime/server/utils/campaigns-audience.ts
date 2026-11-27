@@ -6,14 +6,14 @@ import { apiError, inChunks, validationError } from '@frigear-nu/module-kit/serv
 import type { CampaignAudience, CampaignChannel, CampaignPreviewDto, CampaignSendChannel } from '../../../types'
 import type { CampaignRow } from './campaigns-campaigns'
 
-// Who a campaign reaches. A newsletter: the active subscriptions of its lists on its channels, each contact once per
+// Who a campaign reaches. To lists: the active subscriptions of its lists on its channels, each contact once per
 // channel. A message: the users of its `userIds` and the members of its grants (`grantsMembers`), each once.
 
 const notResolved = () => apiError(400, 'audience_not_resolved', 'Nobody matches this audience: its grants list no people. Check the roles, teams or operations, or send to explicit userIds.')
 
 /**
  * The user ids (as text) a message's audience stands for. The grants are checked first: an unknown kind or a reference
- * that does not exist is a 400, and so is `public` or `signed-in` (a message to everyone is a newsletter). An audience
+ * that does not exist is a 400, and so is `public` or `signed-in` (to reach everyone, send to lists). An audience
  * that lists nobody is 400 `audience_not_resolved`, so the sender finds out instead of believing it went out.
  */
 export async function campaignsResolveUserAudience(event: H3Event, audience: CampaignAudience): Promise<string[]> {
@@ -30,12 +30,12 @@ export async function campaignsResolveUserAudience(event: H3Event, audience: Cam
   return ids.sort((a, b) => Number(a) - Number(b))
 }
 
-/** The list channels of a newsletter's channels (push never reaches a list). */
+/** The list channels of a campaign's channels (push never reaches a list). */
 export const campaignsListChannels = (channels: readonly CampaignSendChannel[]): CampaignChannel[] =>
   channels.filter((channel): channel is CampaignChannel => channel === 'email' || channel === 'sms')
 
 /**
- * The next contacts of a newsletter's audience after `afterContactId` (in id order), with their active subscriptions on
+ * The next contacts of the audience of a campaign to lists after `afterContactId` (in id order), with their active subscriptions on
  * the campaign's lists and channels. Paging by contact keeps every channel of a contact in the same page.
  */
 export async function campaignsAudienceContactsPage(row: CampaignRow, afterContactId: string | null, limit: number) {
@@ -61,7 +61,7 @@ export async function campaignsAudienceContactsPage(row: CampaignRow, afterConta
 }
 
 /**
- * How many recipients each channel would reach now. A newsletter counts the contacts with an active subscription per
+ * How many recipients each channel would reach now. A campaign to lists counts the contacts with an active subscription per
  * channel; a message counts the users of its audience on every channel it uses (their choices and addresses decide at
  * send time, so it is the most it can reach).
  */
@@ -84,11 +84,11 @@ export async function campaignsPreview(event: H3Event, row: CampaignRow): Promis
   }
 }
 
-/** 400 `validation_failed` when a newsletter names a list that does not exist. */
+/** 400 `validation_failed` when a campaign names a list that does not exist. */
 export async function campaignsCheckLists(listIds: readonly string[]): Promise<void> {
   if (!listIds.length) return
   const found = await inChunks([...new Set(listIds)], ids => db.select({ id: schema.campaignLists.id }).from(schema.campaignLists).where(inArray(schema.campaignLists.id, ids)))
   const known = new Set(found.map(entry => entry.id))
   const missing = listIds.filter(id => !known.has(id))
-  if (missing.length) throw validationError(missing.map(id => ({ path: ['audience', 'listIds'], message: `Unknown newsletter ${id}.` })))
+  if (missing.length) throw validationError(missing.map(id => ({ path: ['audience', 'listIds'], message: `Unknown list ${id}.` })))
 }

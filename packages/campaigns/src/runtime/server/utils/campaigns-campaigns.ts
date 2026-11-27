@@ -54,7 +54,7 @@ export const campaignsListQuery = pageQuery({
   filters: {
     status: z.enum(['all', 'draft', 'scheduled', 'sending', 'sent', 'cancelled']).default('all'),
     kind: z.enum(['all', 'newsletter', 'message']).default('all'),
-    /** Only the campaigns whose audience names this newsletter (`all`: any). */
+    /** Only the campaigns whose audience names this list (`all`: any). */
     listId: z.string().trim().min(1).max(64).regex(/^[\w-]+$/).default('all'),
   },
 })

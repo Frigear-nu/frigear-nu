@@ -5,7 +5,7 @@ import { computed, useCampaignsLinks, useModuleT } from '#imports'
 defineOptions({ name: 'CampaignsAdminHeading' })
 
 /**
- * The heading of the campaigns admin area: one title for campaigns and newsletter lists, the page's primary action
+ * The heading of the campaigns admin area: one title for campaigns and lists, the page's primary action
  * (`#actions`), then tabs linking the two pages. A tab whose page is turned off (`settings.pages`) is left out.
  */
 defineSlots<{
@@ -21,7 +21,7 @@ const tabs = computed<PageTabItem[]>(() => {
   const lists = links.adminLists()
   return [
     ...(campaigns ? [{ label: t('heading.campaigns', 'Campaigns'), icon: 'i-lucide-send', to: campaigns, exact: true }] : []),
-    ...(lists ? [{ label: t('heading.lists', 'Newsletters'), icon: 'i-lucide-newspaper', to: lists, exact: true }] : []),
+    ...(lists ? [{ label: t('heading.lists', 'Lists'), icon: 'i-lucide-newspaper', to: lists, exact: true }] : []),
   ]
 })
 </script>
@@ -30,7 +30,7 @@ const tabs = computed<PageTabItem[]>(() => {
   <div class="flex flex-col gap-4">
     <PageHeading
       :title="t('heading.title', 'Campaigns')"
-      :description="t('heading.description', 'Newsletters and messages to subscribers and users, and the newsletter lists people sign up to.')"
+      :description="t('heading.description', 'Campaigns to the subscribers of lists and to people, and the lists people sign up to.')"
     >
       <template
         v-if="$slots.actions"

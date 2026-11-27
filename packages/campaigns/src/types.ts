@@ -1,7 +1,7 @@
 /** A text that is either one string for every language, or a map of locale -> text. */
 export type Translated = string | Record<string, string>
 
-/** The channels a newsletter reaches people on. */
+/** The channels a list reaches people on. */
 export type CampaignChannel = 'email' | 'sms'
 
 /** `pending` until the person confirms, `active`, or `unsubscribed`. */
@@ -21,11 +21,11 @@ export type CampaignCaptchaProvider = 'turnstile' | 'recaptcha' | 'hcaptcha'
 
 /** Page paths: `true` for the default path, a string for another, `false` to leave the page out. */
 export type CampaignPagesOptions = {
-  /** `/newsletter/confirm`: confirms a subscription from the link in the confirmation message. */
+  /** `/subscriptions/confirm`: confirms a subscription from the link in the confirmation message. */
   confirm?: string | boolean
-  /** `/newsletter/unsubscribe`: unsubscribes from a link in a message. */
+  /** `/subscriptions/unsubscribe`: unsubscribes from a link in a message. */
   unsubscribe?: string | boolean
-  /** `/account/newsletters`: the signed-in user's newsletters. */
+  /** `/account/subscriptions`: the signed-in user's subscriptions. */
   account?: string | boolean
   /** `/admin/campaigns/lists`, with `@frigear-nu/admin`. */
   adminLists?: string | boolean
@@ -168,7 +168,7 @@ export type CampaignSubscriptionResultDto = {
   status: CampaignSubscriptionStatus
 }
 
-/** One list on the signed-in user's newsletters page. */
+/** One list on the signed-in user's subscriptions page. */
 export type CampaignMyListDto = {
   id: string
   slug: string
@@ -189,7 +189,10 @@ export type CampaignMySubscriptionsDto = {
 
 // --- Campaigns -------------------------------------------------------------------------------------------------------
 
-/** `newsletter`: to the subscribers of lists (email, SMS). `message`: to users (email, SMS, push). */
+/**
+ * `newsletter` ("To lists"): to the subscribers of lists (email, SMS). `message` ("To people"): to users (email, SMS,
+ * push).
+ */
 export type CampaignKind = 'newsletter' | 'message'
 
 /** The channels a campaign goes out on: push only for messages to users. */
@@ -200,7 +203,7 @@ export type CampaignStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'cance
 export type CampaignDeliveryStatus = 'queued' | 'sending' | 'sent' | 'skipped' | 'failed'
 
 /**
- * Who a campaign goes to: `listIds` (a newsletter: the active subscribers of these lists, each person once per channel),
+ * Who a campaign goes to: `listIds` (a campaign to lists: the active subscribers of these lists, each person once per channel),
  * or `grants` and/or `userIds` (a message: the members of the grants, `@frigear-nu/auth`, and these users).
  */
 export type CampaignAudience = {

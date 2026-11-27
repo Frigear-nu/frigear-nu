@@ -57,14 +57,14 @@ async function campaignsPrepareSend(event: H3Event, row: CampaignRow, now: boole
     await campaignsCheckLists(row.audience.listIds ?? [])
     // Sent now to lists nobody is on: say so. A scheduled one may still gain subscribers.
     if (now && !(await campaignsPreview(event, row)).recipients) {
-      throw apiError(400, 'audience_not_resolved', 'Nobody is subscribed to these newsletters on the chosen channels.')
+      throw apiError(400, 'audience_not_resolved', 'Nobody is subscribed to these lists on the chosen channels.')
     }
   }
   return { recipientUserIds, origin: authSiteOrigin(event) }
 }
 
 /**
- * Schedules a draft for `scheduledAt` (now when left out; a newsletter sent now to lists nobody is on is 400
+ * Schedules a draft for `scheduledAt` (now when left out; a campaign sent now to lists nobody is on is 400
  * `audience_not_resolved`). 409 `not_draft` when it is not a draft any more.
  */
 export async function campaignsScheduleSend(event: H3Event, row: CampaignRow, sentBy: number | null, scheduledAt?: Date): Promise<CampaignRow> {
@@ -260,8 +260,8 @@ async function recipientLinks(ctx: CampaignContext, delivery: CampaignDeliveryRo
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error)).slice(0, 500)
 
-/** A newsletter delivery: to the contact's address, only while they are still subscribed to one of the campaign's lists. */
-async function sendNewsletterDelivery(ctx: CampaignContext, delivery: CampaignDeliveryRow): Promise<Outcome> {
+/** A delivery of a campaign to lists: to the contact's address, only while they are still subscribed to one of the campaign's lists. */
+async function sendListDelivery(ctx: CampaignContext, delivery: CampaignDeliveryRow): Promise<Outcome> {
   const { row } = ctx
   const [contact] = await db.select().from(schema.campaignContacts).where(eq(schema.campaignContacts.id, delivery.contactId ?? '')).limit(1)
   const address = delivery.channel === 'email' ? contact?.email : delivery.channel === 'sms' ? contact?.phone : null
@@ -384,7 +384,7 @@ export async function campaignsDeliverPass(options: { now?: Date, batchSize?: nu
     if (!ctx) contexts.set(campaign.id, ctx = campaignContext(campaign))
     let outcome: Outcome
     try {
-      outcome = campaign.kind === 'newsletter' ? await sendNewsletterDelivery(await ctx, delivery) : await sendMessageDelivery(await ctx, delivery)
+      outcome = campaign.kind === 'newsletter' ? await sendListDelivery(await ctx, delivery) : await sendMessageDelivery(await ctx, delivery)
     }
     catch (error) {
       console.error(`[campaigns] delivery ${delivery.id} failed`, error)

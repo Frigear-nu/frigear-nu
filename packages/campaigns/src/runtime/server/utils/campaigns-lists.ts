@@ -20,14 +20,14 @@ export async function findCampaignListBySlug(slug: string): Promise<CampaignList
 /** A public list by its slug, or 404: a list that is not public is not found either. */
 export async function getPublicCampaignListOr404(slug: string): Promise<CampaignListRow> {
   const row = await findCampaignListBySlug(slug)
-  if (!row || !row.public) throw notFound('Newsletter not found.')
+  if (!row || !row.public) throw notFound('List not found.')
   return row
 }
 
 /** A list by id, or 404. */
 export async function getCampaignListOr404(id: string): Promise<CampaignListRow> {
   const [row] = await db.select().from(schema.campaignLists).where(eq(schema.campaignLists.id, id)).limit(1)
-  if (!row) throw notFound('Newsletter not found.')
+  if (!row) throw notFound('List not found.')
   return row
 }
 
@@ -49,7 +49,7 @@ export async function campaignListCounts(listIds: string[]): Promise<Map<string,
   return counts
 }
 
-const slugTaken = () => conflict('Another newsletter has that URL name.', { field: 'slug' })
+const slugTaken = () => conflict('Another list has that URL name.', { field: 'slug' })
 
 /** Creates a list; 409 `conflict` when the slug is taken. */
 export async function createCampaignList(input: ListCreate): Promise<CampaignListRow> {

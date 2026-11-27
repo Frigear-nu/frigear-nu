@@ -1,7 +1,7 @@
 {
   "name": "@frigear-nu/campaigns",
   "version": "0.0.0",
-  "description": "Newsletters and messages for the frigear ecosystem: lists people sign up to with double opt-in and stored consent, campaigns to subscribers and users by email, SMS and push, sent in batches with click and open tracking and one-click unsubscribe.",
+  "description": "Lists and campaigns for the frigear ecosystem: lists people sign up to with double opt-in and stored consent, campaigns to their subscribers and to users by email, SMS and push, sent in batches with click and open tracking and one-click unsubscribe.",
   "homepage": "https://docs.frigear.dev/modules/communication/campaigns",
   "repository": {
     "type": "git",

@@ -78,7 +78,7 @@ const columns = computed<TableColumn<CampaignListDto>[]>(() => [
       <template #actions>
         <UButton
           icon="i-lucide-plus"
-          :label="t('admin.create', 'Create newsletter')"
+          :label="t('admin.create', 'Create list')"
           @click="create"
         />
       </template>
@@ -87,7 +87,7 @@ const columns = computed<TableColumn<CampaignListDto>[]>(() => [
     <UEmpty
       v-if="error"
       :icon="forbidden ? 'i-lucide-lock' : 'i-lucide-circle-alert'"
-      :title="forbidden ? t('admin.forbidden', 'You do not have access to newsletters') : t('admin.loadFailed', 'Newsletters could not be loaded')"
+      :title="forbidden ? t('admin.forbidden', 'You do not have access to lists') : t('admin.loadFailed', 'Lists could not be loaded')"
       :description="errorMessage(error, '')"
       :actions="forbidden ? [] : [{ label: t('tryAgain', 'Try again'), icon: 'i-lucide-rotate-ccw', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
     />
@@ -106,9 +106,9 @@ const columns = computed<TableColumn<CampaignListDto>[]>(() => [
           <UEmpty
             variant="naked"
             icon="i-lucide-newspaper"
-            :title="t('admin.empty', 'No newsletters yet')"
-            :description="t('admin.emptyDescription', 'Create a newsletter, then add its signup to a page.')"
-            :actions="[{ label: t('admin.create', 'Create newsletter'), icon: 'i-lucide-plus', onClick: create }]"
+            :title="t('admin.empty', 'No lists yet')"
+            :description="t('admin.emptyDescription', 'Create a list, then add its signup to a page.')"
+            :actions="[{ label: t('admin.create', 'Create list'), icon: 'i-lucide-plus', onClick: create }]"
           />
         </template>
       </UTable>
