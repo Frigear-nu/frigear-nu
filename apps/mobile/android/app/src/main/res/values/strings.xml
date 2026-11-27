@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Frigear</string>
+    <string name="title_activity_main">Frigear</string>
+    <string name="package_name">nu.frigear.app</string>
+    <string name="custom_url_scheme">nu.frigear.app</string>
+</resources>
