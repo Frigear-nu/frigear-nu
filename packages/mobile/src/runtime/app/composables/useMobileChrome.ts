@@ -41,6 +41,7 @@ export function useMobileChrome() {
     suppressed: suppressed.value,
     splash: splash.value,
     appName: config.appName,
+    pullToRefresh: config.pullToRefresh,
     translate,
   }))
 

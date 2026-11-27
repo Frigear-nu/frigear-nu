@@ -64,6 +64,8 @@ declare module '#app' {
     'mobile:deep-link': (ctx: MobileDeepLinkContext) => void | Promise<void>
     /** The Android back button, before the module acts. `preventDefault()` when you handled it. */
     'mobile:back-button': (ctx: MobileBackButtonContext) => void | Promise<void>
+    /** The user pulled to refresh. The spinner stays until every handler has resolved (10 s at most). */
+    'mobile:refresh': () => void | Promise<void>
   }
 }
 
@@ -102,6 +104,7 @@ export default defineNuxtModule<ModuleOptions>({
     nativeChrome: 'ios',
     keepTabsAlive: true,
     tabTransitionDuration: 180,
+    pullToRefresh: true,
     native: { statusBar: true, keyboardAccessoryBar: true, switchHaptics: true, backButton: true },
     appearance: { iosTypeScale: true, tapHighlight: true, toasterOffset: true },
     dev: { lanHost: true },
@@ -235,6 +238,7 @@ export default defineNuxtModule<ModuleOptions>({
       layout: options.layout ?? 'mobile',
       keepTabsAlive: options.keepTabsAlive !== false,
       tabTransitionDuration: Math.max(0, options.tabTransitionDuration ?? 180),
+      pullToRefresh: options.pullToRefresh !== false,
       toasterOffset: options.appearance?.toasterOffset !== false,
       native: {
         statusBar: options.native?.statusBar !== false,
@@ -362,6 +366,7 @@ declare module '#mobile/tabs' {
       { name: 'useMobileToaster', from: resolver.resolve('./runtime/app/composables/useMobileToaster') },
       { name: 'useNative', from: resolver.resolve('./runtime/app/composables/useNative') },
       { name: 'onTabEnter', from: resolver.resolve('./runtime/app/composables/onTabEnter') },
+      { name: 'onMobileRefresh', from: resolver.resolve('./runtime/app/composables/onMobileRefresh') },
       { name: 'useMobileSplash', from: resolver.resolve('./runtime/app/composables/useMobileSplash') },
       { name: 'useMobileHost', from: resolver.resolve('./runtime/app/composables/useMobileHost') },
     ])

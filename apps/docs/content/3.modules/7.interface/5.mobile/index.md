@@ -136,6 +136,7 @@ Options go under the `mobile` key.
 | `nativeChrome` | `'ios' \| 'all' \| false` | `'ios'` | Where the navbar and tab bar are native: iOS, all platforms or never. |
 | `keepTabsAlive` | `boolean` | `true` | Each tab's own page stays as it was left between tab switches. See [Tab switching](#tab-switching). |
 | `tabTransitionDuration` | `number` | `180` | The crossfade between tabs with the native tab bar, in ms. `0` for none. |
+| `pullToRefresh` | `boolean` | `true` | Native pull to refresh on every page. See [Pull to refresh](#pull-to-refresh). |
 | `native.statusBar` | `boolean` | `true` | The status bar text follows the colour mode. |
 | `native.keyboardAccessoryBar` | `boolean` | `true` | iOS: the Done bar above the keyboard. |
 | `native.switchHaptics` | `boolean` | `true` | A tick when a `role="switch"` is tapped. |
@@ -307,6 +308,7 @@ definePageMeta({
     navbar: false, // no navbar or header
     tab: 'bills', // select this tab
     back: true, // back button (default: on pages below a tab's root page)
+    pullToRefresh: false, // no pull to refresh here (default: on every page)
   },
 })
 ```
@@ -362,6 +364,7 @@ The composables and components below are auto-imported.
 | `useMobileNavbarActions(actions)` | Navbar buttons of the calling page, from a ref or a getter. See [Navbar actions](#navbar-actions). |
 | `useNative()` | See [Native features](#native-features). |
 | `onTabEnter(fn)` | Runs `fn` when the user comes back to a page kept alive. See [Tab switching](#tab-switching). |
+| `onMobileRefresh(fn)` | Runs `fn` when the user pulls to refresh the calling page. See [Pull to refresh](#pull-to-refresh). |
 | `useMobileToaster()` | Props for `<UApp :toaster>`. |
 | `useMobileHost()` | `enabled`, `base`, `url(path)` and `open(path or URL)`: the website of [`host`](#pages-on-the-website). |
 | `useMobileSplash()` | `visible`, `hold()`, `waitFor(promise)` and `hide()`: see [Splash screen](/modules/interface/mobile/splash-screen#keep-it-up). |
@@ -415,6 +418,34 @@ onTabEnter(() => refresh())
 ::note
 The crossfade uses the plugin's `beginTransition`, which the starters' version (8.16) has. A plugin version without
 it switches tabs without a crossfade.
+::
+
+### Pull to refresh
+
+With the native chrome, the user can pull any page down to refresh it, as in other iOS apps. A pull refreshes
+every `useAsyncData` and `useFetch` on screen (`refreshNuxtData()`), and runs the `onMobileRefresh` handlers of the
+page and the `mobile:refresh` hook, all at once. The spinner stays until they have all finished, and ten seconds at
+most, so a request that hangs never leaves it up.
+
+```vue
+<script setup lang="ts">
+const { data: bills } = await useApi<Bill[]>('/api/bills') // refreshed on its own
+const store = useDraftsStore()
+onMobileRefresh(() => store.reload()) // anything that is not useAsyncData or useFetch
+</script>
+```
+
+- **Where it is on.** On every page. A page opts out with `definePageMeta({ mobile: { pullToRefresh: false } })`
+  (a form, say, where a pull would lose input), and `pullToRefresh: false` turns it off for the app. It is off while a
+  dialog, slideover, drawer or the splash screen is up.
+- **Only the page on screen.** `onMobileRefresh` handlers of pages kept alive in other tabs do not run.
+- **Feedback.** iOS gives a haptic when the pull arms the refresh. On Android (`nativeChrome: 'all'`) the module adds a
+  light one.
+- **No browser fallback.** In a browser, and on Android without `nativeChrome: 'all'`, there is no pull to refresh.
+
+::note
+Pull to refresh needs `@capgo/capacitor-native-navigation` 8.11 or newer. An app built with an older version keeps
+working without it.
 ::
 
 ### Pages on the website
@@ -493,6 +524,7 @@ Your app answers these runtime [hooks](/guide/concepts/glossary) with `useNuxtAp
 | --- | --- | --- |
 | `mobile:deep-link` | `{ url, path, preventDefault }` | A custom scheme or universal link opened the app. OAuth callbacks never reach it. |
 | `mobile:back-button` | `{ canGoBack, preventDefault }` | The Android back button was pressed, before the module acts. |
+| `mobile:refresh` | none | The user pulled to refresh. The spinner waits for your handler. See [Pull to refresh](#pull-to-refresh). |
 
 **`mobile:deep-link`.** Change `path` to route elsewhere, or call `preventDefault()` to handle the link yourself. Deep
 links need `@capacitor/app` and a scheme in `deepLinks.schemes` or a host in `deepLinks.hosts`. The `native` command

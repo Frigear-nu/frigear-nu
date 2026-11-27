@@ -96,6 +96,11 @@ export interface MobilePageMeta {
   back?: boolean
   /** Navbar buttons on this page, e.g. a settings gear. Reactive ones: `useMobileNavbarActions()`. */
   actions?: MobileNavbarAction[]
+  /**
+   * Native pull to refresh on this page (with the native chrome). `false` turns it off here. Default: the app's
+   * `pullToRefresh` option.
+   */
+  pullToRefresh?: boolean
 }
 
 export type NativeChromeOption = 'ios' | 'all' | false
@@ -157,6 +162,12 @@ export interface ModuleOptions {
   keepTabsAlive?: boolean
   /** Length of the crossfade between tabs with the native tab bar, in ms. `0` switches without one. Default `180`. */
   tabTransitionDuration?: number
+  /**
+   * Native pull to refresh on every page (with the native chrome): it refreshes the page's `useAsyncData` /
+   * `useFetch` data and runs `onMobileRefresh()` handlers and the `mobile:refresh` hook. A page opts out with
+   * `definePageMeta({ mobile: { pullToRefresh: false } })`. Default `true`.
+   */
+  pullToRefresh?: boolean
   native?: {
     /** Status bar text follows the app's colour mode. Default `true`. */
     statusBar?: boolean
@@ -243,6 +254,7 @@ export interface MobilePublicConfig {
   layout: string | false
   keepTabsAlive: boolean
   tabTransitionDuration: number
+  pullToRefresh: boolean
   toasterOffset: boolean
   native: { statusBar: boolean, keyboardAccessoryBar: boolean, switchHaptics: boolean, backButton: boolean }
   deepLinks: { hosts: string[], schemes: string[] }

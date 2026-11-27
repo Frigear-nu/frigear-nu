@@ -115,6 +115,11 @@ export interface NativeNavigationPluginLike {
   beginTransition?(options: { direction?: NativeNavigationTransitionDirection, duration?: number }): Promise<{ id: string }>
   /** Animates the snapshot away: a crossfade for `tab`. */
   finishTransition?(options: { id?: string, direction?: NativeNavigationTransitionDirection, duration?: number }): Promise<unknown>
+  /** Turns native pull to refresh on or off (missing in plugin versions before 8.11). */
+  setPullToRefresh?(options: { enabled: boolean, tintColor?: string }): Promise<unknown>
+  /** Hides the pull to refresh spinner. */
+  endPullToRefresh?(): Promise<unknown>
+  addListener(event: 'pullToRefresh', listener: () => void): Promise<ListenerHandle>
   addListener(event: 'tabSelect', listener: (event: { id: string }) => void): Promise<ListenerHandle>
   addListener(event: 'navbarBack', listener: (event: unknown) => void): Promise<ListenerHandle>
   addListener(event: 'navbarItemTap', listener: (event: { id: string, placement?: 'left' | 'right' }) => void): Promise<ListenerHandle>

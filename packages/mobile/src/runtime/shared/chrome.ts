@@ -1,4 +1,5 @@
 import type { MobileNavbarAction, MobilePageMeta, MobileTab, NativeChromeOption } from '../../types'
+import { wantsPullToRefresh } from './pull-to-refresh'
 import { findActiveTab, isTabRoot } from './tabs'
 
 /** Overlays Nuxt UI renders open: modals, slideovers, drawers (dropdown menus and popovers are not dialogs). */
@@ -25,6 +26,8 @@ export interface ChromeInput {
   /** The splash screen is up: no navbar or tab bar (the native ones draw above the WebView). */
   splash?: boolean
   appName: string
+  /** The app's `pullToRefresh` option: pull to refresh on every page. */
+  pullToRefresh?: boolean
   /** Translates an i18n key, returning `fallback` when there is none. */
   translate?: (key: string | undefined, fallback: string) => string
 }
@@ -42,6 +45,8 @@ export interface ChromeState {
   activeTab: MobileTab | null
   tabBar: { visible: boolean }
   header: { visible: boolean, title: string, largeTitle: boolean, back: boolean, actions: ChromeAction[] }
+  /** Native pull to refresh on this page: not while an overlay or the splash screen is up. */
+  pullToRefresh: boolean
 }
 
 /** Whether the native bars draw the chrome on this platform. */
@@ -94,5 +99,6 @@ export function resolveChrome(input: ChromeInput): ChromeState {
       back: page.back ?? (activeTab ? !root : tabs.length > 0),
       actions: resolveNavbarActions([page.actions, input.actions], translate),
     },
+    pullToRefresh: wantsPullToRefresh(input.pullToRefresh, page.pullToRefresh) && input.overlays === 0 && !input.splash,
   }
 }
