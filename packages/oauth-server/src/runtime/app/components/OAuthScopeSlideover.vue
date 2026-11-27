@@ -30,6 +30,7 @@ const schema = z.object({
   label: z.string(),
   description: z.string(),
   icon: z.string(),
+  service: z.string(),
   permissions: z.array(z.string()).min(1, t('scopes.form.permissionsRequired', 'Add at least one permission.')),
   isActive: z.boolean(),
 })
@@ -41,6 +42,7 @@ const state = reactive<FormState>({
   label: props.scope?.label ?? '',
   description: props.scope?.description ?? '',
   icon: props.scope?.icon ?? '',
+  service: props.scope?.service ?? '',
   permissions: [...(props.scope?.permissions ?? [])],
   isActive: props.scope?.isActive ?? true,
 })
@@ -88,6 +90,7 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
     label: value.label || null,
     description: value.description || null,
     icon: value.icon || null,
+    service: value.service.trim() || null,
     permissions: value.permissions,
     isActive: value.isActive,
   }))
@@ -182,6 +185,17 @@ async function onSubmit(event: FormSubmitEvent<FormState>) {
           v-model="state.icon"
           class="w-full"
           placeholder="i-lucide-key-round"
+        />
+      </UFormField>
+      <UFormField
+        name="service"
+        :label="t('scopes.form.service', 'Service')"
+        :description="t('scopes.form.serviceHint', 'The consent screen shows the scopes of one service as one row, e.g. “Inventory”. Leave it empty for scopes about the account itself.')"
+      >
+        <UInput
+          v-model="state.service"
+          class="w-full"
+          :placeholder="t('scopes.form.servicePlaceholder', 'Inventory')"
         />
       </UFormField>
       <UFormField
