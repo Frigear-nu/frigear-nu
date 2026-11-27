@@ -60,6 +60,37 @@ export const appGlobDirs = async (root: string) => {
     .filter(dir => dir !== 'packages'))]
 }
 
+/**
+ * The names of the workspace's packages: the `package.json` of every folder a one-level glob of `pnpm-workspace.yaml`
+ * covers (`apps/*`, `packages/*`), folders in `skip` left out.
+ */
+export const workspacePackageNames = async (root: string, skip: string[] = []) => {
+  const yamlPath = join(root, 'pnpm-workspace.yaml')
+  const globs = existsSync(yamlPath) ? workspaceGlobs(await readFile(yamlPath, 'utf-8')) : []
+  const parents = [...new Set(globs
+    .map(glob => glob.replace(/^\.\//, '').replace(/\/+$/, ''))
+    .filter(glob => /^[^*!]+\/\*{1,2}$/.test(glob))
+    .map(glob => resolve(root, glob.replace(/\/\*{1,2}$/, ''))))]
+  const names = new Set<string>()
+  for (const parent of parents) {
+    for (const dir of await listDirs(parent)) {
+      if (skip.some(skipped => resolve(skipped) === resolve(dir))) continue
+      const name = (await readPackage(dir))?.name
+      if (name) names.add(name)
+    }
+  }
+  return names
+}
+
+/** `name` when it is not taken, else `<name>-app`, then `<name>-app-2`, ... */
+export const freePackageName = (name: string, taken: Set<string>) => {
+  if (!taken.has(name)) return name
+  for (let n = 1; ; n++) {
+    const candidate = n === 1 ? `${name}-app` : `${name}-app-${n}`
+    if (!taken.has(candidate)) return candidate
+  }
+}
+
 export interface AppsDir {
   /** Absolute path of the folder new apps go into. */
   dir: string

@@ -4,7 +4,7 @@ import { readPackageJSON, writePackageJSON } from 'pkg-types'
 import { installDeps, runPackageScript } from '../utils/install.ts'
 import { toPosix } from '../utils/refactor.ts'
 import { downloadTemplateToDir } from '../utils/template.ts'
-import { findWorkspaceRoot, hasPackage, listDirs, packageScope, readPackage, resolveAppsDir, toPackageName } from '../utils/workspace.ts'
+import { findWorkspaceRoot, freePackageName, hasPackage, listDirs, packageScope, readPackage, resolveAppsDir, toPackageName, workspacePackageNames } from '../utils/workspace.ts'
 import { isTemplateSource, platformRegistry, type NextStepsContext, type PlatformDefinition, type PlatformRegistry } from './define.ts'
 import { PlatformError } from './errors.ts'
 
@@ -140,10 +140,19 @@ export const addPlatform = async (options: AddPlatformOptions): Promise<AddPlatf
     throw new PlatformError('DOWNLOAD_FAILED', `Failed to copy ${source} to ${appDir}: ${error instanceof Error ? error.message : String(error)}`, { cause: error })
   })
 
-  const packageName = scope ? `${scope}/${appName}` : appName
+  // A name that a workspace package, or a package the app depends on, already has (`platform add mobile` in a workspace
+  // scoped `@frigear-nu`, next to `@frigear-nu/mobile`) would clash: the app gets `<name>-app` instead.
+  const wanted = scope ? `${scope}/${appName}` : appName
+  let packageName = wanted
   if (hasPackage(appDir)) {
     const path = join(appDir, 'package.json')
     const pkg = await readPackageJSON(path)
+    const taken = await workspacePackageNames(root, [appDir])
+    for (const deps of [pkg.dependencies, pkg.devDependencies, pkg.peerDependencies]) {
+      for (const name of Object.keys(deps ?? {})) taken.add(name)
+    }
+    packageName = freePackageName(wanted, taken)
+    if (packageName !== wanted) logger.warn(`${wanted} is already a package of the workspace or a dependency of the app: the app's package is named ${packageName}.`)
     const frigear = pkg.frigear && typeof pkg.frigear === 'object' ? pkg.frigear as Record<string, unknown> : {}
     await writePackageJSON(path, { ...pkg, name: packageName, frigear: { ...frigear, platform: platform.name } })
   }
