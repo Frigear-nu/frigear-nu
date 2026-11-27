@@ -251,13 +251,10 @@ export default defineNuxtModule<ModuleOptions>({
           .map((name) => {
             // The one of `@nuxtjs/mdc`: another module may register a `parseMarkdown` of its own under the same name.
             const from = imports.find(entry => entry.name === name && entry.from.includes('@nuxtjs/mdc'))?.from
-            // Loaded on the first call: the parser's own imports lead back to the app's auto-imports, and a static import
-            // here would make a cycle with top-level awaits that never settles. The build reports the `import()` as
-            // INEFFECTIVE_DYNAMIC_IMPORT (MDC's auto-imports bundle the files anyway); the lazy load is about evaluation
-            // order, not code splitting, so the warning stays.
-            // One import shared by concurrent first calls (two FAQ components rendering at once).
+            // Imported statically: MDC's own auto-imports already put these files in the bundle, so a lazy `import()` would
+            // split nothing (Rollup's INEFFECTIVE_DYNAMIC_IMPORT). The parser loads the app's MDC config lazily itself.
             return from
-              ? `let ${name}Module\nexport const ${name} = (...args) => (${name}Module ??= import(${JSON.stringify(from)})).then(module => module.${name}(...args))`
+              ? `export { ${name} } from ${JSON.stringify(from)}`
               : `export const ${name} = undefined`
           })
           .join('\n')
