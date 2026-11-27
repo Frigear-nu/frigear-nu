@@ -36,6 +36,11 @@ export const campaignLists = sqliteTable('campaign_lists', {
   /** A forms form whose submissions sign people up (`forms.id`), and which of its fields hold what. */
   formId: text(),
   formFields: text({ mode: 'json' }).$type<CampaignFormFields>(),
+  /**
+   * New accounts and this list: `off`, `offer` (an unticked box on the registration form) or `auto` (every new account
+   * is added, for lists that are not marketing).
+   */
+  signupMode: text().$type<'off' | 'offer' | 'auto'>().notNull().default('off'),
   createdAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer({ mode: 'timestamp' }).notNull().$defaultFn(() => new Date()).$onUpdateFn(() => new Date()),
 }, t => [

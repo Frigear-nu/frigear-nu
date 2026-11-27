@@ -9,8 +9,11 @@ export const useRegistration = () => {
   const pending = ref(false)
   const error = ref<string | null>(null)
 
-  /** `redirect`: where the emailed verification link lands (a path on this site; the server ignores anything else). */
-  async function register(payload: { name: string, email: string, password: string, redirect?: string }) {
+  /**
+   * `redirect`: where the emailed verification link lands (a path on this site; the server ignores anything else).
+   * `extras`: what the registration form's widgets (`auth.register`) add, keyed by module name.
+   */
+  async function register(payload: { name: string, email: string, password: string, redirect?: string, extras?: Record<string, unknown> }) {
     pending.value = true
     error.value = null
 

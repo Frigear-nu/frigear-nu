@@ -22,3 +22,12 @@ export const patchTestUser = (id: string, patch: Partial<TestUser>) => {
   if (user) store().set(id, { ...user, ...patch })
 }
 export const deleteTestUser = (id: string) => store().delete(id)
+
+/** A user the registration form creates (`auth:user:created` test): the next free id from 100 up. */
+export const createTestUser = (values: { name: string, email: string }) => {
+  const id = 100 + [...store().keys()].filter(key => Number(key) >= 100).length
+  const user: TestUser = { id, name: values.name, role: 'user', email: values.email }
+  store().set(String(id), user)
+  return user
+}
+export const findTestUserByEmail = (email: string) => [...store().values()].find(user => user.email === email) ?? null

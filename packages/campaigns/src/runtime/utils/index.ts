@@ -15,3 +15,4 @@ export function translate(value: Translated | null | undefined, locale = 'en', f
   if (typeof value === 'string') return value
   return value[locale] || (fallback ? value[fallback] : '') || value.en || Object.values(value).find(Boolean) || ''
 }
+export * from './forms'

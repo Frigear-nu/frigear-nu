@@ -40,7 +40,7 @@
       "api": "API",
       "admin": "Personale",
       "forms": "Formular",
-      "account": "Kontoside"
+      "account": "Konto"
     },
     "tryAgain": "Prøv igen",
     "admin": {
@@ -111,18 +111,49 @@
         "doubleOptIn": "Bed nye abonnenter om at bekræfte",
         "doubleOptInHelp": "En ny abonnent bekræfter først med et link i en e-mail eller SMS. Lad det være slået til, medmindre I indsamler samtykke et andet sted.",
         "public": "Offentlig tilmelding",
-        "publicHelp": "Alle kan tilmelde sig med den offentlige tilmelding, og brugere, der er logget ind, ser den på deres kontoside."
+        "publicHelp": "Alle kan tilmelde sig med den offentlige tilmelding, og brugere, der er logget ind, ser den på deres kontoside.",
+        "signupMode": "Nye konti",
+        "signupModeHelp": "Om folk, der opretter en konto, får listen tilbudt eller bliver tilføjet til den.",
+        "form": "Formular",
+        "formHelp": "Besvarelser af denne formular tilmelder folk, når de sætter kryds i samtykkefeltet, ligesom tilmeldingen: de bekræfter først, når listen beder om det."
       },
       "form": {
         "nameRequired": "Giv listen et navn.",
         "slugRequired": "Giv listen et URL-navn.",
         "slugInvalid": "Brug små bogstaver, tal og bindestreger.",
-        "channelsRequired": "Vælg mindst én kanal."
+        "channelsRequired": "Vælg mindst én kanal.",
+        "noForm": "Ingen formular",
+        "noField": "Spørges ikke",
+        "fields": {
+          "consent": "Samtykkefelt",
+          "consentHelp": "En afkrydsningsboks, folk sætter kryds i for at give samtykke. Besvarelser uden kryds tilmelder ingen.",
+          "email": "E-mailfelt",
+          "phone": "Telefonfelt",
+          "name": "Navnefelt"
+        },
+        "formConsentRequired": "Vælg feltet, folk sætter kryds i for at give samtykke.",
+        "formAddressRequired": "Vælg feltet med e-mailadressen eller telefonnummeret."
       },
       "sentTitle": "Sendt til denne liste",
       "sentDescription": "De kampagner, der sendes eller blev sendt til listen, nyeste først. Hver gemmer sine tekster og hvem der fik den.",
       "sentEmpty": "Intet sendt til listen endnu",
-      "sentEmptyDescription": "Kampagner til listen vises her, med hvad der blev sendt, og hvordan det gik."
+      "sentEmptyDescription": "Kampagner til listen vises her, med hvad der blev sendt, og hvordan det gik.",
+      "signupModes": {
+        "off": "Fra",
+        "offHelp": "Nye konti bliver ikke spurgt om denne liste.",
+        "offer": "Tilbyd ved oprettelse",
+        "offerHelp": "Formularen til oprettelse viser en tom afkrydsningsboks med samtykketeksten. Kun dem, der sætter kryds, bliver tilføjet.",
+        "auto": "Tilføj nye konti automatisk",
+        "autoHelp": "Alle nye konti bliver tilføjet uden at blive spurgt. Kun til lister, der ikke er markedsføring, fx praktisk information til medlemmer: I har ansvaret for at have en grund til at sende dem. Folk kan stadig afmelde sig."
+      },
+      "addAccountsAction": "Tilføj alle nuværende konti",
+      "addAccountsTitle": "Tilføj alle nuværende konti til {name}?",
+      "addAccountsNone": "Alle konti er allerede på listen eller har afmeldt sig. Ingen bliver tilføjet.",
+      "addAccountsOne": "1 konto bliver tilføjet som abonnent på e-mail. Folk, der har afmeldt sig før, bliver aldrig tilføjet igen.",
+      "addAccountsMany": "{count} konti bliver tilføjet som abonnenter på e-mail. Folk, der har afmeldt sig før, bliver aldrig tilføjet igen.",
+      "addAccountsFailed": "Kontiene kunne ikke tilføjes",
+      "addedAccountsOne": "Tilføjede 1 konto til {name}",
+      "addedAccountsMany": "Tilføjede {count} konti til {name}"
     },
     "signup": {
       "name": "Navn",
@@ -431,6 +462,10 @@
       "description": "Kampagner til abonnenter på lister og til personer, og de lister, folk tilmelder sig.",
       "lists": "Lister",
       "title": "Kampagner"
+    },
+    "register": {
+      "legend": "Lister",
+      "consentDefault": "Ja tak, send mig {name}."
     }
   }
 }

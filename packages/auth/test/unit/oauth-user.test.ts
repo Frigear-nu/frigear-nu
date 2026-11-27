@@ -42,6 +42,7 @@ vi.stubGlobal('startAuthSession', (event: unknown, user: unknown, extra: Record<
   return globals.replaceUserSession(event, { ...extra, user: globals.mapUserToSession(user) })
 })
 vi.stubGlobal('consumeLoginRedirect', () => '/')
+vi.stubGlobal('notifyAuthUserCreated', vi.fn(async () => {}))
 
 const { handleOAuthUser, isOAuthEmailVerified } = await import('../../src/runtime/server/utils/oauth')
 const event = {} as never

@@ -40,7 +40,7 @@
       "api": "API",
       "admin": "Staff",
       "forms": "Form",
-      "account": "Account page"
+      "account": "Account"
     },
     "tryAgain": "Try again",
     "admin": {
@@ -111,18 +111,49 @@
         "doubleOptIn": "Ask new subscribers to confirm",
         "doubleOptInHelp": "A new subscriber first confirms from a link in an email or SMS. Leave it on unless you collect consent elsewhere.",
         "public": "Public signup",
-        "publicHelp": "Anyone can sign up through the public signup, and signed-in users see it on their account page."
+        "publicHelp": "Anyone can sign up through the public signup, and signed-in users see it on their account page.",
+        "signupMode": "New accounts",
+        "signupModeHelp": "Whether people who create an account are offered this list, or added to it.",
+        "form": "Form",
+        "formHelp": "Submissions of this form sign people up when they tick its consent field, as the signup does: they confirm first when the list asks for it."
       },
       "form": {
         "nameRequired": "Give the list a name.",
         "slugRequired": "Give the list a URL name.",
         "slugInvalid": "Use lowercase letters, digits and dashes.",
-        "channelsRequired": "Pick at least one channel."
+        "channelsRequired": "Pick at least one channel.",
+        "noForm": "No form",
+        "noField": "Not asked",
+        "fields": {
+          "consent": "Consent field",
+          "consentHelp": "A checkbox people tick to agree. Submissions without it ticked sign nobody up.",
+          "email": "Email field",
+          "phone": "Phone field",
+          "name": "Name field"
+        },
+        "formConsentRequired": "Pick the field people tick to agree.",
+        "formAddressRequired": "Pick the field with the email address or the phone number."
       },
       "sentTitle": "Sent to this list",
       "sentDescription": "The campaigns that go or went to this list, newest first. Each keeps its texts and who got it.",
       "sentEmpty": "Nothing sent to this list yet",
-      "sentEmptyDescription": "Campaigns to this list show up here, with what was sent and how it went."
+      "sentEmptyDescription": "Campaigns to this list show up here, with what was sent and how it went.",
+      "signupModes": {
+        "off": "Off",
+        "offHelp": "New accounts are not asked about this list.",
+        "offer": "Offer at sign-up",
+        "offerHelp": "The registration form shows an unticked box with the consent text. Only people who tick it are added.",
+        "auto": "Add new accounts automatically",
+        "autoHelp": "Every new account is added without being asked. Only for lists that are not marketing, such as practical updates for members: you are responsible for having a reason to send them. People can still unsubscribe."
+      },
+      "addAccountsAction": "Add all current accounts",
+      "addAccountsTitle": "Add all current accounts to {name}?",
+      "addAccountsNone": "Every account is on the list already, or unsubscribed from it. Nobody is added.",
+      "addAccountsOne": "1 account is added as a subscriber on email. People who unsubscribed before are never added back.",
+      "addAccountsMany": "{count} accounts are added as subscribers on email. People who unsubscribed before are never added back.",
+      "addAccountsFailed": "Could not add the accounts",
+      "addedAccountsOne": "Added 1 account to {name}",
+      "addedAccountsMany": "Added {count} accounts to {name}"
     },
     "signup": {
       "name": "Name",
@@ -431,6 +462,10 @@
       "lists": "Lists",
       "title": "Campaigns",
       "description": "Campaigns to the subscribers of lists and to people, and the lists people sign up to."
+    },
+    "register": {
+      "legend": "Lists",
+      "consentDefault": "Yes, send me {name}."
     }
   }
 }

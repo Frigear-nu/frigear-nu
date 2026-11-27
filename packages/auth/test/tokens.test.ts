@@ -540,4 +540,48 @@ describe('auth tokens', async () => {
       expect((await call('GET', '/api/_bootstrap?scope=account', { cookie: ada })).headers.get('content-type') ?? '').not.toContain('application/json')
     })
   })
+
+  describe('auth:user:created', () => {
+    const register = (body: Record<string, unknown>) => call('POST', authApi.register, { body: { name: 'New', password: 'long-enough-password', ...body } })
+    const created = async () => (await call('GET', '/api/test/created')).json() as Promise<Array<Record<string, unknown>>>
+
+    it('fires once the account exists, with the registration form\'s extras', async () => {
+      const response = await register({ email: 'new@example.com', extras: { campaigns: { listIds: ['cml_1'] } } })
+      expect(response.status, await response.clone().text()).toBe(201)
+      const { id } = await response.json() as { id: number }
+      expect((await created()).at(-1)).toEqual({ userId: id, email: 'new@example.com', source: 'password', extras: { campaigns: { listIds: ['cml_1'] } }, hasEvent: true })
+    })
+
+    it('passes empty extras when the form sent none', async () => {
+      const response = await register({ email: 'plain@example.com' })
+      expect(response.status, await response.clone().text()).toBe(201)
+      expect((await created()).at(-1)).toMatchObject({ email: 'plain@example.com', source: 'password', extras: {} })
+    })
+
+    it('signs up even when a listener throws', async () => {
+      const response = await register({ email: 'broken@example.com', extras: { test: { fail: true } } })
+      expect(response.status, await response.clone().text()).toBe(201)
+      expect(response.headers.get('set-cookie')).toContain('nuxt-auth-session=')
+    })
+
+    it('refuses extras that are not keyed by module name, too many, or too large, and creates nobody', async () => {
+      const before = (await created()).length
+      for (const extras of [
+        { 'Not A Module': true },
+        Object.fromEntries(Array.from({ length: 21 }, (_, index) => [`m${index}`, true])),
+        { campaigns: 'x'.repeat(17_000) },
+        ['campaigns'],
+      ]) {
+        const response = await register({ email: `refused${Math.random()}@example.com`, extras })
+        expect(response.status, await response.clone().text()).toBe(400)
+      }
+      expect((await created()).length).toBe(before)
+    })
+
+    it('does not fire for an address that has an account', async () => {
+      const before = (await created()).length
+      expect((await register({ email: 'new@example.com' })).status).toBe(409)
+      expect((await created()).length).toBe(before)
+    })
+  })
 })
