@@ -23,7 +23,8 @@ const fields = computed(() => [
 const verificationSent = ref(false)
 
 async function onSubmit(payload: { data: { name: string, email: string, password: string } }) {
-  const result = await register(payload.data)
+  // The verification link lands on the `?redirect=` this page was opened with (e.g. an OAuth sign-in in progress).
+  const result = await register({ ...payload.data, redirect: requestedRedirect.value })
   if (result?.verificationRequired) {
     verificationSent.value = true
     return
