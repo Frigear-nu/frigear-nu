@@ -34,7 +34,8 @@ function setExtra(module: string, value: unknown) {
 const verificationSent = ref(false)
 
 async function onSubmit(payload: { data: { name: string, email: string, password: string } }) {
-  const result = await register({ ...payload.data, ...(extras.size ? { extras: Object.fromEntries(extras) } : {}) })
+  // The verification link lands on the `?redirect=` this page was opened with (e.g. an OAuth sign-in in progress).
+  const result = await register({ ...payload.data, redirect: requestedRedirect.value, ...(extras.size ? { extras: Object.fromEntries(extras) } : {}) })
   if (result?.verificationRequired) {
     verificationSent.value = true
     return
