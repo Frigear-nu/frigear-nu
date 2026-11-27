@@ -152,6 +152,15 @@ describe('handleCallback', () => {
       .rejects.toMatchObject({ code: 'issuer_mismatch' })
   })
 
+  it('keeps a started sign-in pending for 3 hours by default (a sign-up finished from its verification email)', async () => {
+    const ctx = setup(() => tokens(1))
+    const { state } = await ctx.client.startAuthorization()
+    ctx.advance(2 * 60 * 60 * 1000 + 59 * 60 * 1000)
+    expect(await ctx.client.matchesPendingAuthorization(`${REDIRECT}?code=abc&state=${state}`)).toBe(true)
+    ctx.advance(2 * 60 * 1000)
+    expect(await ctx.client.matchesPendingAuthorization(`${REDIRECT}?code=abc&state=${state}`)).toBe(false)
+  })
+
   it('rejects a sign-in that took longer than the pending TTL', async () => {
     const ctx = setup(() => tokens(1), { pendingTtlSeconds: 60 })
     const { state } = await ctx.client.startAuthorization()

@@ -85,6 +85,7 @@ import {
   nativeLoaderTypes,
   parseStorageOption,
   resolveNativeRedirectUri,
+  resolvePendingTtlSeconds,
   SECRET_ENV_NAMES,
   TAURI_PLUGIN_KEYS,
 } from './client-build'
@@ -1164,6 +1165,7 @@ function setupClientMode(options: ModuleOptions, nuxt: Nuxt, resolver: ReturnTyp
     // Resource mode has a server of its own that answers `/api/`.
     routeApi: !resource && client.routeApi === true,
     onUnauthorized: client.onUnauthorized ?? 'signOut',
+    pendingTtlSeconds: resolvePendingTtlSeconds(client.pendingTtlSeconds),
     redirectUri: client.redirectUri ?? '',
     nativeRedirectUri,
     desktopFlow: client.native?.desktopFlow ?? 'auto',
