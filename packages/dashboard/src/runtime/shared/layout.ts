@@ -14,6 +14,16 @@ export function normalizeLayout(layout?: Partial<DashboardLayout> | null): Dashb
   }
 }
 
+/**
+ * Only the items with an id in `only`, in that order (a page that shows a few chosen items of a dashboard, such as the
+ * mobile Home tab). Without `only`, every item as it was.
+ */
+export function pickItems<T extends Identified>(items: T[], only?: readonly string[]): T[] {
+  if (!only) return items
+  const byId = new Map(items.map(item => [item.id, item]))
+  return [...new Set(only)].flatMap(id => (byId.has(id) ? [byId.get(id)!] : []))
+}
+
 /** The default layout: the registered order, nothing hidden or collapsed. */
 export const emptyLayout = (): DashboardLayout => normalizeLayout()
 

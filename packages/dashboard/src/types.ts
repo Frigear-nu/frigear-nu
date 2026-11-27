@@ -65,6 +65,11 @@ export interface DashboardHomeTabOptions {
   label?: string
   /** Nuxt UI icon of the web tab bar. Default `i-lucide-house`. */
   icon?: string
+  /**
+   * Only these items of the dashboard, by id and in this order, e.g. `['shifts.next']` for a short "what's next" Home
+   * while the rest stays in another tab. Default: every item.
+   */
+  items?: string[]
 }
 
 /** The pages of the signed-in hub. */
@@ -97,6 +102,8 @@ export interface ModuleOptions {
 export interface DashboardPublicConfig {
   /** The dashboard the Home tab page renders, `''` without one. */
   home: string
+  /** The items the Home tab shows (`homeTab.items`), empty for every item. */
+  homeItems: string[]
   pages: {
     /** The hub's path, unset when the area is off. */
     home?: string
