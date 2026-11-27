@@ -66,6 +66,7 @@ import { extendGrants, registeredGrantKinds } from './runtime/utils/grants-build
 import type { GrantFieldMeta, GrantKindRegistration } from './runtime/utils/grants'
 import type { AuthEmailContext } from './runtime/server/utils/auth-email'
 import type { AuthCredentialsChangedContext } from './runtime/server/utils/credentials'
+import type { AuthUserCreatedContext } from './runtime/server/utils/user-created'
 import type { FrigearLoginContext } from './runtime/server/utils/frigear-login'
 import type { AuthAppConfig, AuthClientPublicConfig } from './runtime/client/types'
 import { resolveAuthMode } from './runtime/mode'
@@ -112,6 +113,7 @@ export type {
 } from './types'
 export type { AuthCredentialsChangedContext, AuthCredentialsChangeReason } from './runtime/server/utils/credentials'
 export type { FrigearLoginContext } from './runtime/server/utils/frigear-login'
+export type { AuthUserCreatedContext, AuthUserCreatedSource } from './runtime/server/utils/user-created'
 
 // Only same-site paths are followed after sign in (`isSafeRedirect`, as on the server).
 function resolveAfterLogin(path: string | undefined) {
@@ -215,6 +217,12 @@ declare module 'nitropack' {
      * opened here.
      */
     'auth:credentials:changed': (ctx: AuthCredentialsChangedContext) => void | Promise<void>
+    /**
+     * An account was just created (`notifyAuthUserCreated`): by the registration form, an emailed sign-up link, a first
+     * OAuth, frigear.nu or passkey sign-in, or by staff (`ctx.source`). `ctx.extras` is what the registration form's
+     * widgets (`auth.register`) sent, keyed by module name. A listener that throws is logged; sign-up goes on.
+     */
+    'auth:user:created': (ctx: AuthUserCreatedContext) => void | Promise<void>
     /**
      * Someone signed in with frigear.nu (both the redirect login and the browser handoff): the local user is synced,
      * the session not started yet. `ctx.claims` are the verified id token's claims filled in by userinfo about the same
@@ -883,6 +891,7 @@ export {}
     'authorization:roles': (ctx: import('${resolver.resolve('./runtime/types')}').AuthorizationRolesContext) => void | Promise<void>
     'auth:email': (ctx: import('${resolver.resolve('./runtime/server/utils/auth-email')}').AuthEmailContext) => void | Promise<void>
     'auth:credentials:changed': (ctx: import('${resolver.resolve('./runtime/server/utils/credentials')}').AuthCredentialsChangedContext) => void | Promise<void>
+    'auth:user:created': (ctx: import('${resolver.resolve('./runtime/server/utils/user-created')}').AuthUserCreatedContext) => void | Promise<void>
     'auth:frigear:login': (ctx: import('${resolver.resolve('./runtime/server/utils/frigear-login')}').FrigearLoginContext) => void | Promise<void>
   }
 }

@@ -20,6 +20,7 @@ export default defineEventHandler(async (event) => {
   if (!user && signUp) {
     user = await users.create({ name: name ?? email.split('@')[0]!, email })
     created = true
+    await notifyAuthUserCreated({ event, user, source: 'magic-link' })
   }
 
   if (user) {
