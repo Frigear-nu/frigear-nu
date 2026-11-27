@@ -26,6 +26,7 @@ import {
 } from '@frigear-nu/module-kit/utils'
 import { addPolicies, guardPages, registerAccess } from '@frigear-nu/auth/utils'
 import { crewAccess } from './runtime/access'
+import { crewMobileTab } from './mobile-tab'
 import { CREW_DEFAULT_PAGES, CREW_HOME_TAB, CREW_HOME_TABS, crewHomeTab, resolveCrewHomePath } from './runtime/utils/links'
 import { extendDashboard } from '@frigear-nu/dashboard/utils'
 import { CREW_DASHBOARD, crewDashboardItems } from './runtime/dashboard'
@@ -245,19 +246,11 @@ export default defineNuxtModule<ModuleOptions>({
       permission: crewAccess.permissions.manage,
     })
 
-    // A "Crew" tab in the mobile tab bar, on the status page.
-    if (statusPath && hasNuxtModule('@frigear-nu/mobile')) {
+    // A "Crew" tab in the mobile tab bar: the crew home in the hub, with its tabs (My crew, My shifts, ...), else My crew.
+    const mobileTab = hasNuxtModule('@frigear-nu/mobile') ? crewMobileTab({ home: homePath, status: statusPath, inDashboard }) : undefined
+    if (mobileTab) {
       const { extendMobileTabs } = await import('@frigear-nu/mobile/utils')
-      extendMobileTabs(nuxt, {
-        id: 'crew',
-        to: statusPath,
-        label: 'Crew',
-        labelKey: 'crew.mobile.tab',
-        icon: 'i-lucide-hand-heart',
-        sfSymbol: 'person.3',
-        sfSymbolActive: 'person.3.fill',
-        requiresAuth: true,
-      })
+      extendMobileTabs(nuxt, mobileTab)
     }
 
     // The `crew.status` topic of notify's `notifyUser`, which the status message (`crew-send.ts`) goes through.
