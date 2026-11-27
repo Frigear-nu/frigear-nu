@@ -33,7 +33,9 @@ const iconIsImage = computed(() => /^(?:https?:)?\/\//.test(application.value?.i
 const initial = computed(() => application.value?.name.trim().charAt(0).toUpperCase() || '?')
 
 type ScopeItem = { name: string, label: string, description?: string, icon: string }
-type ScopeGroup = { key: string, title?: string, items: ScopeItem[] }
+/** A row on the consent screen: one scope, or a service with `scopes` to open when it has more than one. */
+type ScopeRow = { key: string, item: ScopeItem, scopes?: ScopeItem[] }
+type ScopeSection = { key: string, title?: string, rows: ScopeRow[] }
 
 const scopeItems = computed<ScopeItem[]>(() => {
   const known: Record<string, Omit<ScopeItem, 'name'>> = {
@@ -55,8 +57,20 @@ const scopeItems = computed<ScopeItem[]>(() => {
   }
   // Older servers only send `scope`; every entry falls back to the scope's name.
   const details = new Map((consent.value?.scopes ?? []).map((scope: OAuthScopeDefinition) => [scope.name, scope]))
-  return (consent.value?.scope ?? []).map(name => toItem(name, details.get(name), known))
+  const items = (consent.value?.scope ?? []).map(name => toItem(name, details.get(name), known))
+  return mergeIdentity(items, known)
 })
+
+// The standard sign-in scopes (`openid`, `profile`, `email`) nearly always come together: one row, under `openid`, that
+// lists what it covers, so the rows left go to what the application asks for besides signing in.
+const IDENTITY_PARTS = ['profile', 'email']
+function mergeIdentity(items: ScopeItem[], known: Record<string, Omit<ScopeItem, 'name'>>): ScopeItem[] {
+  const parts = items.filter(item => IDENTITY_PARTS.includes(item.name) && item.label === known[item.name]?.label)
+  const openid = items.find(item => item.name === 'openid')
+  if (!openid || !parts.length) return items
+  const merged: ScopeItem = { ...openid, description: parts.map(part => part.label).join(' · ') }
+  return items.filter(item => !parts.includes(item)).map(item => item === openid ? merged : item)
+}
 
 function toItem(name: string, scope: OAuthScopeDefinition | undefined, known: Record<string, Omit<ScopeItem, 'name'>> = {}): ScopeItem {
   if (known[name] && !scope?.label) return { name, ...known[name]! }
@@ -72,18 +86,61 @@ function toItem(name: string, scope: OAuthScopeDefinition | undefined, known: Re
 // Requested scopes this account may not grant: shown, so nobody wonders why the application lacks them.
 const unavailableItems = computed<ScopeItem[]>(() => (consent.value?.unavailable ?? []).map(scope => toItem(scope.name, scope)))
 
-// One consent for every service: the scopes grouped by the service they belong to, the account itself first. Without
-// any service (or from an older server) it is one list without headings.
-const scopeGroups = computed<ScopeGroup[]>(() => {
+// One consent for every service. The account's own scopes are a row each; every other service is one row that names
+// what it covers and opens to its scopes. Without any service (or from an older server) it is one list without headings.
+const scopeSections = computed<ScopeSection[]>(() => {
   const items = new Map(scopeItems.value.map(item => [item.name, item]))
   const groups = consent.value?.groups ?? []
-  if (!groups.some(group => group.service)) return [{ key: 'all', items: scopeItems.value }]
-  return groups.map(group => ({
-    key: group.service ?? '',
-    title: group.service ?? t('authorize.accountGroup', 'Your account'),
-    items: group.scopes.map(scope => items.get(scope.name)).filter((item): item is ScopeItem => !!item),
-  }))
+  const toRow = (item: ScopeItem): ScopeRow => ({ key: item.name, item })
+  if (!groups.some(group => group.service)) return [{ key: 'all', rows: scopeItems.value.map(toRow) }]
+  const itemsOf = (group: { scopes: OAuthScopeDefinition[] }) =>
+    group.scopes.map(scope => items.get(scope.name)).filter((item): item is ScopeItem => !!item)
+  const account = groups.filter(group => !group.service).flatMap(itemsOf)
+  const services = groups.filter(group => group.service).map((group): ScopeRow | undefined => {
+    const scopes = itemsOf(group)
+    if (!scopes.length) return undefined
+    const icons = new Set(scopes.map(scope => scope.icon))
+    return {
+      key: `service:${group.service}`,
+      item: {
+        name: `service:${group.service}`,
+        label: group.service!,
+        description: scopes.map(scope => scope.label).join(' · '),
+        icon: icons.size === 1 ? scopes[0]!.icon : 'i-lucide-blocks',
+      },
+      scopes: scopes.length > 1 ? scopes : undefined,
+    }
+  }).filter((row): row is ScopeRow => !!row)
+  return [
+    { key: 'account', title: t('authorize.accountGroup', 'Your account'), rows: account.map(toRow) },
+    { key: 'services', title: t('authorize.servicesGroup', 'Other services'), rows: services },
+  ].filter(section => section.rows.length)
 })
+
+// A long request would push Allow/Deny far below the fold: show the first rows, the rest behind "Show all".
+const SCOPE_PREVIEW_LIMIT = 7
+const showAllScopes = ref(false)
+const rowCount = computed(() => scopeSections.value.reduce((sum, section) => sum + section.rows.length, 0))
+const visibleScopeSections = computed<ScopeSection[]>(() => {
+  const sections = scopeSections.value
+  if (showAllScopes.value || rowCount.value <= SCOPE_PREVIEW_LIMIT) return sections
+  // Every service row already sums up a service, so the account's rows give way first, down to about half the rows;
+  // otherwise a long account list would hide that other services are asked for at all.
+  const services = sections.find(section => section.key === 'services')?.rows.length ?? 0
+  const accountRows = sections.find(section => section.key === 'account')?.rows.length ?? 0
+  const accountBudget = services ? Math.min(accountRows, Math.max(SCOPE_PREVIEW_LIMIT - services, Math.ceil(SCOPE_PREVIEW_LIMIT / 2))) : SCOPE_PREVIEW_LIMIT
+  const budget: Record<string, number> = { account: accountBudget, services: SCOPE_PREVIEW_LIMIT - accountBudget, all: SCOPE_PREVIEW_LIMIT }
+  return sections
+    .map(section => ({ ...section, rows: section.rows.slice(0, budget[section.key] ?? 0) }))
+    .filter(section => section.rows.length)
+})
+
+const openServices = ref<string[]>([])
+function toggleService(key: string) {
+  openServices.value = openServices.value.includes(key)
+    ? openServices.value.filter(open => open !== key)
+    : [...openServices.value, key]
+}
 
 const pending = ref<'approve' | 'deny' | 'switch' | null>(null)
 // Set once a native app's redirect is ready: iOS only opens a custom scheme from a tap, not after a fetch.
@@ -249,43 +306,96 @@ async function switchAccount() {
             {{ t('authorize.wants', '{name} wants to:', { name: application.name }) }}
           </p>
           <section
-            v-for="group in scopeGroups"
-            :key="group.key"
+            v-for="section in visibleScopeSections"
+            :key="section.key"
             class="flex flex-col gap-2"
-            :aria-label="group.title"
+            :aria-label="section.title"
           >
             <h2
-              v-if="group.title"
+              v-if="section.title"
               class="text-xs font-medium tracking-wide text-muted uppercase"
             >
-              {{ group.title }}
+              {{ section.title }}
             </h2>
             <ul class="flex flex-col divide-y divide-default overflow-hidden rounded-lg border border-default">
               <li
-                v-for="scope in group.items"
-                :key="scope.name"
-                class="flex items-start gap-3 p-3"
+                v-for="row in section.rows"
+                :key="row.key"
               >
-                <div class="flex size-8 shrink-0 items-center justify-center rounded-md bg-elevated text-muted">
+                <component
+                  :is="row.scopes ? 'button' : 'div'"
+                  :type="row.scopes ? 'button' : undefined"
+                  :aria-expanded="row.scopes ? openServices.includes(row.key) : undefined"
+                  class="flex w-full items-start gap-3 p-3 text-left"
+                  :class="row.scopes && 'cursor-pointer hover:bg-elevated/50 focus-visible:outline-2 focus-visible:outline-primary'"
+                  @click="row.scopes && toggleService(row.key)"
+                >
+                  <div class="flex size-8 shrink-0 items-center justify-center rounded-md bg-elevated text-muted">
+                    <UIcon
+                      :name="row.item.icon"
+                      class="size-4"
+                    />
+                  </div>
+                  <div class="min-w-0 flex-1 pt-0.5">
+                    <p class="text-sm font-medium break-words text-highlighted">
+                      {{ row.item.label }}
+                    </p>
+                    <p
+                      v-if="row.item.description && !openServices.includes(row.key)"
+                      class="text-xs break-words text-muted"
+                      :class="row.scopes && 'line-clamp-2'"
+                    >
+                      {{ row.item.description }}
+                    </p>
+                  </div>
                   <UIcon
-                    :name="scope.icon"
-                    class="size-4"
+                    v-if="row.scopes"
+                    :name="openServices.includes(row.key) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                    class="mt-2 size-4 shrink-0 text-muted"
                   />
-                </div>
-                <div class="min-w-0 flex-1 pt-0.5">
-                  <p class="text-sm font-medium break-words text-highlighted">
-                    {{ scope.label }}
-                  </p>
-                  <p
-                    v-if="scope.description"
-                    class="text-xs break-words text-muted"
+                </component>
+                <ul
+                  v-if="row.scopes && openServices.includes(row.key)"
+                  class="flex flex-col gap-2 pr-3 pb-3 pl-14"
+                >
+                  <li
+                    v-for="scope in row.scopes"
+                    :key="scope.name"
+                    class="flex min-w-0 items-start gap-2"
                   >
-                    {{ scope.description }}
-                  </p>
-                </div>
+                    <UIcon
+                      :name="scope.icon"
+                      class="mt-0.5 size-3.5 shrink-0 text-muted"
+                    />
+                    <div class="min-w-0">
+                      <p class="text-xs font-medium break-words text-highlighted">
+                        {{ scope.label }}
+                      </p>
+                      <p
+                        v-if="scope.description"
+                        class="text-xs break-words text-muted"
+                      >
+                        {{ scope.description }}
+                      </p>
+                    </div>
+                  </li>
+                </ul>
               </li>
             </ul>
           </section>
+          <UButton
+            v-if="rowCount > SCOPE_PREVIEW_LIMIT"
+            color="neutral"
+            variant="link"
+            size="sm"
+            class="self-start px-0"
+            :trailing-icon="showAllScopes ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+            :label="showAllScopes
+              ? t('authorize.showFewer', 'Show fewer')
+              : t('authorize.showAll', 'Show all {count}', { count: rowCount })"
+            :aria-expanded="showAllScopes"
+            @click="showAllScopes = !showAllScopes"
+          />
           <section
             v-if="unavailableItems.length"
             class="flex flex-col gap-2"

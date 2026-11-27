@@ -177,8 +177,11 @@
         "email": "Se e-mailadressen på din konto"
       },
       "accountGroup": "Din konto",
+      "servicesGroup": "Andre tjenester",
       "unavailable": "Ikke tilgængeligt for din konto",
-      "unavailableHint": "Applikationen får ikke disse."
+      "unavailableHint": "Applikationen får ikke disse.",
+      "showAll": "Vis alle {count}",
+      "showFewer": "Vis færre"
     },
     "permissions": {
       "read": "Se hvilke applikationer du kan logge ind på",
@@ -222,6 +225,9 @@
         "labelHint": "Vises på samtykkesiden, fx “Dine billetter”.",
         "description": "Beskrivelse",
         "icon": "Ikon",
+        "service": "Tjeneste",
+        "serviceHint": "Samtykkesiden viser en tjenestes scopes som én række, fx “Lager”. Lad den være tom for scopes om selve kontoen.",
+        "servicePlaceholder": "Lager",
         "isActive": "Aktiv",
         "isActiveHint": "Et deaktiveret scope er ukendt for applikationer, indtil det aktiveres igen.",
         "version": "Version {version}",

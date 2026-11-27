@@ -98,6 +98,8 @@ export const oauthScopes = sqliteTable('oauth_scopes', {
   label: text(),
   description: text(),
   icon: text(),
+  /** The service the scope belongs to (`Inventory`): the consent screen shows a service's scopes as one row. */
+  service: text(),
   /** Permissions or wildcards (`tickets:read`, `tickets:*`). */
   permissions: text({ mode: 'json' }).$type<string[]>().notNull().$defaultFn(() => []),
   /**

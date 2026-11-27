@@ -177,8 +177,11 @@
         "email": "See the email address of your account"
       },
       "accountGroup": "Your account",
+      "servicesGroup": "Other services",
       "unavailable": "Not available to your account",
-      "unavailableHint": "The application will not get these."
+      "unavailableHint": "The application will not get these.",
+      "showAll": "Show all {count}",
+      "showFewer": "Show fewer"
     },
     "permissions": {
       "read": "See which applications you can sign in to",
@@ -222,6 +225,9 @@
         "labelHint": "Shown on the consent screen, e.g. “Your tickets”.",
         "description": "Description",
         "icon": "Icon",
+        "service": "Service",
+        "serviceHint": "The consent screen shows the scopes of one service as one row, e.g. “Inventory”. Leave it empty for scopes about the account itself.",
+        "servicePlaceholder": "Inventory",
         "isActive": "Active",
         "isActiveHint": "A disabled scope is unknown to applications until it is enabled again.",
         "version": "Version {version}",

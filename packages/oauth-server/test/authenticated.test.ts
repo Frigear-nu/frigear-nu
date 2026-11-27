@@ -1499,6 +1499,11 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       expect((await json(staff.cookie, 'POST', oauthServerApi.admin.scopes, { name: 'inventory:read', permissions: ['inventory:read'] })).status).toBe(400)
 
       expect(await admin().json<Json>('PATCH', oauthServerApi.admin.scope(name), { label: 'Stock levels' })).toMatchObject({ label: 'Stock levels', version: 1 })
+      // The service groups it on the consent screen; it changes no permissions, so no new consent.
+      expect(created.service).toBeNull()
+      expect(await admin().json<Json>('PATCH', oauthServerApi.admin.scope(name), { service: 'Inventory' })).toMatchObject({ service: 'Inventory', version: 1 })
+      expect(await admin().json<Json>('PATCH', oauthServerApi.admin.scope(name), { service: '' })).toMatchObject({ service: null })
+      await admin().json('PATCH', oauthServerApi.admin.scope(name), { service: 'Inventory' })
       expect(await admin().json<Json>('PATCH', oauthServerApi.admin.scope(name), { permissions: ['inventory:read', 'inventory:write'] })).toMatchObject({ version: 2 })
       // Shrinking needs no new consent.
       expect(await admin().json<Json>('PATCH', oauthServerApi.admin.scope(name), { permissions: ['inventory:write'] })).toMatchObject({ version: 2 })
@@ -1506,7 +1511,7 @@ describe('oauth-server (authenticated, database-backed)', async () => {
       await expectApiError(admin().json('PATCH', oauthServerApi.admin.scope(name), { permissions: ['inventory:*'] }), 400, 'validation_failed')
       await expectApiError(admin().json('PATCH', oauthServerApi.admin.scope('groups'), { label: 'x' }), 409, 'managed_by_config')
       await expectApiError(admin().json('DELETE', oauthServerApi.admin.scope('groups')), 409, 'managed_by_config')
-      expect(await admin().json<Json>('GET', oauthServerApi.admin.scope(name))).toMatchObject({ name, permissions: ['inventory:write'] })
+      expect(await admin().json<Json>('GET', oauthServerApi.admin.scope(name))).toMatchObject({ name, service: 'Inventory', permissions: ['inventory:write'] })
       expect((await $fetch<Json>(oidc.configuration)).scopes_supported).toContain(name)
 
       expect((await json(staff.cookie, 'DELETE', oauthServerApi.admin.scope(name))).status).toBe(204)
