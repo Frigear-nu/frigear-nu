@@ -55,8 +55,20 @@ const scopeItems = computed<ScopeItem[]>(() => {
   }
   // Older servers only send `scope`; every entry falls back to the scope's name.
   const details = new Map((consent.value?.scopes ?? []).map((scope: OAuthScopeDefinition) => [scope.name, scope]))
-  return (consent.value?.scope ?? []).map(name => toItem(name, details.get(name), known))
+  const items = (consent.value?.scope ?? []).map(name => toItem(name, details.get(name), known))
+  return mergeIdentity(items, known)
 })
+
+// The standard sign-in scopes (`openid`, `profile`, `email`) nearly always come together: one row, under `openid`, that
+// lists what it covers, so the rows left go to what the application asks for besides signing in.
+const IDENTITY_PARTS = ['profile', 'email']
+function mergeIdentity(items: ScopeItem[], known: Record<string, Omit<ScopeItem, 'name'>>): ScopeItem[] {
+  const parts = items.filter(item => IDENTITY_PARTS.includes(item.name) && item.label === known[item.name]?.label)
+  const openid = items.find(item => item.name === 'openid')
+  if (!openid || !parts.length) return items
+  const merged: ScopeItem = { ...openid, description: parts.map(part => part.label).join(' · ') }
+  return items.filter(item => !parts.includes(item)).map(item => item === openid ? merged : item)
+}
 
 function toItem(name: string, scope: OAuthScopeDefinition | undefined, known: Record<string, Omit<ScopeItem, 'name'>> = {}): ScopeItem {
   if (known[name] && !scope?.label) return { name, ...known[name]! }
@@ -86,7 +98,7 @@ const scopeGroups = computed<ScopeGroup[]>(() => {
 })
 
 // A long request would push Allow/Deny far below the fold: show the first few, the rest behind "Show all".
-const SCOPE_PREVIEW_LIMIT = 10
+const SCOPE_PREVIEW_LIMIT = 7
 const showAllScopes = ref(false)
 const scopeCount = computed(() => scopeGroups.value.reduce((sum, group) => sum + group.items.length, 0))
 const visibleScopeGroups = computed<ScopeGroup[]>(() => {
