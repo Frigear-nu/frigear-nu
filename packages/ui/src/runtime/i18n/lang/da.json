@@ -52,6 +52,8 @@
     "sortedDesc": "Sortér efter {column}, nu faldende",
     "range": "{from}–{to} af {total}",
     "noRows": "Ingen rækker",
-    "rowsPerPage": "Rækker pr. side"
+    "rowsPerPage": "Rækker pr. side",
+    "staleData": "Kunne ikke opdatere. Viser de senest gemte data.",
+    "tryAgain": "Prøv igen"
   }
 }

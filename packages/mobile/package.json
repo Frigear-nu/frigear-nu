@@ -87,7 +87,8 @@
     "@nuxt/kit": "catalog:",
     "defu": "^6.1.4",
     "jiti": "^2.7.0",
-    "nuxt-capacitor": "^0.3.3"
+    "nuxt-capacitor": "^0.3.3",
+    "unstorage": "^1.17.5"
   },
   "peerDependencies": {
     "@capacitor/action-sheet": ">=8.0.0",
@@ -95,6 +96,7 @@
     "@capacitor/cli": ">=8.0.0",
     "@capacitor/core": ">=8.0.0",
     "@capacitor/dialog": ">=8.0.0",
+    "@capacitor/filesystem": ">=8.0.0",
     "@capacitor/haptics": ">=8.0.0",
     "@capacitor/keyboard": ">=8.0.0",
     "@capacitor/share": ">=8.0.0",
@@ -110,6 +112,9 @@
       "optional": true
     },
     "@capacitor/dialog": {
+      "optional": true
+    },
+    "@capacitor/filesystem": {
       "optional": true
     },
     "@capacitor/haptics": {
@@ -143,6 +148,7 @@
     "@capacitor/cli": "^8.6.2",
     "@capacitor/core": "^8.6.2",
     "@capacitor/dialog": "^8.0.1",
+    "@capacitor/filesystem": "^8.1.5",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/keyboard": "^8.0.6",
     "@capacitor/share": "^8.0.3",

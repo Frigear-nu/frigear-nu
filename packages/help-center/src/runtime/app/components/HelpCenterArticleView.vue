@@ -90,6 +90,11 @@ onMounted(async () => {
     :breadcrumb="breadcrumb"
   >
     <div class="flex max-w-3xl flex-col gap-8">
+      <!-- A failed refresh (offline): what was loaded stays, with a quiet note. -->
+      <StaleDataNotice
+        :error="error"
+        :refresh="refresh"
+      />
       <HelpCenterArticleBody
         :body="body"
         :public="isPublic"

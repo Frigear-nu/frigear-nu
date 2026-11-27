@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { crewApi } from '../../utils/api'
-import { crewApplyNotice } from '../../utils/status'
+import { CREW_ME_KEY, crewApplyNotice } from '../../utils/status'
 import type { CrewApplyDto } from '../../../types'
-import { computed, createError, errorMessage, navigateTo, ref, useAuthPages, useCrewLinks, useCrewTranslate, useFetch, useFormat, useHead, useModuleT, useRoute } from '#imports'
+import { clearCachedFetch, computed, createError, errorMessage, navigateTo, ref, useAuthPages, useCrewLinks, useCrewTranslate, useFetch, useFormat, useHead, useModuleT, useRoute } from '#imports'
 
 defineOptions({ name: 'CrewApplyPage' })
 
@@ -28,6 +28,8 @@ else if (error.value?.statusCode === 404) {
 const submitted = ref(false)
 async function onSubmitted() {
   submitted.value = true
+  // The person's crew statuses changed: the views that show them ask again.
+  clearCachedFetch(CREW_ME_KEY)
   await refresh()
 }
 

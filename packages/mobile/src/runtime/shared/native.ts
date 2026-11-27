@@ -8,6 +8,7 @@ export interface ListenerHandle {
 export interface AppPluginLike {
   addListener(event: 'appUrlOpen', listener: (event: { url: string }) => void): Promise<ListenerHandle>
   addListener(event: 'backButton', listener: (event: { canGoBack: boolean }) => void): Promise<ListenerHandle>
+  addListener(event: 'pause', listener: () => void): Promise<ListenerHandle>
   getLaunchUrl(): Promise<{ url: string } | undefined>
   minimizeApp(): Promise<void>
 }
@@ -44,6 +45,13 @@ export interface KeyboardPluginLike {
 
 export interface BrowserPluginLike {
   open(options: { url: string, presentationStyle?: 'fullscreen' | 'popover' }): Promise<void>
+}
+
+export interface FilesystemPluginLike {
+  readFile(options: { path: string, directory: string, encoding: 'utf8' }): Promise<{ data: string | Blob }>
+  writeFile(options: { path: string, data: string, directory: string, encoding: 'utf8', recursive?: boolean }): Promise<unknown>
+  deleteFile(options: { path: string, directory: string }): Promise<void>
+  readdir(options: { path: string, directory: string }): Promise<{ files: Array<{ name: string } | string> }>
 }
 
 export interface SplashScreenPluginLike {
@@ -113,7 +121,7 @@ export interface NativeNavigationPluginLike {
 }
 
 export type NativePluginName
-  = | 'app' | 'haptics' | 'actionSheet' | 'dialog' | 'share' | 'statusBar' | 'keyboard' | 'nativeNavigation' | 'splashScreen' | 'browser'
+  = | 'app' | 'haptics' | 'actionSheet' | 'dialog' | 'share' | 'statusBar' | 'keyboard' | 'nativeNavigation' | 'splashScreen' | 'browser' | 'filesystem'
 
 export interface NativePlugins {
   app: AppPluginLike
@@ -126,6 +134,7 @@ export interface NativePlugins {
   nativeNavigation: NativeNavigationPluginLike
   splashScreen: SplashScreenPluginLike
   browser: BrowserPluginLike
+  filesystem: FilesystemPluginLike
 }
 
 /** Package and export of each native plugin. */
@@ -140,6 +149,7 @@ export const NATIVE_PLUGINS: Record<NativePluginName, { pkg: string, name: strin
   nativeNavigation: { pkg: '@capgo/capacitor-native-navigation', name: 'NativeNavigation', feature: 'the native navbar and tab bar (nativeChrome)' },
   splashScreen: { pkg: '@capacitor/splash-screen', name: 'SplashScreen', feature: 'the native launch screen, handed over to the splash screen (splashScreen.native)' },
   browser: { pkg: '@capacitor/browser', name: 'Browser', feature: 'pages opened on the website in the in-app browser (host)' },
+  filesystem: { pkg: '@capacitor/filesystem', name: 'Filesystem', feature: 'data shown at once after a restart (persistentCache)' },
 }
 
 /** Capacitor's platform, synchronously (the native bridge defines `window.Capacitor` before the app runs). */

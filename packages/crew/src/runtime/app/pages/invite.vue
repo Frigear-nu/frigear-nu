@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { crewApi } from '../../utils/api'
+import { CREW_ME_KEY } from '../../utils/status'
 import type { MyCrewDto } from '../../../types'
-import { $fetch, errorMessage, ref, useAction, useAuthPages, useCrewLinks, useCrewTranslate, useFetch, useHead, useModuleT, useRoute } from '#imports'
+import { $fetch, clearCachedFetch, errorMessage, ref, useAction, useAuthPages, useCrewLinks, useCrewTranslate, useFetch, useHead, useModuleT, useRoute } from '#imports'
 
 defineOptions({ name: 'CrewInvitePage' })
 
@@ -29,7 +30,10 @@ async function accept() {
       throw error
     }),
   )
-  if (result) joined.value = result
+  if (!result) return
+  joined.value = result
+  // The person's crew statuses changed: the views that show them ask again.
+  clearCachedFetch(CREW_ME_KEY)
 }
 
 const failureTitle = () => {

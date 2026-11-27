@@ -3,7 +3,7 @@ import { shiftsApi } from '../../utils/api'
 import { SHIFT_ASSIGNMENT_STATUS_LABELS } from '../../utils/status'
 import { dayKey } from '@frigear-nu/module-kit/time'
 import type { ShiftAssigneeDto, ShiftExceptionDto, ShiftExceptionKind, ShiftsLedTeamDto, ShiftStationDto, ShiftSwapDto, ShiftWithAssigneesDto } from '../../../types'
-import { $fetch, computed, errorMessage, navigateTo, ref, useAction, useAuthPages, useFetch, useHead, useModuleT, useRoute, useShiftsActions, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
+import { $fetch, computed, errorMessage, navigateTo, ref, useAction, useAuthPages, useCachedFetch, useFetch, useHead, useModuleT, useRoute, useShiftsActions, useShiftsFormat, useShiftsLinks, useShiftsTranslate } from '#imports'
 
 defineOptions({ name: 'ShiftsLeadPage' })
 
@@ -55,8 +55,9 @@ const exceptionLabel = (item: ShiftExceptionDto) => ({
   claimed_no_show: t('exceptions.claimed_no_show', 'No-show, perk claimed'),
 } satisfies Record<ShiftExceptionKind, string>)[item.kind]
 const exceptionColor = (kind: ShiftExceptionKind) => kind === 'late' ? 'warning' : kind === 'not_checked_in' ? 'info' : 'error'
-const { data: led } = await useFetch<ShiftsLedTeamDto[]>(shiftsApi.me.leads, { key: 'shifts:leads', default: () => [] })
-const team = computed(() => led.value.find(item => item.teamId === teamId.value))
+// The same key as the My shifts tab (`useCachedFetch`, so both share one entry).
+const { data: led } = await useCachedFetch<ShiftsLedTeamDto[]>(shiftsApi.me.leads, { key: 'shifts:leads', ttl: 0 })
+const team = computed(() => (led.value ?? []).find(item => item.teamId === teamId.value))
 
 const days = computed(() => {
   const byDay = new Map<string, ShiftWithAssigneesDto[]>()

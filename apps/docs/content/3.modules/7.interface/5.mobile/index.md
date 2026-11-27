@@ -56,7 +56,7 @@ pnpm add @frigear-nu/mobile @nuxt/ui @capacitor/core @capacitor/app @capacitor/i
 pnpm add -D @capacitor/cli
 # optional, for the features that use them:
 pnpm add @capgo/capacitor-native-navigation @capacitor/haptics @capacitor/action-sheet @capacitor/dialog \
-  @capacitor/share @capacitor/status-bar @capacitor/keyboard @capacitor/splash-screen
+  @capacitor/share @capacitor/status-bar @capacitor/keyboard @capacitor/splash-screen @capacitor/filesystem
 # with sign-in, and guards:
 pnpm add @frigear-nu/authorization @capacitor/browser @capacitor/preferences @aparajita/capacitor-secure-storage
 ```
@@ -150,6 +150,7 @@ Options go under the `mobile` key.
 | `ios.allowLocalNetworking` | `boolean` | `true` | Sets `NSAllowsLocalNetworking` in Info.plist, for plain http to the LAN. |
 | `doctor` | `boolean` | `true` | Warns about native projects and missing plugins when dev or build starts. |
 | `host` | `boolean \| string \| { url?, routes?, links? }` | `false` | A website that has the pages the app does not. See [Pages on the website](#pages-on-the-website). |
+| `persistentCache` | `boolean \| { maxAge?, timeout? }` | `true` | Cached data shows at once after a restart. See [Data after a restart](#data-after-a-restart). |
 
 **`appId`.** In lowercase, with `_` turned into `-`, it becomes the OAuth redirect and deep-link scheme. Without one,
 the build warns and uses `com.example.app`.
@@ -439,6 +440,39 @@ mobile: {
 pages open signed in. A `localhost` URL is rewritten as Auth rewrites the issuer (`MOBILE_LAN`, live reload on a
 phone). `{ routes: false }` or `{ links: false }` turns either half off. `@capacitor/browser` is needed on a device;
 the doctor lists it.
+
+### Data after a restart
+
+On a device, the responses of [`useCachedFetch` and `useCachedAsyncData`](/modules/interface/ui/composables#loading-data-that-survives-navigation)
+are also written to the app's Cache directory with `@capacitor/filesystem`. When the app starts again, they are read
+back before the first page sets up. The pages then render with them at once and ask the server again in the
+background. This works for every module page built on these composables, such as help-center articles, crew status
+and shift widgets.
+
+- **Stale on start.** A response read back from the disk is shown, but the first mount of its key always asks the
+  server, whatever its `ttl`. Responses older than `maxAge` (default seven days) are deleted instead of shown.
+- **Per user.** The files belong to the signed-in user. Signing out, or signing in as someone else, deletes them, and
+  so does a start with a different user. Nothing of one user is shown to another.
+- **No waiting for the network.** The module sets `runtimeConfig.public.cachedFetch.instant`, so an awaited cached
+  composable renders what it has at once instead of waiting for the refetch (the website keeps waiting). When the
+  refetch fails, for example offline, the module pages keep the data and show a muted "Could not refresh" line
+  (`StaleDataNotice`). Set `cachedFetch: { instant: false }` under `runtimeConfig.public` to wait as on the website.
+- **Never in the way.** Startup waits `timeout` ms at most (default `500`) for the disk. Anything read later fills only
+  the keys that nothing fetched yet. A storage error turns the cache off for that run. Pending writes go to the disk
+  when the app moves to the background.
+- **What is kept.** One JSON file per cache key in `frigear-cache/`, in the Cache directory, which the OS may empty
+  when space runs low. A composable keeps a response off the disk with `persist: false`.
+
+`@capacitor/filesystem` and `@frigear-nu/ui` must be installed (the doctor lists the plugin). `persistentCache: false`
+keeps the cache in memory only. In a browser, nothing is written.
+
+```ts
+export default defineNuxtConfig({
+  mobile: {
+    persistentCache: { maxAge: 2 * 24 * 60 * 60 * 1000, timeout: 300 },
+  },
+})
+```
 
 ### Native features
 

@@ -20,9 +20,19 @@ const format = useFormat()
 const host = useMobileHost()
 const hostPath = useHostPath()
 
-const { data: events, status, error, refresh } = await useFetch<EventSummary[]>('/api/events', { key: 'home-events', default: () => [] })
+// The last response shows at once (also after a restart of the app, `mobile.persistentCache`) and is asked for again in
+// the background once it is five minutes old.
+const { data: events, loading, error, refresh } = await useCachedFetch<EventSummary[]>('/api/events', { key: 'home-events', ttl: 5 * 60_000 })
 
-const items = computed(() => (events.value ?? []).map(event => ({
+// `GET /api/events` lists every published event, past ones too (the website's `useEvents` groups them). Home shows the
+// ongoing and upcoming ones: an event without an end lasts a day, as there.
+const isCurrent = (event: EventSummary, now: number) => {
+  const end = event.endsAt ? Date.parse(event.endsAt) : Date.parse(event.startsAt) + 24 * 3600_000
+  return end > now
+}
+
+// Only a list: without an API base the request can answer with the app's own HTML, which is no list of events.
+const items = computed(() => (Array.isArray(events.value) ? events.value : []).filter(event => isCurrent(event, Date.now())).map(event => ({
   ...event,
   title: translate(event.name, locale.value),
   place: event.location ? translate(event.location, locale.value) : '',
@@ -40,7 +50,7 @@ const open = (slug: string) => host.open(hostPath(`/events/${encodeURIComponent(
     </h2>
 
     <div
-      v-if="status === 'pending' && !items.length"
+      v-if="loading"
       class="flex flex-col gap-3"
     >
       <USkeleton
@@ -50,7 +60,7 @@ const open = (slug: string) => host.open(hostPath(`/events/${encodeURIComponent(
       />
     </div>
     <UAlert
-      v-else-if="error"
+      v-else-if="error && !items.length"
       color="warning"
       variant="subtle"
       icon="i-lucide-triangle-alert"
@@ -62,61 +72,67 @@ const open = (slug: string) => host.open(hostPath(`/events/${encodeURIComponent(
       icon="i-lucide-calendar"
       :title="t('app.home.events.empty')"
     />
-    <ul
-      v-else
-      class="flex flex-col gap-3"
-      data-home-events
-    >
-      <li
-        v-for="event in items"
-        :key="event.id"
+    <template v-else>
+      <!-- Offline or a failed refresh: the last events stay, with a quiet note. -->
+      <StaleDataNotice
+        :error="error"
+        :refresh="refresh"
+      />
+      <ul
+        class="flex flex-col gap-3"
+        data-home-events
       >
-        <button
-          type="button"
-          class="flex w-full items-center gap-3 rounded-lg border border-default bg-default p-3 text-left active:bg-elevated"
-          @click="open(event.slug)"
+        <li
+          v-for="event in items"
+          :key="event.id"
         >
-          <img
-            v-if="event.image"
-            :src="event.image"
-            alt=""
-            class="size-16 shrink-0 rounded-md object-cover"
+          <button
+            type="button"
+            class="flex w-full items-center gap-3 rounded-lg border border-default bg-default p-3 text-left active:bg-elevated"
+            @click="open(event.slug)"
           >
-          <div
-            v-else
-            class="flex size-16 shrink-0 items-center justify-center rounded-md bg-elevated"
-          >
-            <UIcon
-              name="i-lucide-calendar"
-              class="size-6 text-muted"
-            />
-          </div>
-          <div class="min-w-0 flex-1">
-            <p class="truncate font-medium text-highlighted">
-              {{ event.title }}
-            </p>
-            <p class="text-sm text-muted">
-              {{ event.when }}
-            </p>
-            <p
-              v-if="event.place"
-              class="truncate text-sm text-muted"
+            <img
+              v-if="event.image"
+              :src="event.image"
+              alt=""
+              class="size-16 shrink-0 rounded-md object-cover"
             >
-              {{ event.place }}
-            </p>
-          </div>
-          <UBadge
-            v-if="event.requiresMembership"
-            :label="t('app.home.events.membersOnly')"
-            color="neutral"
-            variant="subtle"
-          />
-          <UIcon
-            name="i-lucide-chevron-right"
-            class="size-5 shrink-0 text-dimmed"
-          />
-        </button>
-      </li>
-    </ul>
+            <div
+              v-else
+              class="flex size-16 shrink-0 items-center justify-center rounded-md bg-elevated"
+            >
+              <UIcon
+                name="i-lucide-calendar"
+                class="size-6 text-muted"
+              />
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="truncate font-medium text-highlighted">
+                {{ event.title }}
+              </p>
+              <p class="text-sm text-muted">
+                {{ event.when }}
+              </p>
+              <p
+                v-if="event.place"
+                class="truncate text-sm text-muted"
+              >
+                {{ event.place }}
+              </p>
+            </div>
+            <UBadge
+              v-if="event.requiresMembership"
+              :label="t('app.home.events.membersOnly')"
+              color="neutral"
+              variant="subtle"
+            />
+            <UIcon
+              name="i-lucide-chevron-right"
+              class="size-5 shrink-0 text-dimmed"
+            />
+          </button>
+        </li>
+      </ul>
+    </template>
   </section>
 </template>

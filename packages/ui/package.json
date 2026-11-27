@@ -87,6 +87,7 @@
     "nuxt-monaco-editor": "^1.4.1",
     "tailwindcss": "^4.3.5",
     "typescript": "catalog:",
+    "unstorage": "^1.17.5",
     "vitest": "catalog:",
     "vue-tsc": "catalog:"
   },

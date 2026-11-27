@@ -1,7 +1,16 @@
 import type { MaybeRefOrGetter } from 'vue'
 import { helpCenterApi } from '../../utils/api'
 import type { HelpArticleDetailDto, HelpArticleSummaryDto, HelpCategoryDto, HelpChecklistDto } from '../../../types'
-import { computed, toValue, useAsyncData, useAuth, useId, useRequestFetch, useUserSession } from '#imports'
+import { computed, toValue, useAuth, useCachedAsyncData, useId, useRequestFetch, useUserSession } from '#imports'
+
+/**
+ * How long (ms) a remembered help-center response is reused when a page mounts again without asking the server. The
+ * texts change rarely; the last response shows at once either way (also after a restart of the mobile app) and is
+ * refreshed in the background once it is older.
+ */
+export const HELP_CENTER_TTL = 5 * 60 * 1000
+/** The checklists carry what the viewer has read, which changes as they read: asked for again on every mount. */
+const CHECKLISTS_TTL = 0
 
 export type UseHelpCenterOptions = {
   /** Ask for what anonymous visitors read only (`?public=1`): no sign-in, and the response may be cached. */
@@ -27,16 +36,20 @@ function useHelpCenterOwner(options: UseHelpCenterOptions) {
   })
 }
 
-/** The categories the viewer may read. Awaitable like `useAsyncData`, and destructurable without `await`. */
+/**
+ * The categories the viewer may read. Awaitable like `useAsyncData`, and destructurable without `await`. These
+ * composables are built on `useCachedAsyncData` (`@frigear-nu/ui`): coming back to a page shows the last response at
+ * once, and `loading` is `true` only while there is nothing to show yet.
+ */
 export function useHelpCenterCategories(options: UseHelpCenterOptions = {}) {
   const requestFetch = useRequestFetch()
   const who = useHelpCenterOwner(options)
-  const asyncData = useAsyncData<HelpCategoryDto[]>(
+  const asyncData = useCachedAsyncData<HelpCategoryDto[]>(
     () => `help-center:categories:${who.value}`,
     () => requestFetch<HelpCategoryDto[]>(helpCenterApi.categories, { query: { public: options.public ? 1 : undefined } }),
-    { lazy: options.lazy, default: () => [], watch: [who] },
+    { lazy: options.lazy, ttl: HELP_CENTER_TTL, watch: [who] },
   )
-  const result = { categories: computed(() => asyncData.data.value ?? []), status: asyncData.status, error: asyncData.error, refresh: asyncData.refresh }
+  const result = { categories: computed(() => asyncData.data.value ?? []), status: asyncData.status, error: asyncData.error, refresh: asyncData.refresh, loading: asyncData.loading }
   return Object.assign(asyncData.then(() => result), result)
 }
 
@@ -45,12 +58,12 @@ export function useHelpCenterArticles(category?: MaybeRefOrGetter<string | null 
   const requestFetch = useRequestFetch()
   const who = useHelpCenterOwner(options)
   const slug = computed(() => toValue(category) || undefined)
-  const asyncData = useAsyncData<HelpArticleSummaryDto[]>(
+  const asyncData = useCachedAsyncData<HelpArticleSummaryDto[]>(
     () => `help-center:articles:${who.value}:${slug.value ?? ''}`,
     () => requestFetch<HelpArticleSummaryDto[]>(helpCenterApi.articles, { query: { category: slug.value, public: options.public ? 1 : undefined } }),
-    { lazy: options.lazy, default: () => [], watch: [who, slug] },
+    { lazy: options.lazy, ttl: HELP_CENTER_TTL, watch: [who, slug] },
   )
-  const result = { articles: computed(() => asyncData.data.value ?? []), status: asyncData.status, error: asyncData.error, refresh: asyncData.refresh }
+  const result = { articles: computed(() => asyncData.data.value ?? []), status: asyncData.status, error: asyncData.error, refresh: asyncData.refresh, loading: asyncData.loading }
   return Object.assign(asyncData.then(() => result), result)
 }
 
@@ -59,16 +72,16 @@ export function useHelpCenterArticle(slug: MaybeRefOrGetter<string>, options: Us
   const requestFetch = useRequestFetch()
   const who = useHelpCenterOwner(options)
   const name = computed(() => toValue(slug))
-  const asyncData = useAsyncData<HelpArticleDetailDto | null>(
+  const asyncData = useCachedAsyncData<HelpArticleDetailDto | null>(
     () => `help-center:article:${who.value}:${name.value}`,
     () => requestFetch<HelpArticleDetailDto>(helpCenterApi.article(name.value), { query: { public: options.public ? 1 : undefined } })
       .catch((error: { statusCode?: number }) => {
         if (error.statusCode === 404) return null
         throw error
       }),
-    { lazy: options.lazy, default: () => null, watch: [who, name] },
+    { lazy: options.lazy, ttl: HELP_CENTER_TTL, watch: [who, name] },
   )
-  const result = { article: computed(() => asyncData.data.value ?? null), status: asyncData.status, error: asyncData.error, refresh: asyncData.refresh }
+  const result = { article: computed(() => asyncData.data.value ?? null), status: asyncData.status, error: asyncData.error, refresh: asyncData.refresh, loading: asyncData.loading }
   return Object.assign(asyncData.then(() => result), result)
 }
 
@@ -76,11 +89,11 @@ export function useHelpCenterArticle(slug: MaybeRefOrGetter<string>, options: Us
 export function useHelpCenterChecklists(options: UseHelpCenterOptions = {}) {
   const requestFetch = useRequestFetch()
   const who = useHelpCenterOwner(options)
-  const asyncData = useAsyncData<HelpChecklistDto[]>(
+  const asyncData = useCachedAsyncData<HelpChecklistDto[]>(
     () => `help-center:checklists:${who.value}`,
     () => who.value === 'anonymous' ? Promise.resolve([]) : requestFetch<HelpChecklistDto[]>(helpCenterApi.me.checklists),
-    { lazy: options.lazy, default: () => [], watch: [who] },
+    { lazy: options.lazy, ttl: CHECKLISTS_TTL, watch: [who] },
   )
-  const result = { checklists: computed(() => asyncData.data.value ?? []), status: asyncData.status, error: asyncData.error, refresh: asyncData.refresh }
+  const result = { checklists: computed(() => asyncData.data.value ?? []), status: asyncData.status, error: asyncData.error, refresh: asyncData.refresh, loading: asyncData.loading }
   return Object.assign(asyncData.then(() => result), result)
 }
