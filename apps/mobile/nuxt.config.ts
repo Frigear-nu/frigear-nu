@@ -10,6 +10,8 @@ export default defineNuxtConfig({
     '@nuxt/eslint',
     '@nuxt/ui',
     '@nuxtjs/i18n',
+    // Help answers and articles are Markdown with MDC blocks (`::faq-details{...}`); without it they show as plain text.
+    '@nuxtjs/mdc',
     '@frigear-nu/mobile',
     '@frigear-nu/ui',
     // Before Account, which only adds its overview page with Menu.
@@ -26,6 +28,11 @@ export default defineNuxtConfig({
   // Off: its floating button sits on the tab bar. Turn it on while you debug in a desktop browser.
   devtools: { enabled: false },
   css: ['~/assets/css/main.css'],
+
+  // Markdown only: no code blocks to highlight, so the highlighter stays out of the bundle.
+  mdc: {
+    highlight: false,
+  },
 
   // Guards of @frigear-nu/authorization: signed in everywhere but the public home (and the sign-in callback, public
   // without a rule). They only decide what the app shows: the website's API decides what is allowed.
