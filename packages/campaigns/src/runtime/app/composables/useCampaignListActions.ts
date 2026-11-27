@@ -1,8 +1,8 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 import CampaignListFormSlideover from '../components/CampaignListFormSlideover.vue'
 import { campaignsApi } from '../../utils/api'
-import type { CampaignListDto } from '../../../types'
-import { $fetch, navigateTo, useAction, useCampaignsLinks, useCampaignsTranslate, useConfirmDialog, useModuleT, useOverlay } from '#imports'
+import type { CampaignAddAccountsPreviewDto, CampaignAddAccountsResultDto, CampaignListDto } from '../../../types'
+import { $fetch, navigateTo, useAction, useCampaignsLinks, useCampaignsTranslate, useConfirmDialog, useErrorToast, useModuleT, useOverlay, useToast } from '#imports'
 
 export type CampaignListMenuOptions = {
   /** Shows "Open" first (off on the list's own page). Default `true`. */
@@ -15,7 +15,9 @@ export type CampaignListMenuOptions = {
 
 /**
  * What staff can do with a list: `create` and `edit` (a slideover, resolving with the saved list or `false`),
- * `remove` (confirms first, and says how many subscriptions go with it) and `menu(list)`: Open, Edit | Delete.
+ * `remove` (confirms first, and says how many subscriptions go with it), `addAccounts` ("Add all current accounts" of a
+ * list that adds new accounts automatically: confirms with the number first) and `menu(list)`: Open, Edit,
+ * Add all current accounts | Delete.
  */
 export function useCampaignListActions() {
   const t = useModuleT('campaigns')
@@ -23,6 +25,8 @@ export function useCampaignListActions() {
   const links = useCampaignsLinks()
   const overlay = useOverlay()
   const confirm = useConfirmDialog()
+  const showError = useErrorToast()
+  const toast = useToast()
   const { run } = useAction()
 
   const create = async (): Promise<CampaignListDto | false> =>
@@ -50,6 +54,42 @@ export function useCampaignListActions() {
     return done === true
   }
 
+  /** "Add all current accounts" of an `auto` list: says how many would be added, then adds them. Resolves with the number added, or `false`. */
+  async function addAccounts(list: CampaignListDto): Promise<number | false> {
+    const name = tr(list.name)
+    let preview: CampaignAddAccountsPreviewDto
+    try {
+      preview = await $fetch<CampaignAddAccountsPreviewDto>(campaignsApi.admin.accounts(list.id))
+    }
+    catch (error) {
+      showError(error, t('admin.addAccountsFailed', 'Could not add the accounts'))
+      return false
+    }
+    const confirmed = await confirm({
+      title: t('admin.addAccountsTitle', 'Add all current accounts to {name}?', { name }),
+      description: preview.accounts === 0
+        ? t('admin.addAccountsNone', 'Every account is on the list already, or unsubscribed from it. Nobody is added.')
+        : preview.accounts === 1
+          ? t('admin.addAccountsOne', '1 account is added as a subscriber on email. People who unsubscribed before are never added back.')
+          : t('admin.addAccountsMany', '{count} accounts are added as subscribers on email. People who unsubscribed before are never added back.', { count: preview.accounts }),
+      confirmText: t('admin.addAccountsAction', 'Add all current accounts'),
+    })
+    if (!confirmed || preview.accounts === 0) return false
+    const result = await run(
+      () => $fetch<CampaignAddAccountsResultDto>(campaignsApi.admin.accounts(list.id), { method: 'POST' }),
+      { error: t('admin.addAccountsFailed', 'Could not add the accounts') },
+    )
+    if (!result) return false
+    toast.add({
+      color: 'success',
+      icon: 'i-lucide-check',
+      title: result.added === 1
+        ? t('admin.addedAccountsOne', 'Added 1 account to {name}', { name })
+        : t('admin.addedAccountsMany', 'Added {count} accounts to {name}', { count: result.added, name }),
+    })
+    return result.added
+  }
+
   function menu(list: CampaignListDto, options: CampaignListMenuOptions = {}): DropdownMenuItem[][] {
     const items: DropdownMenuItem[] = []
     const to = links.adminList(list.id)
@@ -63,6 +103,15 @@ export function useCampaignListActions() {
         if (await edit(list)) await options.onChanged?.()
       },
     })
+    if (list.signupMode === 'auto') {
+      items.push({
+        label: t('admin.addAccountsAction', 'Add all current accounts'),
+        icon: 'i-lucide-user-plus',
+        onSelect: async () => {
+          if (await addAccounts(list) !== false) await options.onChanged?.()
+        },
+      })
+    }
     return [
       items,
       [{
@@ -76,5 +125,5 @@ export function useCampaignListActions() {
     ]
   }
 
-  return { create, edit, remove, menu }
+  return { create, edit, remove, addAccounts, menu }
 }

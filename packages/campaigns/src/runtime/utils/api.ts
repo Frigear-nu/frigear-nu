@@ -20,6 +20,8 @@ export const campaignsApi = {
   unsubscribe: (token: string) => `/api/campaigns/unsubscribe/${segment(token)}`,
   /** `GET` (anonymous): the 1x1 image of a campaign email; marks it opened when the campaign has `trackOpens`. */
   open: (token: string) => `/api/campaigns/o/${segment(token)}`,
+  /** `GET` the lists the registration form offers (anonymous): public lists with `signupMode: 'offer'`. */
+  signupLists: '/api/campaigns/signup/lists',
   me: {
     /** `GET` the signed-in user's subscriptions; `PATCH { lists: { [listId]: { email?, sms? } } }` changes them. */
     subscriptions: '/api/campaigns/me/subscriptions',
@@ -31,6 +33,13 @@ export const campaignsApi = {
     list: (id: string) => `/api/admin/campaigns/lists/${segment(id)}`,
     /** `GET` a page of a list's subscribers (`campaigns:manage`; addresses with `campaigns:pii`). */
     subscribers: (id: string) => `/api/admin/campaigns/lists/${segment(id)}/subscribers`,
+    /**
+     * `GET` how many accounts "Add all current accounts" would add to an `auto` list; `POST` adds them
+     * (`campaigns:manage`).
+     */
+    accounts: (id: string) => `/api/admin/campaigns/lists/${segment(id)}/accounts`,
+    /** `GET` the forms a list can sign people up from, with their fields (`campaigns:manage`; with `@frigear-nu/forms`). */
+    forms: '/api/admin/campaigns/forms',
     /** `GET` a page of campaigns (`campaigns:manage`); `POST` creates a draft. */
     campaigns: '/api/admin/campaigns',
     /** `GET`, `PATCH` (a draft), `DELETE` (a draft) one campaign (`campaigns:manage`). */

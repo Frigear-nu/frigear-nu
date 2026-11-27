@@ -5,6 +5,7 @@ import type {
   CampaignListCounts,
   CampaignListDto,
   CampaignListPublicDto,
+  CampaignSignupListDto,
   CampaignSubscriberDto,
   CampaignSubscriptionResultDto,
   CampaignSubscriptionSource,
@@ -33,12 +34,18 @@ export function toCampaignListPublicDto(row: CampaignListRow): CampaignListPubli
   }
 }
 
+/** A list the registration form offers. */
+export function toCampaignSignupListDto(row: CampaignListRow): CampaignSignupListDto {
+  return { id: row.id, slug: row.slug, name: row.name, description: row.description ?? null, consentText: row.consentText ?? null }
+}
+
 /** A list as staff see it. */
 export function toCampaignListDto(row: CampaignListRow, counts: CampaignListCounts = campaignsEmptyCounts()): CampaignListDto {
   return {
     ...toCampaignListPublicDto(row),
     id: row.id,
     public: row.public,
+    signupMode: row.signupMode,
     formId: row.formId ?? null,
     formFields: row.formFields ?? null,
     counts,

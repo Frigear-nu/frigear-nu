@@ -20,7 +20,7 @@ import {
   registerTailwindSource,
   resolvePagePath,
 } from '@frigear-nu/module-kit/utils'
-import { guardPages, registerAccess } from '@frigear-nu/auth/utils'
+import { AUTH_WIDGET_AREAS, guardPages, registerAccess } from '@frigear-nu/auth/utils'
 import { extendNotificationTopics } from '@frigear-nu/notify/utils'
 import { campaignsAccess } from './runtime/access'
 import { campaignsNotificationTopics } from './runtime/notifications'
@@ -122,6 +122,7 @@ export default defineNuxtModule<ModuleOptions>({
       },
       captcha: captchaProvider || null,
       i18n,
+      forms: hasNuxtModule('@frigear-nu/forms'),
     }
     // Server only. `NUXT_CAMPAIGNS_SIGNING_KEY` and `NUXT_CAMPAIGNS_CORS_ORIGINS` override at run time.
     const existing = (nuxt.options.runtimeConfig as { campaigns?: Partial<CampaignsRuntimeConfig> }).campaigns ?? {}
@@ -149,6 +150,7 @@ export default defineNuxtModule<ModuleOptions>({
     // --- API routes -------------------------------------------------------------------------------------------------
     addModuleRoutes(resolver, [
       { method: 'get', path: 'lists/:slug', file: 'public/list.get' },
+      { method: 'get', path: 'signup/lists', file: 'public/signup-lists.get' },
       { method: 'post', path: 'lists/:slug/subscribe', file: 'public/subscribe.post' },
       { method: 'post', path: 'confirm/:token', file: 'public/confirm.post' },
       { method: 'post', path: 'unsubscribe/:token', file: 'public/unsubscribe.post' },
@@ -164,6 +166,10 @@ export default defineNuxtModule<ModuleOptions>({
       { method: 'patch', path: 'lists/:id', file: 'admin/list.patch' },
       { method: 'delete', path: 'lists/:id', file: 'admin/list.delete' },
       { method: 'get', path: 'lists/:id/subscribers', file: 'admin/list-subscribers.get' },
+      { method: 'get', path: 'lists/:id/accounts', file: 'admin/list-accounts.get' },
+      { method: 'post', path: 'lists/:id/accounts', file: 'admin/list-accounts.post' },
+      // The forms a list can sign people up from, with forms installed (`forms` wins over `:id`, like `lists`).
+      ...(hasNuxtModule('@frigear-nu/forms') ? [{ method: 'get' as const, path: 'forms', file: 'admin/forms.get' }] : []),
       // The static segments `lists` and `users` win over `:id` in h3's radix router, whatever the registration order.
       { method: 'get', path: '', file: 'admin/campaigns/list.get' },
       { method: 'get', path: 'users', file: 'admin/campaigns/users.get' },
@@ -184,8 +190,14 @@ export default defineNuxtModule<ModuleOptions>({
 
     addServerImportsDir(resolver.resolve('./runtime/server/utils'))
     inlineModuleRuntime(nuxt, resolver)
-    // The captcha check of the subscribe route, with forms' `verifyCaptcha`.
-    if (hasNuxtModule('@frigear-nu/forms')) addNitroPlugin(resolver.resolve('./runtime/server/plugins/forms-captcha'))
+    // The captcha check of the subscribe route, with forms' `verifyCaptcha`, and signups from the submissions of a form a
+    // list maps (`forms:submitted`).
+    if (hasNuxtModule('@frigear-nu/forms')) {
+      addNitroPlugin(resolver.resolve('./runtime/server/plugins/forms-captcha'))
+      addNitroPlugin(resolver.resolve('./runtime/server/plugins/campaigns-forms'))
+    }
+    // New accounts join the lists that add them automatically and the offered lists they ticked (`auth:user:created`).
+    addNitroPlugin(resolver.resolve('./runtime/server/plugins/campaigns-accounts'))
     // Clicks on the short links of campaign messages, attributed to the delivery in the link.
     addNitroPlugin(resolver.resolve('./runtime/server/plugins/campaigns-clicks'))
 
@@ -251,6 +263,12 @@ export default defineNuxtModule<ModuleOptions>({
     ])
     // Only for signed-in people: a route rule `@frigear-nu/authorization` enforces.
     if (accountPath) guardPages(nuxt, [accountPath])
+
+    // The offered lists on the registration form: unticked boxes in auth's `auth.register` widget area.
+    if (hasNuxtModule('@frigear-nu/widget')) {
+      const { extendWidgets } = await import('@frigear-nu/widget/utils')
+      extendWidgets(nuxt, AUTH_WIDGET_AREAS.register, { component: resolver.resolve('./runtime/app/widgets/CampaignsRegisterLists.vue'), order: 50 })
+    }
 
     // The Campaigns item of the admin sidebar (Manage) and the Subscriptions item of the account menu.
     addOptionalMenuSource(nuxt, { file: resolver.resolve('./runtime/menus'), menu: 'admin.nav' })

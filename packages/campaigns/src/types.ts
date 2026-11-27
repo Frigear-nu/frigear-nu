@@ -9,9 +9,15 @@ export type CampaignSubscriptionStatus = 'pending' | 'active' | 'unsubscribed'
 
 /**
  * Where a subscription's consent came from: `form` (the signup component or an embedded HTML form), `api` (the subscribe
- * route called by other code), `admin`, `forms` (a forms submission) or `account` (the signed-in user's account page).
+ * route called by other code), `admin`, `forms` (a forms submission) or `account` (the signed-in user's account page, or the account's sign-up).
  */
 export type CampaignSubscriptionSource = 'form' | 'api' | 'admin' | 'forms' | 'account'
+
+/**
+ * A list and new accounts: `off`, `offer` (an unticked box per list on the registration form) or `auto` (every new
+ * account is added; for lists that are not marketing, which staff answer for).
+ */
+export type CampaignListSignupMode = 'off' | 'offer' | 'auto'
 
 /** Which fields of a forms form hold the email address, phone number, name and consent checkbox. */
 export type CampaignFormFields = { email?: string, phone?: string, name?: string, consent?: string }
@@ -94,6 +100,8 @@ export type PublicModuleOptions = {
   /** The captcha the signup shows, or `null`. */
   captcha: CampaignCaptchaProvider | null
   i18n: CampaignLocaleRouting | null
+  /** `@frigear-nu/forms` is installed: staff can map a form to a list. */
+  forms: boolean
 }
 
 export type CampaignsRuntimeConfig = {
@@ -124,10 +132,35 @@ export type CampaignListPublicDto = {
 /** Subscriber counts of a list, per channel. */
 export type CampaignListCounts = Record<CampaignChannel, { active: number, pending: number, unsubscribed: number }>
 
+/** A list the registration form offers (`signupMode: 'offer'`, public): an unticked box with its consent text. */
+export type CampaignSignupListDto = {
+  id: string
+  slug: string
+  name: Translated
+  description: Translated | null
+  consentText: Translated | null
+}
+
+/** `GET /api/admin/campaigns/lists/:id/accounts`: how many accounts "Add all current accounts" would add now. */
+export type CampaignAddAccountsPreviewDto = { accounts: number }
+
+/** `POST /api/admin/campaigns/lists/:id/accounts`: how many accounts were added. */
+export type CampaignAddAccountsResultDto = { added: number }
+
+/** A forms form staff can map to a list, with the fields that can hold an address, a name or the consent. */
+export type CampaignFormOptionDto = {
+  id: string
+  slug: string
+  name: string
+  status: string
+  fields: Array<{ key: string, type: string, label: Translated | null }>
+}
+
 /** A list as staff see it. */
 export type CampaignListDto = CampaignListPublicDto & {
   id: string
   public: boolean
+  signupMode: CampaignListSignupMode
   formId: string | null
   formFields: CampaignFormFields | null
   counts: CampaignListCounts

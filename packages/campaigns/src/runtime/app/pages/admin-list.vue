@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
 import type { Page } from '@frigear-nu/module-kit/server'
-import type { CampaignDto, CampaignListDto, CampaignSubscriberDto } from '../../../types'
+import type { CampaignDto, CampaignFormOptionDto, CampaignListDto, CampaignSubscriberDto, PublicModuleOptions } from '../../../types'
 import { campaignsApi } from '../../utils/api'
 import { campaignEmbedSnippet } from '../../utils/links'
 import { CAMPAIGN_STATUS_COLORS, campaignTotals } from '../utils/admin-campaign'
-import { campaignListFormBody, campaignListFormSchema, campaignListToForm } from '../utils/admin-list'
+import { campaignListFormBody, campaignListFormSchema, campaignListToForm, emptyCampaignListForm } from '../utils/admin-list'
 import type { CampaignListFormState } from '../utils/admin-list'
-import { $fetch, computed, emptyCell, errorMessage, h, navigateTo, numericColumn, reactive, ref, resolveComponent, tableUi, useAction, useCampaignActions, useCampaignListActions, useCampaignsLinks, useCampaignsLocale, useCampaignsTranslate, useCopyToClipboard, useFetch, useFormat, useModuleT, useRequestURL, useRoute, watch } from '#imports'
+import { $fetch, computed, emptyCell, errorMessage, h, navigateTo, numericColumn, reactive, ref, resolveComponent, tableUi, useAction, useCampaignActions, useCampaignListActions, useCampaignsLinks, useCampaignsLocale, useCampaignsTranslate, useCopyToClipboard, useFetch, useFormat, useModuleT, useRequestURL, useRoute, useRuntimeConfig, watch } from '#imports'
 
 defineOptions({ name: 'CampaignsAdminListPage' })
 
@@ -29,7 +29,7 @@ const name = computed(() => tr(list.value?.name))
 
 // --- Settings: one inline form, like the edit slideover -------------------------------------------------------------
 const schema = campaignListFormSchema(t)
-const state = reactive<CampaignListFormState>({ name: undefined, slug: '', description: undefined, channels: ['email'], doubleOptIn: true, public: true, consentText: undefined })
+const state = reactive<CampaignListFormState>(emptyCampaignListForm())
 watch(list, (value) => {
   if (value) Object.assign(state, campaignListToForm(value))
 }, { immediate: true })
@@ -38,6 +38,31 @@ const channels = computed(() => [
   { value: 'sms', label: t('channels.sms', 'SMS') },
 ])
 
+const signupModes = computed(() => [
+  { value: 'off', label: t('admin.signupModes.off', 'Off'), description: t('admin.signupModes.offHelp', 'New accounts are not asked about this list.') },
+  { value: 'offer', label: t('admin.signupModes.offer', 'Offer at sign-up'), description: t('admin.signupModes.offerHelp', 'The registration form shows an unticked box with the consent text. Only people who tick it are added.') },
+  { value: 'auto', label: t('admin.signupModes.auto', 'Add new accounts automatically'), description: t('admin.signupModes.autoHelp', 'Every new account is added without being asked. Only for lists that are not marketing, such as practical updates for members: you are responsible for having a reason to send them. People can still unsubscribe.') },
+])
+
+// --- Forms: a form whose submissions sign people up (with `@frigear-nu/forms`) ----------------------------------------
+const formsEnabled = (useRuntimeConfig().public.campaigns as PublicModuleOptions | undefined)?.forms === true
+const { data: forms } = await useFetch<CampaignFormOptionDto[]>(campaignsApi.admin.forms, { key: 'campaigns:admin:forms', immediate: formsEnabled, default: () => [] })
+const formOptions = computed(() => [
+  { value: '', label: t('admin.form.noForm', 'No form') },
+  ...(forms.value ?? []).map(form => ({ value: form.id, label: form.name })),
+])
+const formFieldOptions = computed(() => [
+  { value: '', label: t('admin.form.noField', 'Not asked') },
+  ...((forms.value ?? []).find(form => form.id === state.formId)?.fields ?? [])
+    .map(field => ({ value: field.key, label: tr(field.label) || field.key })),
+])
+const formId = computed({
+  get: () => state.formId ?? '',
+  set: (value: string) => {
+    state.formId = value || undefined
+  },
+})
+
 async function save(event: FormSubmitEvent<CampaignListFormState>) {
   if (!list.value) return
   const saved = await run(
@@ -45,6 +70,10 @@ async function save(event: FormSubmitEvent<CampaignListFormState>) {
     { success: t('admin.saved', 'Saved {name}', { name: tr(event.data.name) }), error: t('admin.saveFailed', 'Could not save the list') },
   )
   if (saved) list.value = saved
+}
+
+async function addAccounts() {
+  if (list.value && await actions.addAccounts(list.value) !== false) await Promise.all([refresh(), refreshSubscribers()])
 }
 
 // --- Subscribers ----------------------------------------------------------------------------------------------------
@@ -56,7 +85,7 @@ watch([statusFilter, search], () => {
   page.value = 1
 })
 const subscribersQuery = computed(() => ({ page: page.value, pageSize: pageSize.value, status: statusFilter.value, q: search.value || undefined }))
-const { data: subscribers, status: subscribersStatus, error: subscribersError } = await useFetch<Page<CampaignSubscriberDto>>(
+const { data: subscribers, status: subscribersStatus, error: subscribersError, refresh: refreshSubscribers } = await useFetch<Page<CampaignSubscriberDto>>(
   () => campaignsApi.admin.subscribers(id.value),
   { query: subscribersQuery, watch: [subscribersQuery] },
 )
@@ -70,7 +99,7 @@ const statusOptions = computed(() => [
   ...(['active', 'pending', 'unsubscribed'] as const).map(value => ({ value, label: statusLabel(value) })),
 ])
 const channelLabel = (channel: string) => t(`channels.${channel}`, channel === 'sms' ? 'SMS' : 'Email')
-const sourceLabel = (source: string) => t(`sources.${source}`, { form: 'Signup', api: 'API', admin: 'Staff', forms: 'Form', account: 'Account page' }[source] ?? source)
+const sourceLabel = (source: string) => t(`sources.${source}`, { form: 'Signup', api: 'API', admin: 'Staff', forms: 'Form', account: 'Account' }[source] ?? source)
 
 const TableIdentity = resolveComponent('TableIdentity')
 const StatusBadge = resolveComponent('StatusBadge')
@@ -279,6 +308,46 @@ const contentSnippet = computed(() => list.value ? `::list-signup{list="${list.v
           >
             <USwitch v-model="state.public" />
           </FormRow>
+          <FormRow
+            name="signupMode"
+            :label="t('admin.fields.signupMode', 'New accounts')"
+            :description="t('admin.fields.signupModeHelp', 'Whether people who create an account are offered this list, or added to it.')"
+          >
+            <URadioGroup
+              v-model="state.signupMode"
+              :items="signupModes"
+              data-list-signup-mode
+            />
+          </FormRow>
+          <template v-if="formsEnabled">
+            <FormRow
+              name="formId"
+              :label="t('admin.fields.form', 'Form')"
+              :description="t('admin.fields.formHelp', 'Submissions of this form sign people up when they tick its consent field, as the signup does: they confirm first when the list asks for it.')"
+            >
+              <USelect
+                v-model="formId"
+                :items="formOptions"
+                class="w-full sm:max-w-sm"
+              />
+            </FormRow>
+            <template v-if="state.formId">
+              <FormRow
+                v-for="field in (['consent', 'email', 'phone', 'name'] as const)"
+                :key="field"
+                :name="`formFields.${field}`"
+                :label="t(`admin.form.fields.${field}`, { consent: 'Consent field', email: 'Email field', phone: 'Phone field', name: 'Name field' }[field])"
+                :description="field === 'consent' ? t('admin.form.fields.consentHelp', 'A checkbox people tick to agree. Submissions without it ticked sign nobody up.') : undefined"
+                :required="field === 'consent'"
+              >
+                <USelect
+                  v-model="state.formFields[field]"
+                  :items="formFieldOptions"
+                  class="w-full sm:max-w-sm"
+                />
+              </FormRow>
+            </template>
+          </template>
         </UForm>
         <template #footer>
           <div class="flex justify-end gap-2">
@@ -349,6 +418,15 @@ const contentSnippet = computed(() => list.value ? `::list-signup{list="${list.v
         :refreshing="subscribersRefreshing"
       >
         <template #actions>
+          <UButton
+            v-if="list.signupMode === 'auto'"
+            icon="i-lucide-user-plus"
+            color="neutral"
+            variant="outline"
+            :label="t('admin.addAccountsAction', 'Add all current accounts')"
+            data-list-add-accounts
+            @click="addAccounts"
+          />
           <UInput
             v-model="search"
             icon="i-lucide-search"

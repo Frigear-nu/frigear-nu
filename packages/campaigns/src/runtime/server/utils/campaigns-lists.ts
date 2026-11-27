@@ -61,6 +61,7 @@ export async function createCampaignList(input: ListCreate): Promise<CampaignLis
     channels: input.channels,
     doubleOptIn: input.doubleOptIn,
     public: input.public,
+    signupMode: input.signupMode,
     consentText: input.consentText ?? null,
     consentVersion: 1,
     formId: input.formId ?? null,
@@ -81,7 +82,7 @@ const sameText = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.
 /** Changes a list. A changed consent text bumps `consentVersion`, so consent proofs tell the texts apart. */
 export async function updateCampaignList(list: CampaignListRow, patch: ListPatch): Promise<CampaignListRow> {
   const changes: Partial<typeof schema.campaignLists.$inferInsert> = {}
-  for (const key of ['slug', 'name', 'description', 'channels', 'doubleOptIn', 'public', 'formId', 'formFields'] as const) {
+  for (const key of ['slug', 'name', 'description', 'channels', 'doubleOptIn', 'public', 'signupMode', 'formId', 'formFields'] as const) {
     if (patch[key] !== undefined) (changes as Record<string, unknown>)[key] = patch[key]
   }
   if (patch.consentText !== undefined && !sameText(patch.consentText, list.consentText)) {

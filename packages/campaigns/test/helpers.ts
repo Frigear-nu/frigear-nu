@@ -5,13 +5,16 @@ import { apiClient } from '@frigear-nu/module-kit/testing'
 
 let counter = 0
 
-/** Registers a user; the role follows the email domain (see the fixture's `server/roles/provider.ts`). */
-export async function registerUser(name: string, domain = 'example.com') {
+/**
+ * Registers a user; the role follows the email domain (see the fixture's `server/roles/provider.ts`). `extras` go with
+ * the registration as the registration form's widgets send them (`{ campaigns: { listIds } }`).
+ */
+export async function registerUser(name: string, domain = 'example.com', extras?: Record<string, unknown>) {
   const email = `${name.toLowerCase()}${++counter}@${domain}`
   const response = await fetch(authApi.register, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ name, email, password: 'supersecret123' }),
+    body: JSON.stringify({ name, email, password: 'supersecret123', ...(extras && { extras }) }),
   })
   expect(response.status, await response.clone().text()).toBeLessThan(300)
   const cookie = response.headers.get('set-cookie')!

@@ -5,7 +5,7 @@ import { $fetch, fetch, setup } from '@nuxt/test-utils/e2e'
 import { apiClient, expectApiError } from '@frigear-nu/module-kit/testing'
 import { campaignsAccess } from '../src/runtime/access'
 import { campaignsApi } from '../src/runtime/utils/api'
-import type { CampaignDeliveryDto, CampaignDto, CampaignListDto, CampaignMySubscriptionsDto, CampaignPreviewDto, CampaignStatsDto, CampaignSubscriberDto, CampaignSubscriptionResultDto, CampaignUserLookupDto } from '../src/types'
+import type { CampaignAddAccountsPreviewDto, CampaignAddAccountsResultDto, CampaignDeliveryDto, CampaignDto, CampaignListDto, CampaignMySubscriptionsDto, CampaignPreviewDto, CampaignSignupListDto, CampaignStatsDto, CampaignSubscriberDto, CampaignSubscriptionResultDto, CampaignUserLookupDto } from '../src/types'
 import { BROWSER_UA, createToken, deliveryTokenOf, emailsTo, getDeliveries, getMessages, getSubscriptions, registerUser, runDeliver, subscriptionOf, tokenOf, verifyEmail, withServerEnv } from './helpers'
 import type { Session } from './helpers'
 
@@ -697,6 +697,118 @@ describe('campaigns (authenticated, database-backed)', async () => {
       expect((await getDeliveries()).deliveries.filter(row => row.campaignId === sent!.id)).toHaveLength(0)
       const after = await as(admin).json<CampaignStatsDto>('GET', campaignsApi.admin.stats(sent!.id))
       expect(after.counts).toEqual(before.counts)
+    })
+  })
+
+  describe('lists at account sign-up', () => {
+    let offered: CampaignListDto
+    let offeredPrivate: CampaignListDto
+    let members: CampaignListDto
+    let membersConfirm: CampaignListDto
+
+    // Created in the first test: the server is only reachable inside tests (the context is set per test).
+    it('stores the sign-up mode, off by default, and refuses unknown modes', async () => {
+      offered = await as(admin).json<CampaignListDto>('POST', campaignsApi.admin.lists, { slug: 'offered', name: 'Offered', doubleOptIn: false, signupMode: 'offer', consentText: 'Yes, send me offers' })
+      offeredPrivate = await as(admin).json<CampaignListDto>('POST', campaignsApi.admin.lists, { slug: 'offered-private', name: 'Offered, private', public: false, signupMode: 'offer' })
+      members = await as(admin).json<CampaignListDto>('POST', campaignsApi.admin.lists, { slug: 'members', name: 'Members', doubleOptIn: false, signupMode: 'auto' })
+      membersConfirm = await as(admin).json<CampaignListDto>('POST', campaignsApi.admin.lists, { slug: 'members-confirm', name: 'Members (confirmed)', signupMode: 'auto' })
+      expect(news.signupMode).toBe('off')
+      expect(members.signupMode).toBe('auto')
+      await expectApiError(as(admin).fetch('PATCH', campaignsApi.admin.list(offered.id), { signupMode: 'always' }), 400)
+    })
+
+    it('lists the public offered lists for the registration form, to anybody', async () => {
+      const lists = await anonymous.json<CampaignSignupListDto[]>('GET', campaignsApi.signupLists)
+      expect(lists).toEqual([{ id: offered.id, slug: 'offered', name: 'Offered', description: null, consentText: 'Yes, send me offers' }])
+    })
+
+    it('adds a new account to the automatic lists, active or waiting for its confirmation', async () => {
+      const joined = await registerUser('Joiner')
+      const active = await subscriptionOf(members.id, joined.email)
+      expect(active?.subscription).toMatchObject({ status: 'active', source: 'account', consentVersion: 1, channel: 'email' })
+      expect(active?.contact).toMatchObject({ email: joined.email, userId: joined.id, name: 'Joiner' })
+      // The address is not verified yet and the list asks for a confirmation: it waits for it, and the email went out.
+      expect((await subscriptionOf(membersConfirm.id, joined.email))?.subscription).toMatchObject({ status: 'pending', source: 'account' })
+      expect((await emailsTo(joined.email)).map(mail => mail.template?.name)).toEqual(['campaigns-confirm'])
+      // Not on the offered list: nothing was ticked.
+      expect(await subscriptionOf(offered.id, joined.email)).toBeUndefined()
+    })
+
+    it('adds a new account to the offered lists it ticked, and ignores ids of lists that are not offered', async () => {
+      const ticked = await registerUser('Ticker', 'example.com', { campaigns: { listIds: [offered.id, offeredPrivate.id, news.id, hidden.id, 'cml_missing'] } })
+      expect((await subscriptionOf(offered.id, ticked.email))?.subscription).toMatchObject({ status: 'active', source: 'account', consentVersion: 1 })
+      for (const list of [offeredPrivate, news, hidden]) expect(await subscriptionOf(list.id, ticked.email)).toBeUndefined()
+
+      // Extras of the wrong shape sign up for nothing but the automatic lists, and never stop the registration.
+      const odd = await registerUser('Odd', 'example.com', { campaigns: { listIds: 'all' } })
+      expect(await subscriptionOf(offered.id, odd.email)).toBeUndefined()
+      expect((await subscriptionOf(members.id, odd.email))?.subscription.status).toBe('active')
+    })
+
+    it('adds all current accounts after a preview of the number, never adding back who unsubscribed', async () => {
+      // Someone who left the automatic list.
+      const quitter = await registerUser('Quitter')
+      await as(quitter).json('PATCH', campaignsApi.me.subscriptions, { lists: { [members.id]: { email: false } } })
+      expect((await subscriptionOf(members.id, quitter.email))?.subscription.status).toBe('unsubscribed')
+
+      const preview = await as(manager).json<CampaignAddAccountsPreviewDto>('GET', campaignsApi.admin.accounts(members.id))
+      // At least the accounts of the earlier suites, which registered before the list existed.
+      expect(preview.accounts).toBeGreaterThanOrEqual(4)
+      const result = await as(manager).json<CampaignAddAccountsResultDto>('POST', campaignsApi.admin.accounts(members.id))
+      expect(result).toEqual({ added: preview.accounts })
+      expect(await as(manager).json<CampaignAddAccountsPreviewDto>('GET', campaignsApi.admin.accounts(members.id))).toEqual({ accounts: 0 })
+      expect(await as(manager).json<CampaignAddAccountsResultDto>('POST', campaignsApi.admin.accounts(members.id))).toEqual({ added: 0 })
+
+      expect((await subscriptionOf(members.id, admin.email))?.subscription).toMatchObject({ status: 'active', source: 'admin' })
+      expect((await subscriptionOf(members.id, quitter.email))?.subscription.status).toBe('unsubscribed')
+    })
+
+    it('adds only verified accounts to an automatic list with double opt-in', async () => {
+      const unverified = await registerUser('Unverified')
+      const verified = await registerUser('Verified')
+      await verifyEmail(verified.id)
+      // Both joined at registration (pending: not verified then); take them off to see what adding everyone does.
+      for (const session of [unverified, verified]) await as(session).json('PATCH', campaignsApi.me.subscriptions, { lists: { [membersConfirm.id]: { email: false } } })
+      const rows = await getSubscriptions()
+      expect(rows.filter(row => row.subscription.listId === membersConfirm.id && [unverified.email, verified.email].includes(row.contact.email)).map(row => row.subscription.status)).toEqual(['unsubscribed', 'unsubscribed'])
+
+      // A verified account that is not on the list: it registered while the list did not add new accounts.
+      await as(admin).json('PATCH', campaignsApi.admin.list(membersConfirm.id), { signupMode: 'off' })
+      const outsider = await registerUser('Outsider')
+      await verifyEmail(outsider.id)
+      await as(admin).json('PATCH', campaignsApi.admin.list(membersConfirm.id), { signupMode: 'auto' })
+
+      const before = (await getMessages()).emails.length
+      const result = await as(admin).json<CampaignAddAccountsResultDto>('POST', campaignsApi.admin.accounts(membersConfirm.id))
+      // Unverified accounts are left out, verified ones are active at once: nobody gets a confirmation email.
+      expect(result.added).toBeGreaterThanOrEqual(1)
+      expect((await getMessages()).emails.length).toBe(before)
+      expect((await subscriptionOf(membersConfirm.id, outsider.email))?.subscription).toMatchObject({ status: 'active', source: 'admin' })
+      expect(await subscriptionOf(membersConfirm.id, admin.email)).toBeUndefined()
+      expect((await subscriptionOf(membersConfirm.id, verified.email))?.subscription.status).toBe('unsubscribed')
+    })
+
+    it('adds accounts to automatic lists only, behind campaigns:manage, and shows the action on the list page', async () => {
+      await expectApiError(as(admin).fetch('GET', campaignsApi.admin.accounts(news.id)), 409, 'signup_mode')
+      await expectApiError(as(admin).fetch('POST', campaignsApi.admin.accounts(offered.id)), 409, 'signup_mode')
+      await expectApiError(as(member).fetch('GET', campaignsApi.admin.accounts(members.id)), 403, 'forbidden')
+      await expectApiError(as(member).fetch('POST', campaignsApi.admin.accounts(members.id)), 403, 'forbidden')
+      await expectApiError(anonymous.fetch('POST', campaignsApi.admin.accounts(members.id)), 401)
+
+      const page = async (list: CampaignListDto) => (await fetch(`/admin/campaigns/lists/${list.id}`, { headers: { cookie: admin.cookie } })).text()
+      const auto = await page(members)
+      expect(auto).toContain('data-list-signup-mode')
+      expect(auto).toContain('data-list-add-accounts')
+      expect(await page(offered)).not.toContain('data-list-add-accounts')
+    })
+
+    // Registrations after this suite stay off these lists.
+    it('stops adding new accounts once the mode is off', async () => {
+      for (const list of [members, membersConfirm]) {
+        expect((await as(admin).json<CampaignListDto>('PATCH', campaignsApi.admin.list(list.id), { signupMode: 'off' })).signupMode).toBe('off')
+      }
+      const late = await registerUser('Late')
+      expect(await subscriptionOf(members.id, late.email)).toBeUndefined()
     })
   })
 })

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { CampaignChannel, CampaignSendChannel } from '../../types'
+import type { CampaignChannel, CampaignListSignupMode, CampaignSendChannel } from '../../types'
 
 // Request schemas shared by the routes and the admin forms. Plain zod, no server imports, so the app can use them.
 
@@ -84,6 +84,11 @@ const formFieldsShape = z.object({
   consent: z.string().trim().min(1).max(64).optional(),
 }).strict()
 
+/** `off`, `offer` (an unticked box on the registration form) or `auto` (every new account is added). */
+export const CAMPAIGN_LIST_SIGNUP_MODES = ['off', 'offer', 'auto'] as const satisfies readonly CampaignListSignupMode[]
+
+export const campaignListSignupModeSchema = z.enum(CAMPAIGN_LIST_SIGNUP_MODES)
+
 const channelList = z.array(campaignChannelSchema).min(1).max(2)
   .refine(value => new Set(value).size === value.length, 'Pick each channel once.')
 
@@ -95,6 +100,7 @@ export const campaignListCreateInput = z.object({
   channels: channelList.default(['email']),
   doubleOptIn: z.boolean().default(true),
   public: z.boolean().default(true),
+  signupMode: campaignListSignupModeSchema.default('off'),
   consentText: campaignTranslatedInput(2000).nullish(),
   formId: z.string().trim().min(1).max(128).nullish(),
   formFields: formFieldsShape.nullish(),
@@ -108,6 +114,7 @@ export const campaignListPatchInput = z.object({
   channels: channelList.optional(),
   doubleOptIn: z.boolean().optional(),
   public: z.boolean().optional(),
+  signupMode: campaignListSignupModeSchema.optional(),
   consentText: campaignTranslatedInput(2000).nullable().optional(),
   formId: z.string().trim().min(1).max(128).nullable().optional(),
   formFields: formFieldsShape.nullable().optional(),
@@ -119,6 +126,11 @@ export const campaignMySubscriptionsPatch = z.object({
     z.string().trim().min(1).max(64),
     z.object({ email: z.boolean(), sms: z.boolean() }).partial().strict(),
   ).refine(value => Object.keys(value).length <= 100, 'Change at most 100 lists at once.'),
+})
+
+/** `extras.campaigns` of a registration (`auth:user:created`): the ids of the offered lists the person ticked. */
+export const campaignRegisterExtras = z.object({
+  listIds: z.array(z.string().trim().min(1).max(64)).max(50).default([]),
 })
 
 /** `slug` router param. */
