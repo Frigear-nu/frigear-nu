@@ -7,6 +7,8 @@ const enc = encodeURIComponent
 const ADMIN_BASE = '/api/admin/inbox'
 /** Webhooks, registered at the providers (an exception to the `/api/<module>` rule). */
 const WEBHOOK_BASE = '/api/inbox/webhooks'
+/** Webhooks of the inbound email drivers. */
+const EMAIL_BASE = '/api/inbox/email'
 
 export const inboxApi = {
   webhooks: {
@@ -16,6 +18,8 @@ export const inboxApi = {
     meta: `${WEBHOOK_BASE}/meta`,
     /** `POST` to a channel a module registered with an `inbound` reader. */
     channel: (channel: string) => `${WEBHOOK_BASE}/${enc(channel)}`,
+    /** `POST` to an inbound email driver's webhook (`resend`: Resend's `email.received`, Svix-signed). */
+    emailDriver: (driver: string) => `${EMAIL_BASE}/${enc(driver)}`,
   },
   admin: {
     /** `GET` open, unassigned and own thread counts. */
@@ -40,6 +44,8 @@ export const inboxApi = {
     channels: `${ADMIN_BASE}/channels`,
     /** `PATCH` / `DELETE` one channel account (session only). */
     channel: (id: string) => `${ADMIN_BASE}/channels/${enc(id)}`,
+    /** `GET` the inbox domains and inbound email drivers of this server (session only). */
+    email: `${ADMIN_BASE}/email`,
     /** `GET` (paginated, `?threadId&contactId&action`) the audit log. */
     audit: `${ADMIN_BASE}/audit`,
     /** `GET` everything stored about a contact (GDPR access request). */
